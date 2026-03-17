@@ -9,7 +9,7 @@ import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend
 } from 'recharts';
-import { TrendingUp, FileText, CreditCard } from 'lucide-react';
+import { TrendingUp, FileText, CreditCard, Users } from 'lucide-react';
 import { subMonths, isAfter, parseISO, format } from 'date-fns';
 
 const COLORS = [
