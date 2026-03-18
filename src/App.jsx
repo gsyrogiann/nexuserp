@@ -21,6 +21,8 @@ import PurchaseInvoices from './pages/PurchaseInvoices';
 import Payments from './pages/Payments';
 import Reports from './pages/Reports';
 import AIAssistant from './pages/AIAssistant';
+import EmailSettings from './pages/EmailSettings';
+import UnmatchedEmails from './pages/UnmatchedEmails';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
