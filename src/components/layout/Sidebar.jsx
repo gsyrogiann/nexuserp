@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Users, Truck, Package, Warehouse as WarehouseIcon,
   ShoppingCart, ShoppingBag, FileText, CreditCard, BarChart3,
-  Bot, ChevronDown, ChevronRight, Menu, X, Settings
+  Bot, ChevronDown, ChevronRight, Menu, X, Settings, Mail, AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
