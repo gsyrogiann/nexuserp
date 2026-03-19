@@ -248,7 +248,7 @@ Deno.serve(async (req) => {
             recipient_emails: recipientEmails,
             subject,
             snippet,
-            body_text: text,
+            body_text: bodyText,
             received_at: sentAt,
             review_status: 'pending',
             sync_source: 'gmail',
