@@ -148,7 +148,10 @@ Deno.serve(async (req) => {
       const allExternalEmails = direction === 'incoming' ? senderEmails : recipientEmails;
 
       const { html, text } = extractBody(msg.payload);
-      const snippet = msg.snippet || '';
+      const snippet = (msg.snippet || '').substring(0, 500);
+      // Truncate large bodies to avoid entity field size limits
+      const bodyText = text.substring(0, 10000);
+      const bodyHtml = html.substring(0, 50000);
       const sentAt = dateStr ? new Date(dateStr).toISOString() : new Date().toISOString();
 
       // Check attachments
