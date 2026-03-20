@@ -45,7 +45,7 @@ const columns = [
 const emptyForm = {
   sku: '', name: '', description: '', category: '', unit: 'piece',
   buy_price: '', sell_price: '', vat_rate: '24', barcode: '',
-  min_stock: '', supplier_name: '', status: 'active', price_tiers: [],
+  min_stock: '', supplier_name: '', status: 'active', enable_price_tiers: false, price_tiers: [],
 };
 
 export default function Products() {
