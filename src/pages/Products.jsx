@@ -27,13 +27,13 @@ const columns = [
   { key: 'vat_rate', label: 'VAT %', type: 'number' },
   { key: 'unit', label: 'Unit' },
   {
-    key: 'price_tiers',
+    key: 'enable_price_tiers',
     label: 'Price Tiers',
-    render: (val) =>
-      val && val.length > 0 ? (
+    render: (val, row) =>
+      val ? (
         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1 text-[11px]">
           <Layers className="w-3 h-3" />
-          {val.length} tiers
+          {(row.price_tiers || []).length} tiers
         </Badge>
       ) : (
         <span className="text-muted-foreground text-xs">—</span>
