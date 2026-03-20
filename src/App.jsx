@@ -11,7 +11,7 @@ import AppLayout from './components/layout/AppLayout';
 import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import Suppliers from './pages/Suppliers';
-import Products from './pages/Products.jsx';
+import Products from './pages/Products';
 import Inventory from './pages/Inventory';
 import Quotes from './pages/Quotes';
 import SalesOrders from './pages/SalesOrders';
