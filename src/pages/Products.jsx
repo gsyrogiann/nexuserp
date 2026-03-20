@@ -70,7 +70,7 @@ export default function Products() {
 
   const openNew = () => { setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (row) => {
-    setForm({ ...emptyForm, ...row, vat_rate: String(row.vat_rate ?? '24'), price_tiers: row.price_tiers || [] });
+    setForm({ ...emptyForm, ...row, vat_rate: String(row.vat_rate ?? '24'), price_tiers: row.price_tiers || [], enable_price_tiers: row.enable_price_tiers ?? false });
     setDialogOpen(true);
   };
 
