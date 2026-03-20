@@ -181,11 +181,23 @@ export default function Products() {
               </div>
             </div>
 
-            <div className="border-t pt-4">
-              <PriceTiersEditor
-                tiers={form.price_tiers}
-                onChange={(tiers) => set('price_tiers', tiers)}
-              />
+            <div className="border-t pt-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="enable_price_tiers"
+                  checked={form.enable_price_tiers}
+                  onCheckedChange={v => set('enable_price_tiers', v)}
+                />
+                <Label htmlFor="enable_price_tiers" className="cursor-pointer font-medium">
+                  Κλιμάκωση Τιμών
+                </Label>
+              </div>
+              {form.enable_price_tiers && (
+                <PriceTiersEditor
+                  tiers={form.price_tiers}
+                  onChange={(tiers) => set('price_tiers', tiers)}
+                />
+              )}
             </div>
 
             <DialogFooter>
