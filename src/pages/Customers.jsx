@@ -51,6 +51,8 @@ export default function Customers() {
   const [aiSummary, setAiSummary] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
     const [searchTax, setSearchTax] = useState('');
+    const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
   const qc = useQueryClient();
   const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => base44.entities.Customer.list(), initialData: [] });
 
@@ -91,9 +93,64 @@ Provide a 2-3 sentence summary including risk assessment and recommendations.`,
     setAiLoading(false);
   };
 
+    const handleFileImport = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      try {
+        const text = e.target.result;
+        const rows = text.split('\n').filter(row => row.trim());
+        
+        // Skip header row
+        const dataRows = rows.slice(1);
+        
+        for (const row of dataRows) {
+          const columns = row.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+          
+          // Expected format: name, tax_id, city, phone, email, address, category, payment_terms
+          const customerData = {
+            name: columns[0] || '',
+            tax_id: columns[1] || '',
+            city: columns[2] || '',
+            phone: columns[3] || '',
+            email: columns[4] || '',
+            address: columns[5] || '',
+            category: columns[6] || 'retail',
+            payment_terms: parseInt(columns[7]) || 30,
+            status: 'active'
+          };
+
+          if (customerData.name) {
+            await createMutation.mutateAsync(customerData);
+          }
+        }
+        
+        setImportDialogOpen(false);
+        alert(`Εισήχθησαν ${dataRows.length} πελάτες επιτυχώς!`);
+      } catch (error) {
+        console.error('Import error:', error);
+        alert('Σφάλμα κατά την εισαγωγή: ' + error.message);
+      } finally {
+        setImporting(false);
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader title="Customers" subtitle={`${customers.length} total customers`} actionLabel="New Customer" onAction={() => { setEditing({}); setDialogOpen(true); }} />
+            
+      <div className="flex gap-2 mb-4">
+        <Button onClick={() => setImportDialogOpen(true)} variant="outline">
+          Εισαγωγή από Excel/CSV
+        </Button>
+      </div>
 
       <Input placeholder="Αναζήτηση με ΑΦΜ..." value={searchTax} onChange={(e) => setSearchTax(e.target.value)} className="max-w-sm" />
 
@@ -186,6 +243,33 @@ Provide a 2-3 sentence summary including risk assessment and recommendations.`,
         initialData={editing}
         onSubmit={handleSubmit}
       />
+
+            {/* Import Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Εισαγωγή Πελατών από CSV/Excel</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Παρακαλώ επιλέξτε ένα CSV αρχείο με τη μορφή:<br />
+              <code>name, tax_id, city, phone, email, address, category, payment_terms</code>
+            </p>
+            <Input 
+              type="file" 
+              accept=".csv,.txt"
+              onChange={handleFileImport}
+              disabled={importing}
+            />
+            {importing && <p className="text-sm">Εισαγωγή σε εξέλιξη...</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)} disabled={importing}>
+              Άκυρο
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
