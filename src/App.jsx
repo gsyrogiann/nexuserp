@@ -23,6 +23,7 @@ import Reports from './pages/Reports';
 import AIAssistant from './pages/AIAssistant';
 import EmailSettings from './pages/EmailSettings';
 import UnmatchedEmails from './pages/UnmatchedEmails';
+import Tickets from './pages/Tickets';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -59,6 +60,7 @@ const AuthenticatedApp = () => {
         <Route path="/AIAssistant" element={<AIAssistant />} />
         <Route path="/EmailSettings" element={<EmailSettings />} />
         <Route path="/UnmatchedEmails" element={<UnmatchedEmails />} />
+        <Route path="/Tickets" element={<Tickets />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
