@@ -245,7 +245,8 @@ Provide a 2-3 sentence summary including risk assessment and recommendations.`,
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t.importDialogTitle}</DialogTitle>          </DialogHeader>
+            <DialogTitle>{t.importDialogTitle}</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
               {t.importDialogDescription}<br />
