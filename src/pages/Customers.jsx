@@ -248,9 +248,9 @@ Provide a 2-3 sentence summary including risk assessment and recommendations.`,
             <DialogTitle>{t.importDialogTitle}</DialogTitle>          </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-            <p className="text-sm text-gray-600">
               {t.importDialogDescription}<br />
-              <code>{t.csvFormat}</code>            </p>
+              <code>{t.csvFormat}</code>
+            </p>
             <Input 
               type="file" 
               accept=".csv,.txt"
