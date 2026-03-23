@@ -12,16 +12,16 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Bot, Loader2, Sparkles, Mail, Activity, Info } from 'lucide-react';
+import { t } from '@/lib/translations';
 
 const columns = [
-  { key: 'name', label: 'Name' },
-  { key: 'tax_id', label: 'ΑΦΜ' },
-  { key: 'city', label: 'City' },
-  { key: 'phone', label: 'Phone' },
-  { key: 'category', label: 'Category', type: 'badge' },
-  { key: 'balance', label: 'Balance', type: 'currency' },
-  { key: 'status', label: 'Status', type: 'status' },
-];
+  { key: 'name', label: t.name },
+  { key: 'tax_id', label: t.taxId },
+  { key: 'city', label: t.city },
+  { key: 'phone', label: t.phone },
+  { key: 'category', label: t.category, type: 'badge' },
+  { key: 'balance', label: t.balance, type: 'currency' },
+  { key: 'status', label: t.status, type: 'status' },];
 
 const formFields = [
   { key: 'name', label: 'Company Name', required: true },
@@ -34,14 +34,12 @@ const formFields = [
   { key: 'postal_code', label: 'Postal Code' },
   { key: 'contact_person', label: 'Contact Person' },
   { key: 'category', label: 'Category', type: 'select', options: [
-    { value: 'wholesale', label: 'Wholesale' }, { value: 'retail', label: 'Retail' },
-    { value: 'government', label: 'Government' }, { value: 'other', label: 'Other' }
-  ]},
+    { value: 'wholesale', label: t.wholesale }, { value: 'retail', label: t.retail },
+    { value: 'government', label: t.government }, { value: 'other', label: t.other }  ]},
   { key: 'payment_terms', label: 'Payment Terms (days)', type: 'number' },
   { key: 'credit_limit', label: 'Credit Limit (€)', type: 'number' },
   { key: 'status', label: 'Status', type: 'select', options: [
-    { value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }, { value: 'blocked', label: 'Blocked' }
-  ]},
+    { value: 'active', label: t.active }, { value: 'inactive', label: t.inactive }, { value: 'blocked', label: t.blocked }  ]},
   { key: 'notes', label: 'Notes', type: 'textarea' },
 ];
 
