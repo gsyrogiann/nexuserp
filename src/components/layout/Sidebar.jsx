@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Users, Truck, Package, Warehouse as WarehouseIcon,
   ShoppingCart, ShoppingBag, FileText, CreditCard, BarChart3,
-  Bot, ChevronDown, ChevronRight, Menu, X, Settings, Mail, AlertCircle
+  Bot, ChevronDown, ChevronRight, Menu, X, Settings, Mail, AlertCircle, Ticket
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -27,6 +27,12 @@ const navGroups = [
     items: [
       { label: 'Products', path: '/Products', icon: Package },
       { label: 'Inventory', path: '/Inventory', icon: WarehouseIcon }
+    ]
+  },
+  {
+    label: 'Service',
+    items: [
+      { label: 'Tickets', path: '/Tickets', icon: Ticket }
     ]
   },
   {
