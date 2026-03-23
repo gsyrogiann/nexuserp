@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Users, Truck, Package, Warehouse as WarehouseIcon,
   ShoppingCart, ShoppingBag, FileText, CreditCard, BarChart3,
-  Bot, ChevronDown, ChevronRight, Menu, X, Settings, Mail, AlertCircle, Ticket
+  Bot, ChevronDown, ChevronRight, Menu, X, Settings, Mail, AlertCircle, Ticket, Calendar as CalendarIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -13,6 +13,7 @@ const navGroups = [
     label: 'Overview',
     items: [
       { label: 'Dashboard', path: '/Dashboard', icon: LayoutDashboard }
+            { label: 'Calendar', path: '/Calendar', icon: CalendarIcon }
     ]
   },
   {
