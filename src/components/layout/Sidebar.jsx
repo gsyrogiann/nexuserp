@@ -12,8 +12,8 @@ const navGroups = [
   {
     label: 'Overview',
     items: [
-      { label: 'Dashboard', path: '/Dashboard', icon: LayoutDashboard }
-            { label: 'Calendar', path: '/Calendar', icon: CalendarIcon }
+      { label: 'Dashboard', path: '/Dashboard', icon: LayoutDashboard },
+      { label: 'Calendar', path: '/Calendar', icon: CalendarIcon }
     ]
   },
   {
