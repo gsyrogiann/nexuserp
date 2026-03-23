@@ -8,6 +8,7 @@ import CustomerEmailsTab from '../components/email/CustomerEmailsTab';
 import CustomerActivityTimeline from '../components/email/CustomerActivityTimeline';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Bot, Loader2, Sparkles, Mail, Activity, Info } from 'lucide-react';
 
@@ -49,12 +50,14 @@ export default function Customers() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [aiSummary, setAiSummary] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+    const [searchTax, setSearchTax] = useState('');
   const qc = useQueryClient();
   const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => base44.entities.Customer.list(), initialData: [] });
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Customer.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
+      const filteredCustomers = searchTax ? customers.filter(c => c.tax_id && c.tax_id.includes(searchTax)) : customers;
   });
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Customer.update(id, data),
@@ -93,9 +96,10 @@ Provide a 2-3 sentence summary including risk assessment and recommendations.`,
 
       {selectedCustomer ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Table stays visible, shrinks */}
+                <Input placeholder="Αναζήτηση με ΑΦΜ..." value={searchTax} onChange={(e) => setSearchTax(e.target.value)} className="max-w-sm mb-4" />
+{/* Table stays visible, shrinks */}
           <div className="lg:col-span-1">
-            <DataTable columns={columns} data={customers} onRowClick={handleRowClick} pageSize={8} />
+            <DataTable columns={columns} data={filteredCustomers} onRowClick={handleRowClick} pageSize={8} />
           </div>
 
           {/* Customer detail with tabs */}
@@ -170,7 +174,7 @@ Provide a 2-3 sentence summary including risk assessment and recommendations.`,
           </div>
         </div>
       ) : (
-        <DataTable columns={columns} data={customers} onRowClick={handleRowClick} />
+        <DataTable columns={columns} data={filteredCustomers} onRowClick={handleRowClick} />
       )}
 
       <EntityFormDialog
