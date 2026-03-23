@@ -228,6 +228,7 @@ export default function Tickets() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Customer</Label>
+                              <Input placeholder="Αναζήτηση με ΑΦΜ..." onChange={(e) => { const val = e.target.value; if (val) { const found = customers.find(c => c.tax_id && c.tax_id.includes(val)); if (found) set('customer', found.id); } }} className="mb-2" />
                 <Select value={form.customer || ''} onValueChange={v => set('customer', v)}>
                   <SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger>
                   <SelectContent>
