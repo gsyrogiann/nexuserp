@@ -9,6 +9,7 @@ import CustomerActivityTimeline from '../components/email/CustomerActivityTimeli
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Bot, Loader2, Sparkles, Mail, Activity, Info } from 'lucide-react';
@@ -64,6 +65,7 @@ export default function Customers() {
     const [searchTax, setSearchTax] = useState('');
     const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [selectedCustomers, setSelectedCustomers] = useState([]);
   const qc = useQueryClient();
   const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => base44.entities.Customer.list(), initialData: [] });
 
