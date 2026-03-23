@@ -257,10 +257,12 @@ Provide a 2-3 sentence summary including risk assessment and recommendations.`,
               onChange={handleFileImport}
               disabled={importing}
             />
-            {importing && <p className="text-sm">{t.importInProgress}</p>}          </div>
+            {importing && <p className="text-sm">{t.importInProgress}</p>}
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setImportDialogOpen(false)} disabled={importing}>
-              {t.cancel}            </Button>
+              {t.cancel}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
