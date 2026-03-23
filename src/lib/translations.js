@@ -84,6 +84,18 @@ export const t = {
   creditLimit: 'Πιστωτικό Όριο',
   website: 'Ιστοσελίδα',
   contactPerson: 'Υπεύθυνος Επικοινωνίας',
+  code: 'Κωδικός',
+  date: 'Ημερομηνία',
+  profession: 'Επάγγελμα',
+  activitySector: 'Κλάδος Δραστ.',
+  phone1: 'Τηλ.1',
+  vatCategory: 'Καθ.Φ.Π.Α.',
+  region: 'Περιοχή',
+  country: 'Χώρα',
+  mobile: 'ΚΙΝΗΤΟ',
+  mobile2: 'ΚΙΝΗΤΟ 2',
+  bankAccount: 'Λογ/σμός',
+  email2: '2o e-mail',
 
   // ========== STATUS VALUES / ΤΙΜΕΣ ΚΑΤΑΣΤΑΣΗΣ ==========
   active: 'Ενεργός',
