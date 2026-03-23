@@ -143,7 +143,7 @@ Provide a 2-3 sentence summary including risk assessment and recommendations.`,
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t.customers} subtitle={`${customers.length} ${t.total.toLowerCase()}`} actionLabel={t.newCustomer} onAction={() => { setEditing(null); setForm(emptyForm); setDialogOpen(true); }} />            
+      <PageHeader title={t.customers} subtitle={`${customers.length} ${t.total.toLowerCase()}`} actionLabel={t.newCustomer} onAction={() => { setEditing(null); setDialogOpen(true); }} />            
       <div className="flex gap-2 mb-4">
         <Button onClick={() => setImportDialogOpen(true)} variant="outline">
           Εισαγωγή από Excel/CSV
