@@ -72,6 +72,8 @@ export default function Customers() {
     setEditing(null);
   };
 
+  const filteredCustomers = searchTax ? customers.filter(c => c.tax_id && c.tax_id.includes(searchTax)) : customers;
+
   const handleRowClick = (row) => {
     setSelectedCustomer(row);
     setAiSummary('');
