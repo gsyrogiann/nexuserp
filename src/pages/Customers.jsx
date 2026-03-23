@@ -108,10 +108,13 @@ Provide a 2-3 sentence summary including risk assessment and recommendations.`,
         
         // Skip header row
         const dataRows = rows.slice(1);
+
+                // Detect delimiter (comma or semicolon)
+        const firstRow = dataRows[0] || '';
+        const delimiter = firstRow.includes(';') ? ';' : ',';
         
         for (const row of dataRows) {
-          const columns = row.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
-          
+          const columns = row.split(delimiter).map(col => col.trim().replace(/^"|"$/g, ''));          
           // Expected format: name, tax_id, city, phone, email, address, category, payment_terms
           const customerData = {
             name: columns[0] || '',
