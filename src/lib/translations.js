@@ -198,6 +198,7 @@ export const t = {
   updateSuccess: 'Ενημερώθηκε επιτυχώς',
   deleteSuccess: 'Διαγράφηκε επιτυχώς',
   importInProgress: 'Εισαγωγή σε εξέλιξη...',
+  importFromExcelCSV: 'Εισαγωγή από Excel/CSV',
   processingRequest: 'Επεξεργασία αιτήματος...',
   pleaseWait: 'Παρακαλώ περιμένετε...',
 
