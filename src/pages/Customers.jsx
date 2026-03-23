@@ -95,10 +95,10 @@ Provide a 2-3 sentence summary including risk assessment and recommendations.`,
     <div className="space-y-6">
       <PageHeader title="Customers" subtitle={`${customers.length} total customers`} actionLabel="New Customer" onAction={() => { setEditing({}); setDialogOpen(true); }} />
 
+      <Input placeholder="Αναζήτηση με ΑΦΜ..." value={searchTax} onChange={(e) => setSearchTax(e.target.value)} className="max-w-sm" />
+
       {selectedCustomer ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Input placeholder="Αναζήτηση με ΑΦΜ..." value={searchTax} onChange={(e) => setSearchTax(e.target.value)} className="max-w-sm mb-4" />
-{/* Table stays visible, shrinks */}
           <div className="lg:col-span-1">
             <DataTable columns={columns} data={filteredCustomers} onRowClick={handleRowClick} pageSize={8} />
           </div>
