@@ -24,21 +24,36 @@ const columns = [
   { key: 'status', label: t.status, type: 'status' },];
 
 const formFields = [
+  { key: 'code', label: t.code },
+  { key: 'name', label: t.companyName },
+  { key: 'date', label: t.date, type: 'date' },
+  { key: 'balance', label: t.balance, type: 'number' },
   { key: 'tax_id', label: t.vatNumber, placeholder: t.enterTaxId },
-  { key: 'tax_office', label: t.taxOffice },
-  { key: 'email', label: t.email, type: 'email' },
-  { key: 'phone', label: t.phone },
   { key: 'address', label: t.address },
-  { key: 'city', label: t.city },
+  { key: 'profession', label: t.profession },
+  { key: 'activity_sector', label: t.activitySector },
+  { key: 'phone', label: t.phone1 },
+  { key: 'tax_office', label: t.taxOffice },
+  { key: 'vat_category', label: t.vatCategory },
+  { key: 'region', label: t.region },
   { key: 'postal_code', label: t.postalCode },
-  { key: 'contact_person', label: t.contactPerson },
-  { key: 'category', label: t.category, type: 'select', options: [    { value: 'wholesale', label: t.wholesale }, { value: 'retail', label: t.retail },
-    { value: 'government', label: t.government }, { value: 'other', label: t.other }  ]},
+  { key: 'country', label: t.country },
+  { key: 'mobile', label: t.mobile },
+  { key: 'mobile2', label: t.mobile2 },
+  { key: 'bank_account', label: t.bankAccount },
+  { key: 'email', label: t.email, type: 'email' },
+  { key: 'email2', label: t.email2, type: 'email' },
+  { key: 'category', label: t.category, type: 'select', options: [
+    { value: 'wholesale', label: t.wholesale }, { value: 'retail', label: t.retail },
+    { value: 'government', label: t.government }, { value: 'other', label: t.other }
+  ]},
   { key: 'payment_terms', label: t.paymentTermsDays, type: 'number' },
   { key: 'credit_limit', label: t.creditLimit, type: 'number' },
   { key: 'status', label: t.status, type: 'select', options: [
-    { value: 'active', label: t.active }, { value: 'inactive', label: t.inactive }, { value: 'blocked', label: t.blocked } ]},
-  { key: 'notes', label: t.notes, type: 'textarea' },];
+    { value: 'active', label: t.active }, { value: 'inactive', label: t.inactive }, { value: 'blocked', label: t.blocked }
+  ]},
+  { key: 'notes', label: t.notes, type: 'textarea' },
+];
 
 export default function Customers() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -112,14 +127,26 @@ Provide a 2-3 sentence summary including risk assessment and recommendations.`,
           const columns = row.split(delimiter).map(col => col.trim().replace(/^"|"$/g, ''));          
           // Expected format: name, tax_id, city, phone, email, address, category, payment_terms
           const customerData = {
-            name: columns[0] || '',
-            tax_id: columns[1] || '',
-            city: columns[2] || '',
-            phone: columns[3] || '',
-            email: columns[4] || '',
-            address: columns[5] || '',
-            category: columns[6] || 'retail',
-            payment_terms: parseInt(columns[7]) || 30,
+            code: columns[0] || '-',
+            name: columns[1] || '-',
+            date: columns[2] || '-',
+            balance: columns[3] || '-',
+            tax_id: columns[4] || '-',
+            address: columns[5] || '-',
+            profession: columns[6] || '-',
+            activity_sector: columns[7] || '-',
+            phone: columns[8] || '-',
+            tax_office: columns[9] || '-',
+            vat_category: columns[10] || '-',
+            region: columns[11] || '-',
+            postal_code: columns[12] || '-',
+            country: columns[13] || '-',
+            mobile: columns[14] || '-',
+            mobile2: columns[15] || '-',
+            bank_account: columns[16] || '-',
+            email: columns[17] || '-',
+            email2: columns[18] || '-',
+            category: 'retail',
             status: 'active'
           };
 
