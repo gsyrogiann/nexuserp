@@ -78,6 +78,7 @@ export default function Tickets() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [statusFilter, setStatusFilter] = useState('all');
+    const [searchTaxId, setSearchTaxId] = useState('');
   const qc = useQueryClient();
 
   const { data: tickets = [] } = useQuery({
@@ -89,6 +90,11 @@ export default function Tickets() {
     queryKey: ['customers'],
     queryFn: () => base44.entities.Customer.list('name'),
   });
+
+    // Filter customers by tax ID
+  const filteredCustomers = searchTaxId
+    ? customers.filter(c => c.tax_id && c.tax_id.includes(searchTaxId))
+    : [];
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.ServiceTicket.create(data),
@@ -228,7 +234,30 @@ export default function Tickets() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Customer</Label>
-                              <Input placeholder="Αναζήτηση με ΑΦΜ..." onChange={(e) => { const val = e.target.value; if (val) { const found = customers.find(c => c.tax_id && c.tax_id.includes(val)); if (found) set('customer', found.id); } }} className="mb-2" />
+                              <div className="relative">
+                <Input 
+                  placeholder="Αναζήτηση με ΑΦΜ..." 
+                  value={searchTaxId}
+                  onChange={(e) => setSearchTaxId(e.target.value)}
+                />
+                {filteredCustomers.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                    {filteredCustomers.map(c => (
+                      <div
+                        key={c.id}
+                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          setForm({ ...form, customer: c.name });
+                          setSearchTaxId('');
+                        }}
+                      >
+                        <div className="font-medium">{c.name}</div>
+                        <div className="text-sm text-gray-500">ΑΦΜ: {c.tax_id}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
                 <Select value={form.customer || ''} onValueChange={v => set('customer', v)}>
                   <SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger>
                   <SelectContent>
