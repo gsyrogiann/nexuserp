@@ -24,6 +24,7 @@ import AIAssistant from './pages/AIAssistant';
 import EmailSettings from './pages/EmailSettings';
 import UnmatchedEmails from './pages/UnmatchedEmails';
 import Tickets from './pages/Tickets';
+import Calendar from './pages/Calendar';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -61,6 +62,7 @@ const AuthenticatedApp = () => {
         <Route path="/EmailSettings" element={<EmailSettings />} />
         <Route path="/UnmatchedEmails" element={<UnmatchedEmails />} />
         <Route path="/Tickets" element={<Tickets />} />
+                  <Route path="/Calendar" element={<Calendar />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
