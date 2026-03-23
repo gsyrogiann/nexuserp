@@ -24,24 +24,21 @@ const columns = [
   { key: 'status', label: t.status, type: 'status' },];
 
 const formFields = [
-  { key: 'name', label: 'Company Name', required: true },
-  { key: 'tax_id', label: 'ΑΦΜ (VAT Number)', placeholder: 'e.g. 123456789' },
-  { key: 'tax_office', label: 'ΔΟΥ' },
-  { key: 'email', label: 'Email', type: 'email' },
-  { key: 'phone', label: 'Phone' },
-  { key: 'address', label: 'Address' },
-  { key: 'city', label: 'City' },
-  { key: 'postal_code', label: 'Postal Code' },
-  { key: 'contact_person', label: 'Contact Person' },
-  { key: 'category', label: 'Category', type: 'select', options: [
-    { value: 'wholesale', label: t.wholesale }, { value: 'retail', label: t.retail },
+  { key: 'tax_id', label: t.vatNumber, placeholder: t.enterTaxId },
+  { key: 'tax_office', label: t.taxOffice },
+  { key: 'email', label: t.email, type: 'email' },
+  { key: 'phone', label: t.phone },
+  { key: 'address', label: t.address },
+  { key: 'city', label: t.city },
+  { key: 'postal_code', label: t.postalCode },
+  { key: 'contact_person', label: t.contactPerson },
+  { key: 'category', label: t.category, type: 'select', options: [    { value: 'wholesale', label: t.wholesale }, { value: 'retail', label: t.retail },
     { value: 'government', label: t.government }, { value: 'other', label: t.other }  ]},
-  { key: 'payment_terms', label: 'Payment Terms (days)', type: 'number' },
-  { key: 'credit_limit', label: 'Credit Limit (€)', type: 'number' },
-  { key: 'status', label: 'Status', type: 'select', options: [
-    { value: 'active', label: t.active }, { value: 'inactive', label: t.inactive }, { value: 'blocked', label: t.blocked }  ]},
-  { key: 'notes', label: 'Notes', type: 'textarea' },
-];
+  { key: 'payment_terms', label: t.paymentTermsDays, type: 'number' },
+  { key: 'credit_limit', label: t.creditLimit, type: 'number' },
+  { key: 'status', label: t.status, type: 'select', options: [
+    { value: 'active', label: t.active }, { value: 'inactive', label: t.inactive }, { value: 'blocked', label: t.blocked } ]},
+  { key: 'notes', label: t.notes, type: 'textarea' },];
 
 export default function Customers() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -146,8 +143,7 @@ Provide a 2-3 sentence summary including risk assessment and recommendations.`,
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Customers" subtitle={`${customers.length} total customers`} actionLabel="New Customer" onAction={() => { setEditing({}); setDialogOpen(true); }} />
-            
+      <PageHeader title={t.customers} subtitle={`${customers.length} ${t.total.toLowerCase()}`} actionLabel={t.newCustomer} onAction={() => { setEditing(null); setForm(emptyForm); setDialogOpen(true); }} />            
       <div className="flex gap-2 mb-4">
         <Button onClick={() => setImportDialogOpen(true)} variant="outline">
           Εισαγωγή από Excel/CSV
