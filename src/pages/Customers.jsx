@@ -236,8 +236,7 @@ Provide a 2-3 sentence summary including risk assessment and recommendations.`,
       <EntityFormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title={editing?.id ? 'Edit Customer' : 'New Customer'}
-        fields={formFields}
+        title={editing?.id ? t.editCustomer : t.newCustomer}        fields={formFields}
         initialData={editing}
         onSubmit={handleSubmit}
       />
@@ -246,25 +245,22 @@ Provide a 2-3 sentence summary including risk assessment and recommendations.`,
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Εισαγωγή Πελατών από CSV/Excel</DialogTitle>
-          </DialogHeader>
+            <DialogTitle>{t.importDialogTitle}</DialogTitle>          </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Παρακαλώ επιλέξτε ένα CSV αρχείο με τη μορφή:<br />
-              <code>name, tax_id, city, phone, email, address, category, payment_terms</code>
-            </p>
+            <p className="text-sm text-gray-600">
+              {t.importDialogDescription}<br />
+              <code>{t.csvFormat}</code>            </p>
             <Input 
               type="file" 
               accept=".csv,.txt"
               onChange={handleFileImport}
               disabled={importing}
             />
-            {importing && <p className="text-sm">Εισαγωγή σε εξέλιξη...</p>}
-          </div>
+            {importing && <p className="text-sm">{t.importInProgress}</p>}          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setImportDialogOpen(false)} disabled={importing}>
-              Άκυρο
-            </Button>
+              {t.cancel}            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
