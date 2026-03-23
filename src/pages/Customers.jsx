@@ -57,7 +57,6 @@ export default function Customers() {
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Customer.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
-      const filteredCustomers = searchTax ? customers.filter(c => c.tax_id && c.tax_id.includes(searchTax)) : customers;
   });
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Customer.update(id, data),
