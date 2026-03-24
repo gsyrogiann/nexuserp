@@ -4,7 +4,8 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Users, Truck, Package, Warehouse as WarehouseIcon,
   ShoppingCart, ShoppingBag, FileText, CreditCard, BarChart3,
-  Bot, ChevronDown, ChevronRight, Menu, X, Settings, Mail, AlertCircle, Ticket, Calendar as CalendarIcon
+  Bot, ChevronDown, ChevronRight, Menu, X, Settings, Mail, AlertCircle, Ticket, 
+  Calendar as CalendarIcon, TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -20,7 +21,8 @@ const navGroups = [
     label: 'CRM',
     items: [
       { label: 'Customers', path: '/Customers', icon: Users },
-      { label: 'Suppliers', path: '/Suppliers', icon: Truck }
+      { label: 'Suppliers', path: '/Suppliers', icon: Truck },
+      { label: 'Sales Pipeline', path: '/SalesPipeline', icon: TrendingUp }
     ]
   },
   {
@@ -150,7 +152,7 @@ export default function Sidebar() {
         <div className="p-3 border-t border-sidebar-border">
           <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-sidebar-foreground/40">
             <Settings className="w-3.5 h-3.5" />
-            <span>v1.0.0 — ERP Pro</span>
+            <span>v1.0.0 — Nexus ERP</span>
           </div>
         </div>
       )}
