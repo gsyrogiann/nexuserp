@@ -14,7 +14,7 @@ import {
   Search, Mail, Phone, FileCheck, X, Loader2, TrendingUp 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from 'sonner';
 
 const STAGES = [
   { id: 'lead', label: 'Νέο Lead', color: 'bg-slate-100 text-slate-600', icon: UserPlus },
@@ -26,15 +26,10 @@ const STAGES = [
 export default function SalesPipeline() {
   const [deals, setDeals] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const { toast } = useToast();
-  
-  // States για το Pop-up
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeAction, setActiveAction] = useState(null); 
   const [emailBody, setEmailBody] = useState('');
   const [isSending, setIsSending] = useState(false);
-
-  const qc = useQueryClient();
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
@@ -47,7 +42,6 @@ export default function SalesPipeline() {
     }
   }, [customers]);
 
-  // Φιλτράρισμα βάσει ΑΦΜ, Ονόματος, Email, Τηλεφώνου
   const filteredDeals = deals.filter(d => 
     d.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     d.tax_id?.includes(searchTerm) ||
@@ -58,83 +52,63 @@ export default function SalesPipeline() {
   const openActionModal = (deal, type) => {
     setActiveAction({ deal, type });
     setEmailBody(type === 'PROPOSAL' 
-      ? `Αγαπητέ συνεργάτη, σας επισυνάπτουμε την οικονομική προσφορά που συζητήσαμε.` 
+      ? `Αγαπητέ συνεργάτη, σας επισυνάπτουμε την προσφορά για το Nexus ERP.` 
       : `Αγαπητέ συνεργάτη, ακολουθεί το τιμολόγιο για την παραγγελία σας.`
     );
     setIsModalOpen(true);
   };
 
-  // Η ΠΡΑΓΜΑΤΙΚΗ ΛΕΙΤΟΥΡΓΙΑ ΑΠΟΣΤΟΛΗΣ
   const handleConfirmSend = async () => {
     if (!activeAction?.deal.email) {
-      toast({
-        variant: "destructive",
-        title: "Σφάλμα",
-        description: "Ο πελάτης δεν έχει ορισμένο email.",
-      });
+      toast.error("Ο πελάτης δεν έχει email!");
       return;
     }
 
     setIsSending(true);
-    
     try {
-      // Κλήση στο API του Base44 για πραγματική αποστολή
+      // Χρησιμοποιούμε το InvokeLLM (που είναι ήδη στημένο στο entry.ts σου) 
+      // για να "διατάξουμε" το σύστημα να στείλει το email μέσω του Gmail Integration
       await base44.integrations.Core.InvokeLLM({
-        prompt: `Send an email to ${activeAction.deal.email} with the following message: ${emailBody}. Subject: ${activeAction.type === 'PROPOSAL' ? 'Προσφορά' : 'Τιμολόγιο'} από Nexus ERP.`,
+        prompt: `ACTION: SEND_EMAIL
+        TO: ${activeAction.deal.email}
+        SUBJECT: ${activeAction.type === 'PROPOSAL' ? 'Προσφορά' : 'Τιμολόγιο'}
+        BODY: ${emailBody}
+        ΠΡΟΣΟΧΗ: Χρησιμοποίησε το συνδεδεμένο Gmail account για την αποστολή.`
       });
 
-      // Μετακίνηση στο επόμενο στάδιο μόνο αν πετύχει
+      // Μετακίνηση σταδίου
       let nextStage = activeAction.type === 'PROPOSAL' ? 'proposal' : 'won';
-      
       setDeals(prev => prev.map(d => 
         d.id === activeAction.deal.id ? { ...d, stage: nextStage } : d
       ));
 
-      toast({
-        title: "Επιτυχία!",
-        description: `Το email στάλθηκε στον ${activeAction.deal.name}.`,
-      });
-
+      toast.success("Το αίτημα αποστολής στάλθηκε στο AI!");
     } catch (error) {
-      console.error("Email Error:", error);
-      toast({
-        variant: "destructive",
-        title: "Αποτυχία",
-        description: "Δεν ήταν δυνατή η αποστολή του email.",
-      });
+      console.error(error);
+      toast.error("Αποτυχία επικοινωνίας με το API.");
     } finally {
       setIsSending(false);
       setIsModalOpen(false);
-      setActiveAction(null);
     }
   };
 
   return (
     <div className="space-y-6 pb-20 select-none">
-      <PageHeader 
-        title="Sales Pipeline" 
-        subtitle="Διαχείριση ροής πωλήσεων και αυτόματη αποστολή εγγράφων"
-      />
+      <PageHeader title="Sales Pipeline" subtitle="Αυτοματοποιημένη ροή και αποστολή εγγράφων" />
 
-      {/* ΑΝΑΖΗΤΗΣΗ */}
-      <div className="relative max-w-2xl">
+      <div className="relative max-w-xl">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <Input 
-          placeholder="Αναζήτηση με Όνομα, ΑΦΜ, Email ή Τηλέφωνο..." 
-          className="pl-10 h-12 bg-white border-slate-200 shadow-sm rounded-2xl"
+          placeholder="Αναζήτηση (ΑΦΜ, Όνομα, Email...)" 
+          className="pl-10 h-11 bg-white border-slate-200 shadow-sm rounded-xl"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        {searchTerm && (
-          <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-            <X size={16} />
-          </button>
-        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-[calc(100vh-280px)]">
         {STAGES.map((stage) => (
-          <div key={stage.id} className="flex flex-col bg-slate-50/70 rounded-3xl border border-slate-200/50 p-4">
+          <div key={stage.id} className="flex flex-col bg-slate-50/60 rounded-3xl border border-slate-200/60 p-4">
             <div className="flex items-center justify-between mb-6 px-2">
               <div className="flex items-center gap-3">
                 <div className={cn("p-2 rounded-xl shadow-sm", stage.color)}>
@@ -142,57 +116,34 @@ export default function SalesPipeline() {
                 </div>
                 <h3 className="font-extrabold text-sm text-slate-800 tracking-tight">{stage.label}</h3>
               </div>
-              <Badge variant="outline" className="bg-white text-slate-400 border-slate-200">
-                {filteredDeals.filter(d => d.stage === stage.id).length}
-              </Badge>
+              <Badge variant="outline" className="bg-white text-slate-400">{filteredDeals.filter(d => d.stage === stage.id).length}</Badge>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar">
               <AnimatePresence mode='popLayout'>
                 {filteredDeals.filter(d => d.stage === stage.id).map((deal) => (
-                  <motion.div
-                    key={deal.id}
-                    layoutId={deal.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                  >
-                    <Card className="shadow-sm border-slate-200/80 hover:border-blue-500 transition-all bg-white rounded-2xl group overflow-hidden">
+                  <motion.div key={deal.id} layoutId={deal.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}>
+                    <Card className="shadow-sm border-slate-200/80 hover:border-blue-500 transition-all bg-white rounded-2xl group">
                       <CardContent className="p-5">
-                        <div className="flex justify-between items-start mb-2">
-                           <p className="font-bold text-slate-900 text-sm truncate">{deal.name}</p>
-                           <TrendingUp size={14} className="text-slate-200" />
+                        <p className="font-bold text-slate-900 text-sm truncate">{deal.name}</p>
+                        <div className="space-y-1 mb-4 mt-2">
+                          <p className="text-[10px] text-slate-400 font-mono">ΑΦΜ: {deal.tax_id || '—'}</p>
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-500"><Mail size={10} /> {deal.email || '—'}</div>
                         </div>
-                        
-                        <div className="space-y-1 mb-4">
-                          <p className="text-[10px] text-slate-400 font-mono uppercase tracking-tighter">ΑΦΜ: {deal.tax_id || '—'}</p>
-                          <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                            <Mail size={10} className="text-slate-300" /> {deal.email || '—'}
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2 pt-3 border-t border-slate-50">
+                        <div className="space-y-2 pt-2 border-t border-slate-50">
                           {stage.id === 'lead' && (
-                            <Button 
-                              onClick={() => openActionModal(deal, 'PROPOSAL')}
-                              className="w-full h-9 text-[10px] font-black gap-2 bg-blue-600 hover:bg-blue-700 rounded-xl shadow-blue-100 shadow-lg"
-                            >
+                            <Button onClick={() => openActionModal(deal, 'PROPOSAL')} className="w-full h-8 text-[10px] font-bold gap-2 bg-blue-600 hover:bg-blue-700 rounded-xl">
                               <Send size={12} /> ΣΤΕΙΛΕ ΠΡΟΣΦΟΡΑ
                             </Button>
                           )}
-
                           {stage.id === 'proposal' && (
-                            <Button 
-                              onClick={() => openActionModal(deal, 'INVOICE')}
-                              className="w-full h-9 text-[10px] font-black gap-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-emerald-100 shadow-lg"
-                            >
+                            <Button onClick={() => openActionModal(deal, 'INVOICE')} className="w-full h-8 text-[10px] font-bold gap-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl">
                               <FileCheck size={12} /> ΣΤΕΙΛΕ ΤΙΜΟΛΟΓΙΟ
                             </Button>
                           )}
-
                           {stage.id === 'won' && (
-                            <div className="flex items-center justify-center gap-2 py-2 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 text-[10px] font-black uppercase tracking-widest">
-                              <CheckCircle2 size={12} /> Κέρδος
+                            <div className="flex items-center justify-center gap-2 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 text-[10px] font-black uppercase">
+                              <CheckCircle2 size={12} /> Won
                             </div>
                           )}
                         </div>
@@ -206,57 +157,36 @@ export default function SalesPipeline() {
         ))}
       </div>
 
-      {/* POP-UP MODAL */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[480px] rounded-[32px] p-8 border-none shadow-2xl">
+        <DialogContent className="sm:max-w-[450px] rounded-[32px] p-8 border-none shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black tracking-tight">
-              {activeAction?.type === 'PROPOSAL' ? 'Προετοιμασία Προσφοράς' : 'Έκδοση Τιμολογίου'}
-            </DialogTitle>
-            <DialogDescription className="text-slate-500 font-medium pt-1">
-              Αποστολή επίσημου εγγράφου στον πελάτη <strong>{activeAction?.deal.name}</strong>.
-            </DialogDescription>
+            <DialogTitle className="text-xl font-bold">{activeAction?.type === 'PROPOSAL' ? 'Προσφορά' : 'Τιμολόγιο'}</DialogTitle>
+            <DialogDescription>Αποστολή στον {activeAction?.deal.name}</DialogDescription>
           </DialogHeader>
-
-          <div className="py-6 space-y-5">
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-4">
-               <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-600">
-                  <Mail size={20} />
-               </div>
-               <div>
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email Παραλήπτη</p>
-                 <p className="text-sm font-bold text-slate-700">{activeAction?.deal.email || 'Δεν υπάρχει email'}</p>
-               </div>
+          <div className="py-4 space-y-4">
+            <div className="p-3 bg-slate-50 rounded-xl border text-xs space-y-1">
+               <p className="font-bold text-slate-400 uppercase">Προς:</p>
+               <p className="font-bold text-slate-700">{activeAction?.deal.email}</p>
             </div>
-
-            <div className="space-y-3">
-              <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Μήνυμα Συνοδείας</label>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Μήνυμα</label>
               <Textarea 
-                placeholder="Γράψτε το μήνυμά σας εδώ..."
-                className="rounded-2xl border-slate-200 focus:ring-blue-500 min-h-[120px] p-4 text-sm"
+                className="rounded-xl border-slate-200 resize-none"
+                rows={4}
                 value={emailBody}
                 onChange={(e) => setEmailBody(e.target.value)}
               />
             </div>
           </div>
-
-          <DialogFooter className="sm:justify-between gap-3">
-            <Button variant="ghost" onClick={() => setIsModalOpen(false)} className="rounded-xl font-bold text-slate-400">
-              Ακύρωση
-            </Button>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsModalOpen(false)} className="rounded-xl">Άκυρο</Button>
             <Button 
-              disabled={isSending}
-              onClick={handleConfirmSend}
-              className={cn(
-                "rounded-2xl px-8 py-6 font-black uppercase text-xs tracking-widest transition-all",
-                activeAction?.type === 'PROPOSAL' ? "bg-blue-600 hover:bg-blue-700 shadow-blue-200 shadow-xl" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200 shadow-xl"
-              )}
+              disabled={isSending} 
+              onClick={handleConfirmSend} 
+              className={cn("rounded-xl gap-2 min-w-[120px]", activeAction?.type === 'PROPOSAL' ? "bg-blue-600" : "bg-emerald-600")}
             >
-              {isSending ? (
-                <><Loader2 size={16} className="animate-spin mr-2" /> Αποστολή...</>
-              ) : (
-                <><Send size={16} className="mr-2" /> Επιβεβαίωση</>
-              )}
+              {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              {isSending ? 'Αποστολή...' : 'Επιβεβαίωση'}
             </Button>
           </DialogFooter>
         </DialogContent>
