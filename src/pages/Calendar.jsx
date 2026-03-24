@@ -59,16 +59,12 @@ export default function CalendarPage() {
   });
 
   // Επεξεργασία και ενοποίηση όλων των events
-  const allEvents = [
-    ...quotes.map(e => ({ ...e, _type: 'quote', _date: e.date || e.created_date, _label: e.quote_number || 'Προσφορά', _color: 'bg-blue-500' })),
-    ...calendarEvents.map(e => ({ 
-      ...e, 
-      _type: e.type || 'follow_up', 
-      _date: e.start, 
-      _label: e.title, 
-      _color: getEventColor(e.type) 
-    })),
-  ].filter(e => e._date);
+  // Μέσα στο Calendar.jsx, άλλαξε το allEvents σε αυτό:
+const allEvents = [
+  ...quotes.map(e => ({ ...e, _type: 'quote', _date: e.date || e.created_date, _label: e.quote_number || 'Προσφορά', _color: 'bg-blue-500' })),
+  ...tickets.map(e => ({ ...e, _type: 'ticket', _date: e.due_date || e.created_date, _label: e.title || 'Ticket', _color: 'bg-yellow-500' })),
+  ...salesOrders.map(e => ({ ...e, _type: 'sales_order', _date: e.order_date || e.created_date, _label: e.order_number || 'Order', _color: 'bg-green-500' })),
+].filter(e => e._date);
 
   const eventsOnDate = (dateStr) => allEvents.filter(e => e._date && e._date.slice(0, 10) === dateStr);
   const selectedEvents = eventsOnDate(selected);
