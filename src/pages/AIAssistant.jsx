@@ -1,254 +1,317 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import MessageBubble from '../components/ai/MessageBubble';
-import ChatGPTChat from '../components/ai/ChatGPTChat';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Bot, Send, Plus, Loader2, MessageSquare, Sparkles } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Bot, Send, Loader2, Sparkles, Upload, FileSpreadsheet,
+  Users, Package, CheckCircle2, AlertCircle, Trash2, X, Pencil, ShieldAlert
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
 
-const SUGGESTED = [
-  'What are my top 5 customers by revenue?',
-  'Show me overdue invoices',
-  'What products are low on stock?',
-  'Summarize this month\'s sales',
-  'Which supplier do I owe the most to?',
-  'List open purchase orders',
-];
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+  return lines.slice(1).map(line => {
+    const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+    return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? '']));
+  }).filter(r => Object.values(r).some(v => v !== ''));
+}
+
+function mapToCustomer(row) {
+  const get = (...keys) => { for (const k of keys) { const v = row[k] || row[k.replace(/_/g,' ')] || row[k.replace(/_/g,'')] || ''; if (v) return v; } return ''; };
+  return { name: get('name','company','company_name','επωνυμια','επωνυμία'), tax_id: get('tax_id','afm','αφμ','vat'), phone: get('phone','phone1','τηλεφωνο'), mobile: get('mobile','κινητο'), email: get('email','mail'), address: get('address','διευθυνση'), city: get('city','πολη'), postal_code: get('postal_code','zip','tk'), status: 'active' };
+}
+function mapToProduct(row) {
+  const get = (...keys) => { for (const k of keys) { const v = row[k] || row[k.replace(/_/g,' ')] || ''; if (v) return v; } return ''; };
+  return { sku: get('sku','code','κωδικος'), name: get('name','product','product_name','περιγραφη'), category: get('category','κατηγορια'), sell_price: parseFloat(get('sell_price','price','τιμη')) || 0, buy_price: parseFloat(get('buy_price','cost','κοστος')) || 0, vat_rate: parseFloat(get('vat_rate','vat','φπα')) || 24, unit: get('unit','uom','μοναδα') || 'piece', status: 'active' };
+}
+
+function Bubble({ msg }) {
+  const isUser = msg.role === 'user';
+  const isAction = msg.type === 'action';
+  return (
+    <div className={cn('flex gap-3 mb-4', isUser ? 'justify-end' : 'justify-start')}>
+      {!isUser && (
+        <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5', isAction ? 'bg-green-100' : 'bg-primary/10')}>
+          {isAction ? <Pencil className="w-4 h-4 text-green-600" /> : <Bot className="w-4 h-4 text-primary" />}
+        </div>
+      )}
+      <div className={cn('max-w-[85%] rounded-2xl px-4 py-2.5 text-sm', isUser ? 'bg-slate-800 text-white' : isAction ? 'bg-green-50 border border-green-200' : 'bg-white border border-slate-200')}>
+        {isUser ? (
+          <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+        ) : (
+          <ReactMarkdown className="prose prose-sm prose-slate max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+            {msg.content}
+          </ReactMarkdown>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ImportPanel({ type, onImportDone }) {
+  const [rows, setRows] = useState([]);
+  const [fileName, setFileName] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [results, setResults] = useState(null);
+  const fileRef = useRef();
+  const qc = useQueryClient();
+  const handleFile = (e) => { const file = e.target.files[0]; if (!file) return; setFileName(file.name); setResults(null); const reader = new FileReader(); reader.onload = (ev) => setRows(parseCSV(ev.target.result)); reader.readAsText(file, 'UTF-8'); };
+  const handleImport = async () => {
+    if (!rows.length) return; setImporting(true); let ok = 0, fail = 0;
+    for (const row of rows) { try { const mapped = type === 'customers' ? mapToCustomer(row) : mapToProduct(row); if (!mapped.name && !mapped.sku) { fail++; continue; } if (type === 'customers') await base44.entities.Customer.create(mapped); else await base44.entities.Product.create(mapped); ok++; } catch { fail++; } }
+    await qc.invalidateQueries({ queryKey: [type === 'customers' ? 'customers' : 'products'] });
+    setResults({ ok, fail }); setImporting(false);
+    if (ok > 0) onImportDone?.(`Εισήχθησαν ${ok} ${type === 'customers' ? 'πελάτες' : 'προϊόντα'} επιτυχώς!`);
+  };
+  const reset = () => { setRows([]); setFileName(''); setResults(null); fileRef.current.value = ''; };
+  const isCustomer = type === 'customers';
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">{isCustomer ? <Users className="w-6 h-6 text-primary" /> : <Package className="w-6 h-6 text-primary" />}</div>
+          <div><p className="font-medium text-sm">{isCustomer ? 'Εισαγωγή Πελατών' : 'Εισαγωγή Προϊόντων'} από CSV</p><p className="text-xs text-muted-foreground mt-1">{isCustomer ? 'Στήλες: name, tax_id, phone, email, address, city' : 'Στήλες: sku, name, category, sell_price, buy_price, vat_rate, unit'}</p></div>
+          <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleFile} className="hidden" />
+          <Button variant="outline" size="sm" onClick={() => fileRef.current.click()}><Upload className="w-4 h-4 mr-2" />Επιλογή αρχείου CSV</Button>
+        </div>
+      </div>
+      {fileName && (<div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg"><FileSpreadsheet className="w-4 h-4 text-blue-600" /><span className="text-sm text-blue-700 flex-1">{fileName}</span><Badge variant="outline">{rows.length} εγγραφές</Badge><button onClick={reset}><X className="w-4 h-4 text-slate-400 hover:text-slate-600" /></button></div>)}
+      {rows.length > 0 && !results && (<><div className="rounded-lg border overflow-hidden"><div className="bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground border-b">Προεπισκόπηση (πρώτες 3 εγγραφές)</div><div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b bg-muted/20">{Object.keys(rows[0]).slice(0,6).map(k=><th key={k} className="px-3 py-1.5 text-left font-medium text-muted-foreground">{k}</th>)}</tr></thead><tbody>{rows.slice(0,3).map((r,i)=><tr key={i} className="border-b last:border-0">{Object.values(r).slice(0,6).map((v,j)=><td key={j} className="px-3 py-1.5 truncate max-w-[120px]">{v}</td>)}</tr>)}</tbody></table></div></div><Button onClick={handleImport} disabled={importing} className="w-full">{importing?<><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Εισαγωγή σε εξέλιξη…</>:<><Upload className="w-4 h-4 mr-2"/>Εισαγωγή {rows.length} εγγραφών</>}</Button></>)}
+      {results && (<div className="space-y-2">{results.ok>0&&<div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg"><CheckCircle2 className="w-4 h-4 text-green-600"/><span className="text-sm text-green-700">{results.ok} εγγραφές εισήχθησαν επιτυχώς</span></div>}{results.fail>0&&<div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg"><AlertCircle className="w-4 h-4 text-red-600"/><span className="text-sm text-red-700">{results.fail} εγγραφές απέτυχαν</span></div>}<Button variant="outline" size="sm" onClick={reset} className="w-full">Νέα εισαγωγή</Button></div>)}
+    </div>
+  );
+}
 
 export default function AIAssistant() {
-  const [activeTab, setActiveTab] = useState('erp'); // 'erp' | 'chatgpt'
-  const [conversations, setConversations] = useState([]);
-  const [activeConvId, setActiveConvId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [sending, setSending] = useState(false);
-  const [loadingConvs, setLoadingConvs] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [aiModel, setAiModel] = useState('claude');
+  const [activeTab, setActiveTab] = useState('chat');
+  const [pendingAction, setPendingAction] = useState(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const qc = useQueryClient();
 
-  useEffect(() => {
-    base44.agents.listConversations({ agent_name: 'erp_assistant' })
-      .then(setConversations)
-      .finally(() => setLoadingConvs(false));
-  }, []);
+  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: () => base44.entities.Customer.list() });
+  const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: () => base44.entities.Product.list() });
+  const { data: salesInvoices = [] } = useQuery({ queryKey: ['salesInvoices'], queryFn: () => base44.entities.SalesInvoice.list() });
+  const { data: payments = [] } = useQuery({ queryKey: ['payments'], queryFn: () => base44.entities.Payment.list() });
+  const { data: salesOrders = [] } = useQuery({ queryKey: ['salesOrders'], queryFn: () => base44.entities.SalesOrder.list() });
 
-  useEffect(() => {
-    if (!activeConvId) return;
-    const unsub = base44.agents.subscribeToConversation(activeConvId, (data) => {
-      setMessages(data.messages || []);
-    });
-    return unsub;
-  }, [activeConvId]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const buildContext = useCallback(() => {
+    const totalRevenue = salesInvoices.reduce((s, i) => s + (i.total || 0), 0);
+    const unpaid = salesInvoices.filter(i => i.status === 'unpaid' || i.status === 'overdue');
+    return `Είσαι ο AI βοηθός του NexusERP. Έχεις πρόσβαση σε πραγματικά επιχειρηματικά δεδομένα ΚΑΙ μπορείς να κάνεις αλλαγές στη βάση δεδομένων.
 
-  const startNewConversation = useCallback(async () => {
-    const conv = await base44.agents.createConversation({
-      agent_name: 'erp_assistant',
-      metadata: { name: `Chat ${new Date().toLocaleDateString('el-GR')}` },
-    });
-    setConversations(prev => [conv, ...prev]);
-    setActiveConvId(conv.id);
-    setMessages([]);
-    inputRef.current?.focus();
-  }, []);
+== ΔΕΔΟΜΕΝΑ ==
+ΠΕΛΑΤΕΣ (${customers.length}):
+${JSON.stringify(customers.map(c => ({ id: c.id, name: c.name, tax_id: c.tax_id, phone: c.phone, mobile: c.mobile, email: c.email, city: c.city, address: c.address, balance: c.balance, status: c.status, category: c.category, payment_terms: c.payment_terms, credit_limit: c.credit_limit, notes: c.notes })))}
 
-  const loadConversation = useCallback(async (convId) => {
-    setActiveConvId(convId);
-    const conv = await base44.agents.getConversation(convId);
-    setMessages(conv.messages || []);
-  }, []);
+ΠΡΟΪΟΝΤΑ (${products.length}):
+${JSON.stringify(products.slice(0,30).map(p => ({ id: p.id, sku: p.sku, name: p.name, sell_price: p.sell_price, buy_price: p.buy_price, vat_rate: p.vat_rate, status: p.status })))}
+
+ΤΙΜΟΛΟΓΙΑ ΠΩΛΗΣΕΩΝ: ${salesInvoices.length} σύνολο | Έσοδα: €${totalRevenue.toFixed(2)} | Απλήρωτα: ${unpaid.length}
+${JSON.stringify(salesInvoices.slice(0,15).map(i => ({ number: i.number, customer: i.customer_name, total: i.total, status: i.status, date: i.date })))}
+
+ΠΑΡΑΓΓΕΛΙΕΣ: ${salesOrders.length} | ΠΛΗΡΩΜΕΣ: ${payments.length}
+
+== ΕΝΤΟΛΕΣ ΕΠΕΞΕΡΓΑΣΙΑΣ ==
+Αν ο χρήστης ζητήσει να αλλάξει κάτι σε πελάτη, απάντα ΠΑΝΤΑ με ένα JSON block στο τέλος ως εξής:
+\`\`\`action
+{
+  "action": "update_customer",
+  "customer_id": "<id του πελάτη>",
+  "customer_name": "<όνομα πελάτη>",
+  "changes": {
+    "<πεδίο>": "<νέα τιμή>"
+  },
+  "confirmation_message": "<μήνυμα επιβεβαίωσης στα ελληνικά>"
+}
+\`\`\`
+
+Έγκυρα πεδία πελάτη: name, tax_id, phone, mobile, email, address, city, postal_code, balance, status, category, payment_terms, credit_limit, notes
+Έγκυρες τιμές status: active, inactive, blocked
+Έγκυρες τιμές category: wholesale, retail, government, other
+
+Αν ο χρήστης ΔΕΝ ζητά αλλαγή, απλώς απάντα κανονικά χωρίς JSON block.
+Απάντα ΠΑΝΤΑ στα Ελληνικά. Είσαι επαγγελματικός και χρήσιμος.`;
+  }, [customers, products, salesInvoices, payments, salesOrders]);
+
+  const parseAction = (text) => {
+    const match = text.match(/```action\s*([\s\S]*?)```/);
+    if (!match) return null;
+    try { return JSON.parse(match[1].trim()); } catch { return null; }
+  };
+
+  const stripAction = (text) => text.replace(/```action[\s\S]*?```/g, '').trim();
+
+  const executeAction = async (action) => {
+    if (action.action === 'update_customer') {
+      try {
+        await base44.entities.Customer.update(action.customer_id, action.changes);
+        await qc.invalidateQueries({ queryKey: ['customers'] });
+        setMessages(prev => [...prev, {
+          role: 'assistant', type: 'action',
+          content: `✅ **Επιτυχία!** Ο πελάτης **${action.customer_name}** ενημερώθηκε:\n${Object.entries(action.changes).map(([k, v]) => `- **${k}**: ${v}`).join('\n')}`
+        }]);
+      } catch (err) {
+        setMessages(prev => [...prev, { role: 'assistant', content: `❌ Σφάλμα κατά την ενημέρωση: ${err.message}` }]);
+      }
+    }
+    setPendingAction(null);
+  };
 
   const sendMessage = useCallback(async (text) => {
     const msg = (text || input).trim();
-    if (!msg || sending) return;
-
-    let convId = activeConvId;
-    if (!convId) {
-      const conv = await base44.agents.createConversation({
-        agent_name: 'erp_assistant',
-        metadata: { name: msg.slice(0, 40) },
-      });
-      setConversations(prev => [conv, ...prev]);
-      setActiveConvId(conv.id);
-      convId = conv.id;
-    }
-
+    if (!msg || loading) return;
+    const newMessages = [...messages, { role: 'user', content: msg }];
+    setMessages(newMessages);
     setInput('');
-    setSending(true);
-    const conv = await base44.agents.getConversation(convId);
-    await base44.agents.addMessage(conv, { role: 'user', content: msg });
-    setSending(false);
-    inputRef.current?.focus();
-  }, [input, sending, activeConvId]);
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+    setLoading(true);
+    try {
+      let reply = '';
+      const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
+      if (aiModel === 'claude') {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, system: buildContext(), messages: apiMessages }),
+        });
+        const data = await response.json();
+        reply = data.content?.map(b => b.text || '').join('') || 'Δεν ήταν δυνατή η λήψη απάντησης.';
+      } else {
+        const response = await base44.functions.invoke('chatgpt', {
+          messages: [{ role: 'system', content: buildContext() }, ...apiMessages],
+        });
+        reply = response.data?.reply || 'Δεν ήταν δυνατή η λήψη απάντησης.';
+      }
+      const action = parseAction(reply);
+      const cleanReply = stripAction(reply);
+      setMessages(prev => [...prev, { role: 'assistant', content: cleanReply }]);
+      if (action) setPendingAction(action);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', content: `❌ Σφάλμα: ${err.message}` }]);
     }
-  };
+    setLoading(false);
+    inputRef.current?.focus();
+  }, [input, loading, messages, aiModel, buildContext]);
 
-  const activeConv = conversations.find(c => c.id === activeConvId);
+  const handleKeyDown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
+  const handleImportDone = (msg) => { setMessages(prev => [...prev, { role: 'assistant', content: `✅ ${msg}` }]); setActiveTab('chat'); };
+
+  const SUGGESTIONS = [
+    '📊 Δώσε μου αναφορά πωλήσεων',
+    '👥 Ποιοι είναι οι κορυφαίοι 5 πελάτες;',
+    '✏️ Άλλαξε το τηλέφωνο του πελάτη [όνομα] σε [αριθμό]',
+    '🔴 Βάλε τον πελάτη [όνομα] σε inactive',
+    '📦 Ποια προϊόντα έχουν χαμηλό απόθεμα;',
+    '💰 Πόσα τιμολόγια είναι απλήρωτα;',
+  ];
 
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)] gap-4">
-      {/* Tab switcher */}
-      <div className="flex gap-2">
-        <Button
-          variant={activeTab === 'erp' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setActiveTab('erp')}
-          className="gap-2"
-        >
-          <Bot className="w-4 h-4" />
-          ERP Assistant
-        </Button>
-        <Button
-          variant={activeTab === 'chatgpt' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setActiveTab('chatgpt')}
-          className="gap-2"
-        >
-          <Sparkles className="w-4 h-4" />
-          ChatGPT (GPT-4o)
-        </Button>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Bot className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="font-bold text-lg">AI Βοηθός ERP</h1>
+            <p className="text-xs text-muted-foreground">{customers.length} πελάτες · {products.length} προϊόντα · {salesInvoices.length} τιμολόγια</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+          <button onClick={() => setAiModel('claude')} className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all', aiModel==='claude'?'bg-white shadow-sm text-foreground':'text-muted-foreground hover:text-foreground')}><Bot className="w-3.5 h-3.5" /> Claude</button>
+          <button onClick={() => setAiModel('chatgpt')} className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all', aiModel==='chatgpt'?'bg-white shadow-sm text-foreground':'text-muted-foreground hover:text-foreground')}><Sparkles className="w-3.5 h-3.5" /> ChatGPT</button>
+        </div>
       </div>
 
-      {/* ChatGPT tab */}
-      {activeTab === 'chatgpt' && (
-        <Card className="flex-1 flex flex-col overflow-hidden p-0">
-          <div className="flex items-center gap-3 px-5 py-3 border-b bg-muted/30">
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">ChatGPT (GPT-4o)</p>
-              <p className="text-[11px] text-muted-foreground">Γενικές επιχειρηματικές συμβουλές</p>
-            </div>
-          </div>
-          <ChatGPTChat />
-        </Card>
-      )}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+        <TabsList className="w-fit">
+          <TabsTrigger value="chat" className="gap-2"><Bot className="w-4 h-4" /> Συνομιλία & Επεξεργασία</TabsTrigger>
+          <TabsTrigger value="import-customers" className="gap-2"><Users className="w-4 h-4" /> Εισαγωγή Πελατών</TabsTrigger>
+          <TabsTrigger value="import-products" className="gap-2"><Package className="w-4 h-4" /> Εισαγωγή Προϊόντων</TabsTrigger>
+        </TabsList>
 
-      {/* ERP Assistant tab */}
-      {activeTab === 'erp' && (
-        <div className="flex flex-1 gap-4 overflow-hidden">
-          {/* Sidebar */}
-          <div className="w-56 flex-shrink-0 flex flex-col gap-2">
-            <Button onClick={startNewConversation} className="w-full gap-2" size="sm">
-              <Plus className="w-4 h-4" /> New Chat
-            </Button>
-            <Card className="flex-1 overflow-hidden p-0">
-              <ScrollArea className="h-full">
-                <div className="p-2 space-y-1">
-                  {loadingConvs && (
-                    <div className="flex items-center justify-center py-6 text-muted-foreground text-xs">
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading…
-                    </div>
-                  )}
-                  {!loadingConvs && conversations.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-6">No conversations yet</p>
-                  )}
-                  {conversations.map(conv => (
-                    <button
-                      key={conv.id}
-                      onClick={() => loadConversation(conv.id)}
-                      className={cn(
-                        'w-full text-left text-xs px-3 py-2 rounded-lg transition-colors truncate',
-                        conv.id === activeConvId
-                          ? 'bg-primary text-primary-foreground'
-                          : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      )}
-                    >
-                      <MessageSquare className="w-3 h-3 inline mr-1.5 opacity-60" />
-                      {conv.metadata?.name || 'Chat'}
-                    </button>
-                  ))}
-                </div>
-              </ScrollArea>
-            </Card>
-          </div>
-
-          {/* Main chat */}
+        <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden mt-3">
           <Card className="flex-1 flex flex-col overflow-hidden p-0">
-            <div className="flex items-center gap-3 px-5 py-3 border-b bg-muted/30">
-              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">ERP AI Assistant</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {activeConvId ? (activeConv?.metadata?.name || 'Active conversation') : 'Ask anything about your business data'}
-                </p>
-              </div>
-            </div>
-
             <ScrollArea className="flex-1 px-5 py-4">
               {messages.length === 0 && (
-                <div className="h-full flex flex-col items-center justify-center gap-6 py-10">
-                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                    <Bot className="w-8 h-8 text-primary" />
-                  </div>
+                <div className="flex flex-col items-center justify-center gap-6 py-10">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center"><Bot className="w-8 h-8 text-primary" /></div>
                   <div className="text-center">
-                    <h3 className="font-semibold text-foreground">How can I help you today?</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Ask about customers, invoices, stock, sales and more.</p>
+                    <h3 className="font-semibold">{aiModel==='claude'?'🤖 Claude AI':'✨ ChatGPT'} — Βοηθός ERP</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Μπορώ να απαντώ ερωτήσεις <strong>και</strong> να επεξεργάζομαι πελάτες για εσένα!</p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
-                    {SUGGESTED.map(s => (
-                      <button
-                        key={s}
-                        onClick={() => sendMessage(s)}
-                        className="text-left text-xs px-3 py-2 rounded-xl border bg-card hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                      >
-                        {s}
-                      </button>
-                    ))}
+                    {SUGGESTIONS.map(s => (<button key={s} onClick={() => sendMessage(s)} className="text-left text-xs px-3 py-2 rounded-xl border bg-card hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">{s}</button>))}
                   </div>
                 </div>
               )}
-              <div className="space-y-4">
-                {messages.map((msg, i) => (
-                  <MessageBubble key={i} message={msg} />
-                ))}
-                {sending && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="w-3 h-3 animate-spin" /> Thinking…
-                  </div>
-                )}
+              <div>
+                {messages.map((msg, i) => <Bubble key={i} msg={msg} />)}
+                {loading && (<div className="flex items-center gap-2 text-xs text-muted-foreground mb-4"><Loader2 className="w-3 h-3 animate-spin" />{aiModel==='claude'?'Το Claude σκέφτεται…':'Το ChatGPT σκέφτεται…'}</div>)}
               </div>
               <div ref={bottomRef} />
             </ScrollArea>
 
+            {pendingAction && (
+              <div className="mx-4 mb-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <div className="flex items-start gap-3">
+                  <ShieldAlert className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-amber-800">Επιβεβαίωση αλλαγής</p>
+                    <p className="text-xs text-amber-700 mt-1">{pendingAction.confirmation_message}</p>
+                    <div className="mt-1 text-xs text-amber-600 space-y-0.5">
+                      {pendingAction.changes && Object.entries(pendingAction.changes).map(([k, v]) => (<p key={k}>• <strong>{k}</strong>: {String(v)}</p>))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => executeAction(pendingAction)}>
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Ναι, κάνε την αλλαγή
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1" onClick={() => { setPendingAction(null); setMessages(prev => [...prev, { role: 'assistant', content: '❌ Η αλλαγή ακυρώθηκε.' }]); }}>
+                    <X className="w-3.5 h-3.5 mr-1.5" /> Ακύρωση
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="px-4 py-3 border-t bg-muted/20">
               <div className="flex gap-2">
-                <Input
-                  ref={inputRef}
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask about your business data…"
-                  disabled={sending}
-                  className="flex-1 text-sm"
-                />
-                <Button
-                  size="icon"
-                  onClick={() => sendMessage()}
-                  disabled={sending || !input.trim()}
-                >
-                  {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {messages.length > 0 && (<Button variant="outline" size="icon" onClick={() => { setMessages([]); setPendingAction(null); }} title="Εκκαθάριση"><Trash2 className="w-4 h-4" /></Button>)}
+                <Input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder='π.χ. "Άλλαξε το email του Παπαδόπουλου σε info@test.gr"' disabled={loading} className="flex-1 text-sm" />
+                <Button size="icon" onClick={() => sendMessage()} disabled={loading || !input.trim()}>
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 </Button>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1.5 text-center">Press Enter to send · Shift+Enter for new line</p>
+              <div className="flex items-center justify-between mt-1.5">
+                <p className="text-[10px] text-muted-foreground">Enter για αποστολή · Αλλαγές πελατών ζητούν επιβεβαίωση</p>
+                <Badge variant="outline" className="text-[10px] h-5">{aiModel==='claude'?'🤖 Claude':'✨ ChatGPT'}</Badge>
+              </div>
             </div>
           </Card>
-        </div>
-      )}
+        </TabsContent>
+
+        <TabsContent value="import-customers" className="mt-3">
+          <Card className="p-6 max-w-2xl"><ImportPanel type="customers" onImportDone={handleImportDone} /></Card>
+        </TabsContent>
+        <TabsContent value="import-products" className="mt-3">
+          <Card className="p-6 max-w-2xl"><ImportPanel type="products" onImportDone={handleImportDone} /></Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
