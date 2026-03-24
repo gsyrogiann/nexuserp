@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Reorder, motion, AnimatePresence } from 'framer-motion';
 import { 
   FileText, Send, CheckCircle2, Clock, UserPlus, 
-  Search, Mail, Phone, FileCheck, X, Loader2, TrendingUp, Euro 
+  Search, Mail, Phone, FileCheck, X, Loader2, TrendingUp, Euro, Calendar as CalendarIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -29,6 +29,7 @@ export default function SalesPipeline() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeAction, setActiveAction] = useState(null); 
   const [emailBody, setEmailBody] = useState('');
+  const [followUpDate, setFollowUpDate] = useState('');
   const [isSending, setIsSending] = useState(false);
 
   const { data: customers = [] } = useQuery({
@@ -61,6 +62,10 @@ export default function SalesPipeline() {
       ? `Αγαπητέ συνεργάτη,\n\nΣας αποστέλλουμε την οικονομική προσφορά για το Nexus ERP όπως συζητήσαμε.\n\nΜε εκτίμηση.` 
       : `Αγαπητέ συνεργάτη,\n\nΑκολουθεί το τιμολόγιο για την παραγγελία σας.\n\nΕυχαριστούμε για τη συνεργασία.`
     );
+    // Προεπιλεγμένη ημερομηνία follow-up: +3 μέρες από σήμερα
+    const date = new Date();
+    date.setDate(date.getDate() + 3);
+    setFollowUpDate(date.toISOString().split('T')[0]);
     setIsModalOpen(true);
   };
 
@@ -72,23 +77,44 @@ export default function SalesPipeline() {
 
     setIsSending(true);
     try {
-      // ΠΡΑΓΜΑΤΙΚΗ ΑΠΟΣΤΟΛΗ EMAIL
+      // 1. DIRECT GMAIL SEND
       await base44.functions.invoke('gmailSend', {
         to: activeAction.deal.email,
         subject: activeAction.type === 'PROPOSAL' ? 'Προσφορά Nexus ERP' : 'Τιμολόγιο Nexus ERP',
         body: emailBody
       });
 
-      // ΜΟΝΟ ΜΕΤΑΚΙΝΗΣΗ ΣΤΑΔΙΟΥ (Χωρίς εγγραφή σε άλλη οντότητα προς το παρόν)
+      // 2. LOG TO EMAIL MESSAGE (Για το Indigo χρώμα στο Calendar)
+      await base44.entities.EmailMessage.create({
+        subject: activeAction.type === 'PROPOSAL' ? 'Προσφορά Nexus ERP' : 'Τιμολόγιο Nexus ERP',
+        body: emailBody,
+        to_address: activeAction.deal.email,
+        sent_at: new Date().toISOString(),
+        customer_id: activeAction.deal.id
+      });
+
+      // 3. CREATE FOLLOW-UP TICKET (Αν έχει επιλεγεί ημερομηνία)
+      if (followUpDate) {
+        await base44.entities.ServiceTicket.create({
+          title: `Follow-up: ${activeAction.deal.name}`,
+          description: `Υπενθύμιση για επικοινωνία μετά από ${activeAction.type === 'PROPOSAL' ? 'Προσφορά' : 'Τιμολόγιο'}.`,
+          due_date: new Date(followUpDate).toISOString(),
+          status: 'open',
+          priority: 'medium',
+          customer_id: activeAction.deal.id
+        });
+      }
+
+      // 4. MOVE STAGE
       let nextStage = activeAction.type === 'PROPOSAL' ? 'proposal' : 'won';
       setDeals(prev => prev.map(d => 
         d.id === activeAction.deal.id ? { ...d, stage: nextStage } : d
       ));
 
-      toast.success(`Το email στάλθηκε επιτυχώς στον ${activeAction.deal.name}!`);
+      toast.success(`Η ενέργεια ολοκληρώθηκε για τον ${activeAction.deal.name}!`);
     } catch (error) {
       console.error(error);
-      toast.error("Αποτυχία αποστολής. Ελέγξτε τις ρυθμίσεις Gmail.");
+      toast.error("Σφάλμα κατά την αποστολή ή την καταχώρηση.");
     } finally {
       setIsSending(false);
       setIsModalOpen(false);
@@ -97,7 +123,7 @@ export default function SalesPipeline() {
 
   return (
     <div className="space-y-6 pb-20 select-none">
-      <PageHeader title="Sales Pipeline" subtitle="Διαδραστική ροή πωλήσεων" />
+      <PageHeader title="Sales Pipeline" subtitle="Διαδραστική ροή πωλήσεων & Follow-ups" />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {STAGES.map(stage => (
@@ -180,24 +206,37 @@ export default function SalesPipeline() {
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[480px] rounded-[40px] p-10 border-none shadow-2xl">
+        <DialogContent className="sm:max-w-[500px] rounded-[40px] p-10 border-none shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black">Επιβεβαίωση Αποστολής</DialogTitle>
-            <DialogDescription className="font-medium text-slate-500 pt-2">
-              Πρόκειται να στείλετε {activeAction?.type === 'PROPOSAL' ? 'Προσφορά' : 'Τιμολόγιο'} στον πελάτη <strong>{activeAction?.deal.name}</strong>.
-            </DialogDescription>
           </DialogHeader>
           <div className="py-6 space-y-4">
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email Παραλήπτη</p>
-               <p className="font-bold text-slate-700">{activeAction?.deal.email}</p>
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
+               <div>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email Παραλήπτη</p>
+                 <p className="font-bold text-slate-700 text-sm">{activeAction?.deal.email}</p>
+               </div>
+               <Badge className="bg-blue-100 text-blue-600 border-none px-3 font-bold">{activeAction?.type}</Badge>
             </div>
+            
             <div className="space-y-2">
               <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Περιεχόμενο Email</label>
               <Textarea 
-                className="rounded-2xl border-slate-200 min-h-[140px] p-4 text-sm leading-relaxed"
+                className="rounded-2xl border-slate-200 min-h-[120px] p-4 text-sm leading-relaxed"
                 value={emailBody}
                 onChange={(e) => setEmailBody(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                <CalendarIcon size={12} className="text-primary" /> Ημερομηνία Follow-up (Προαιρετικά)
+              </label>
+              <Input 
+                type="date" 
+                className="rounded-2xl border-slate-200 h-12" 
+                value={followUpDate}
+                onChange={(e) => setFollowUpDate(e.target.value)}
               />
             </div>
           </div>
