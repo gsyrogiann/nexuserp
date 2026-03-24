@@ -49,7 +49,6 @@ export default function SalesPipeline() {
     d.phone?.includes(searchTerm)
   );
 
-  // Υπολογισμός Συνόλων ανά Στάδιο
   const getStageTotal = (stageId) => {
     return deals
       .filter(d => d.stage === stageId)
@@ -65,7 +64,6 @@ export default function SalesPipeline() {
     setIsModalOpen(true);
   };
 
-  // ΠΡΑΓΜΑΤΙΚΗ ΑΠΟΣΤΟΛΗ ΜΕΣΩ GMAIL
   const handleConfirmSend = async () => {
     if (!activeAction?.deal.email) {
       toast.error("Ο πελάτης δεν έχει email!");
@@ -74,14 +72,14 @@ export default function SalesPipeline() {
 
     setIsSending(true);
     try {
-      // Direct κλήση της function αποστολής του Gmail
+      // ΠΡΑΓΜΑΤΙΚΗ ΑΠΟΣΤΟΛΗ EMAIL
       await base44.functions.invoke('gmailSend', {
         to: activeAction.deal.email,
         subject: activeAction.type === 'PROPOSAL' ? 'Προσφορά Nexus ERP' : 'Τιμολόγιο Nexus ERP',
         body: emailBody
       });
 
-      // Μετακίνηση σταδίου μόνο μετά την επιτυχή αποστολή
+      // ΜΟΝΟ ΜΕΤΑΚΙΝΗΣΗ ΣΤΑΔΙΟΥ (Χωρίς εγγραφή σε άλλη οντότητα προς το παρόν)
       let nextStage = activeAction.type === 'PROPOSAL' ? 'proposal' : 'won';
       setDeals(prev => prev.map(d => 
         d.id === activeAction.deal.id ? { ...d, stage: nextStage } : d
@@ -101,7 +99,6 @@ export default function SalesPipeline() {
     <div className="space-y-6 pb-20 select-none">
       <PageHeader title="Sales Pipeline" subtitle="Διαδραστική ροή πωλήσεων" />
 
-      {/* Revenue Summary Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {STAGES.map(stage => (
           <Card key={stage.id} className="bg-white/50 border-slate-100 shadow-none">
