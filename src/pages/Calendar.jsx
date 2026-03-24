@@ -44,6 +44,8 @@ export default function CalendarPage() {
 
   // Queries για όλα τα δεδομένα
   const { data: quotes = [] } = useQuery({ queryKey: ['quotes'], queryFn: () => base44.entities.Quote.list() });
+  const { data: tickets = [] } = useQuery({ queryKey: ['tickets'], queryFn: () => base44.entities.ServiceTicket.list() });
+  const { data: salesOrders = [] } = useQuery({ queryKey: ['salesOrders'], queryFn: () => base44.entities.SalesOrder.list() });
   const { data: calendarEvents = [] } = useQuery({ 
     queryKey: ['calendarEvents'], 
     queryFn: () => base44.entities.CalendarEvent.list() 
