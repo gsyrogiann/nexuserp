@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Trash2, Archive, History } from 'lucide-react';
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'waiting', 'closed'];
 const PRIORITY_OPTIONS = ['low', 'normal', 'high', 'critical'];
@@ -29,33 +30,6 @@ const statusColors = {
   waiting: 'bg-amber-100 text-amber-700 border-amber-200',
   closed: 'bg-gray-100 text-gray-600 border-gray-200',
 };
-
-const columns = [
-  { key: 'ticket_number', label: '#' },
-  { key: 'title', label: 'Title' },
-  { key: 'customer', label: 'Customer' },
-  {
-    key: 'priority',
-    label: 'Priority',
-    render: (val) => (
-      <Badge variant="outline" className={cn('text-[11px] font-medium border', priorityColors[val] || '')}>
-        {val || '—'}
-      </Badge>
-    ),
-  },
-  {
-    key: 'status',
-    label: 'Status',
-    render: (val) => (
-      <Badge variant="outline" className={cn('text-[11px] font-medium border', statusColors[val] || '')}>
-        {(val || '—').replace(/_/g, ' ')}
-      </Badge>
-    ),
-  },
-  { key: 'category', label: 'Category', type: 'badge' },
-  { key: 'assigned_to', label: 'Assigned To' },
-  { key: 'due_date', label: 'Due Date', type: 'date' },
-];
 
 const emptyForm = {
   ticket_number: '',
@@ -78,9 +52,11 @@ export default function Tickets() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [statusFilter, setStatusFilter] = useState('all');
-    const [searchTaxId, setSearchTaxId] = useState('');
+  const [searchTaxId, setSearchTaxId] = useState('');
+  const [dailyArchive, setDailyArchive] = useState([]); // State για το Αρχείο Ημέρας
   const qc = useQueryClient();
 
+  // Queries
   const { data: tickets = [] } = useQuery({
     queryKey: ['tickets'],
     queryFn: () => base44.entities.ServiceTicket.list('-created_date'),
@@ -91,11 +67,7 @@ export default function Tickets() {
     queryFn: () => base44.entities.Customer.list('name'),
   });
 
-    // Filter customers by tax ID
-  const filteredCustomers = searchTaxId
-    ? customers.filter(c => c.tax_id && c.tax_id.includes(searchTaxId))
-    : [];
-
+  // Mutations
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.ServiceTicket.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets'] }),
@@ -105,6 +77,70 @@ export default function Tickets() {
     mutationFn: ({ id, data }) => base44.entities.ServiceTicket.update(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets'] }),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.ServiceTicket.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets'] }),
+  });
+
+  // Functions
+  const handleDelete = async (e, row) => {
+    e.stopPropagation(); // Σταματάμε το άνοιγμα του edit dialog
+    if (window.confirm(`Οριστική διαγραφή του ${row.ticket_number};`)) {
+      // Προσθήκη στο Αρχείο Ημέρας πριν τη διαγραφή
+      const archiveEntry = {
+        ...row,
+        archivedAt: new Date().toLocaleTimeString('el-GR'),
+        reason: 'Manual Delete'
+      };
+      setDailyArchive(prev => [archiveEntry, ...prev]);
+      
+      await deleteMutation.mutateAsync(row.id);
+    }
+  };
+
+  const columns = [
+    { key: 'ticket_number', label: '#' },
+    { key: 'title', label: 'Title' },
+    { key: 'customer', label: 'Customer' },
+    {
+      key: 'priority',
+      label: 'Priority',
+      render: (val) => (
+        <Badge variant="outline" className={cn('text-[11px] font-medium border', priorityColors[val] || '')}>
+          {val || '—'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (val) => (
+        <Badge variant="outline" className={cn('text-[11px] font-medium border', statusColors[val] || '')}>
+          {(val || '—').replace(/_/g, ' ')}
+        </Badge>
+      ),
+    },
+    { key: 'assigned_to', label: 'Assigned' },
+    {
+      key: 'actions',
+      label: '',
+      render: (_, row) => (
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="text-muted-foreground hover:text-red-600"
+          onClick={(e) => handleDelete(e, row)}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      )
+    }
+  ];
+
+  const filteredCustomers = searchTaxId
+    ? customers.filter(c => c.tax_id && c.tax_id.includes(searchTaxId))
+    : [];
 
   const openNew = () => {
     const count = tickets.length + 1;
@@ -133,52 +169,81 @@ export default function Tickets() {
     ? tickets
     : tickets.filter(t => t.status === statusFilter);
 
-  const isLoading = createMutation.isPending || updateMutation.isPending;
-
-  const openCount = tickets.filter(t => t.status === 'open').length;
-  const inProgressCount = tickets.filter(t => t.status === 'in_progress').length;
-  const criticalCount = tickets.filter(t => t.priority === 'critical').length;
+  const isLoading = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       <PageHeader
         title="Service Tickets"
-        subtitle={`${tickets.length} tickets total · ${openCount} open`}
+        subtitle={`${tickets.length} tickets total · ${tickets.filter(t => t.status === 'open').length} open`}
         actionLabel="New Ticket"
         onAction={openNew}
       />
 
-      {/* Summary Badges */}
       <div className="flex flex-wrap gap-2">
-        {[
-          { label: 'All', value: 'all', count: tickets.length },
-          { label: 'Open', value: 'open', count: openCount },
-          { label: 'In Progress', value: 'in_progress', count: inProgressCount },
-          { label: 'Waiting', value: 'waiting', count: tickets.filter(t => t.status === 'waiting').length },
-          { label: 'Closed', value: 'closed', count: tickets.filter(t => t.status === 'closed').length },
-        ].map(({ label, value, count }) => (
+        {['all', 'open', 'in_progress', 'waiting', 'closed'].map((val) => (
           <button
-            key={value}
-            onClick={() => setStatusFilter(value)}
+            key={val}
+            onClick={() => setStatusFilter(val)}
             className={cn(
               'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
-              statusFilter === value
+              statusFilter === val
                 ? 'bg-primary text-primary-foreground border-primary'
                 : 'bg-card border-border text-muted-foreground hover:border-primary/50'
             )}
           >
-            {label} <span className="ml-1 opacity-70">{count}</span>
+            {val.charAt(0).toUpperCase() + val.slice(1).replace('_', ' ')} 
+            <span className="ml-1 opacity-70">
+              {val === 'all' ? tickets.length : tickets.filter(t => t.status === val).length}
+            </span>
           </button>
         ))}
-        {criticalCount > 0 && (
-          <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">
-            🔴 {criticalCount} Critical
-          </span>
-        )}
       </div>
 
       <DataTable columns={columns} data={filteredTickets} onRowClick={openEdit} />
 
+      {/* ΑΡΧΕΙΟ ΗΜΕΡΑ (DAILY ARCHIVE) SECTION */}
+      <div className="mt-12 space-y-4">
+        <div className="flex items-center gap-2 text-slate-800">
+          <Archive className="w-5 h-5" />
+          <h2 className="text-lg font-bold tracking-tight">Αρχείο Ημέρας & Logs Διαγραφών</h2>
+        </div>
+        
+        <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-50 border-b text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <tr>
+                <th className="px-6 py-3">Ticket</th>
+                <th className="px-6 py-3">Πελάτης</th>
+                <th className="px-6 py-3">Κατάσταση</th>
+                <th className="px-6 py-3">Ώρα Διαγραφής</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {dailyArchive.length > 0 ? (
+                dailyArchive.map((item, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4 font-medium text-slate-900">{item.ticket_number}</td>
+                    <td className="px-6 py-4 text-slate-600">{item.customer}</td>
+                    <td className="px-6 py-4">
+                      <Badge className="bg-red-50 text-red-700 border-red-100 text-[10px]">DIΕΓΡΑΜΜΕΝΟ</Badge>
+                    </td>
+                    <td className="px-6 py-4 text-slate-500 font-mono text-xs">{item.archivedAt}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">
+                    Το αρχείο ημέρας είναι κενό.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* EDIT/NEW DIALOG */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -188,7 +253,7 @@ export default function Tickets() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Ticket #</Label>
-                <Input value={form.ticket_number} onChange={e => set('ticket_number', e.target.value)} placeholder="TKT-0001" />
+                <Input value={form.ticket_number} onChange={e => set('ticket_number', e.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <Label>Title *</Label>
@@ -197,8 +262,30 @@ export default function Tickets() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Description</Label>
-              <Textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3} />
+              <Label>Customer Search (ΑΦΜ)</Label>
+              <div className="relative">
+                <Input 
+                  placeholder="Αναζήτηση με ΑΦΜ..." 
+                  value={searchTaxId}
+                  onChange={(e) => setSearchTaxId(e.target.value)}
+                />
+                {filteredCustomers.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-40 overflow-auto">
+                    {filteredCustomers.map(c => (
+                      <div
+                        key={c.id}
+                        className="px-4 py-2 hover:bg-slate-100 cursor-pointer text-sm"
+                        onClick={() => {
+                          setForm({ ...form, customer: c.name });
+                          setSearchTaxId('');
+                        }}
+                      >
+                        <span className="font-bold">{c.name}</span> — {c.tax_id}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -231,78 +318,12 @@ export default function Tickets() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Customer</Label>
-                              <div className="relative">
-                <Input 
-                  placeholder="Αναζήτηση με ΑΦΜ..." 
-                  value={searchTaxId}
-                  onChange={(e) => setSearchTaxId(e.target.value)}
-                />
-                {filteredCustomers.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-                    {filteredCustomers.map(c => (
-                      <div
-                        key={c.id}
-                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => {
-                          setForm({ ...form, customer: c.name });
-                          setSearchTaxId('');
-                        }}
-                      >
-                        <div className="font-medium">{c.name}</div>
-                        <div className="text-sm text-gray-500">ΑΦΜ: {c.tax_id}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-                <Select value={form.customer || ''} onValueChange={v => set('customer', v)}>
-                  <SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger>
-                  <SelectContent>
-                    {customers.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Assigned To</Label>
-                <Input value={form.assigned_to} onChange={e => set('assigned_to', e.target.value)} placeholder="Agent name or email" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label>Contact Name</Label>
-                <Input value={form.contact_name} onChange={e => set('contact_name', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Contact Phone</Label>
-                <Input value={form.contact_phone} onChange={e => set('contact_phone', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Contact Email</Label>
-                <Input type="email" value={form.contact_email} onChange={e => set('contact_email', e.target.value)} />
-              </div>
-            </div>
-
             <div className="space-y-1.5">
-              <Label>Due Date</Label>
-              <Input type="date" value={form.due_date} onChange={e => set('due_date', e.target.value)} />
+              <Label>Description</Label>
+              <Textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3} />
             </div>
 
-            <div className="border-t pt-4 space-y-4">
-              <div className="space-y-1.5">
-                <Label>Resolution Notes</Label>
-                <Textarea value={form.resolution_notes} onChange={e => set('resolution_notes', e.target.value)} rows={2} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Internal Notes</Label>
-                <Textarea value={form.internal_notes} onChange={e => set('internal_notes', e.target.value)} rows={2} />
-              </div>
-            </div>
-
-            <DialogFooter>
+            <DialogFooter className="border-t pt-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Άκυρο</Button>
               <Button type="submit" disabled={isLoading}>{isLoading ? 'Αποθήκευση...' : 'Αποθήκευση'}</Button>
             </DialogFooter>
