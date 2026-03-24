@@ -122,6 +122,29 @@ export default function Customers() {
     setAiLoading(false);
   };
 
+  const handleFileImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(l => l.trim());
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      const records = lines.slice(1).map(line => {
+        const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = values[i] || ''; });
+        return obj;
+      }).filter(r => r.name);
+      for (const record of records) {
+        await createMutation.mutateAsync(record);
+      }
+    } finally {
+      setImporting(false);
+      setImportDialogOpen(false);
+    }
+  };
+
   const filteredItems = searchTax 
     ? items.filter(c => c.tax_id?.includes(searchTax)) 
     : items;
