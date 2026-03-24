@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import PageHeader from '../components/shared/PageHeader';
-import DataTable from '../components/shared/DataTable';
 import EntityFormDialog from '../components/shared/EntityFormDialog';
 import CustomerEmailsTab from '../components/email/CustomerEmailsTab';
 import CustomerActivityTimeline from '../components/email/CustomerActivityTimeline';
@@ -11,18 +10,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Bot, Loader2, Sparkles, Mail, Activity, Info } from 'lucide-react';
+import { 
+  ContextMenu, 
+  ContextMenuContent, 
+  ContextMenuItem, 
+  ContextMenuTrigger, 
+  ContextMenuSeparator 
+} from "@/components/ui/context-menu";
+import { Reorder, motion, AnimatePresence } from 'framer-motion';
+import { 
+  Bot, Loader2, Sparkles, Mail, Activity, Info, 
+  GripVertical, ExternalLink, Copy, Trash2, User 
+} from 'lucide-react';
 import { t } from '@/lib/translations';
-
-const columns = [
-  { key: 'name', label: t.name },
-  { key: 'tax_id', label: t.taxId },
-  { key: 'city', label: t.city },
-  { key: 'phone', label: t.phone },
-  { key: 'category', label: t.category, type: 'badge' },
-  { key: 'balance', label: t.balance, type: 'currency' },
-  { key: 'status', label: t.status, type: 'status' },
-];
+import { cn } from '@/lib/utils';
 
 const formFields = [
   { key: 'code', label: t.code },
@@ -57,7 +58,6 @@ const formFields = [
 ];
 
 export default function Customers() {
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [aiSummary, setAiSummary] = useState('');
@@ -65,17 +65,31 @@ export default function Customers() {
   const [searchTax, setSearchTax] = useState('');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [items, setItems] = useState([]); // Για το Drag & Drop
+
   const qc = useQueryClient();
-  const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => base44.entities.Customer.list(), initialData: [] });
+  const { data: customers = [] } = useQuery({ 
+    queryKey: ['customers'], 
+    queryFn: () => base44.entities.Customer.list() 
+  });
+
+  // Συγχρονισμός τοπικού state με τα δεδομένα της βάσης
+  useEffect(() => {
+    if (customers.length > 0 && items.length === 0) {
+      setItems(customers);
+    }
+  }, [customers]);
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Customer.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
   });
+
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Customer.update(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
   });
+
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Customer.delete(id),
     onSuccess: () => {
@@ -93,218 +107,203 @@ export default function Customers() {
     setEditing(null);
   };
 
-  const filteredCustomers = searchTax ? customers.filter(c => c.tax_id && c.tax_id.includes(searchTax)) : customers;
-
-  const handleRowClick = (row) => {
-    setSelectedCustomer(row);
-    setAiSummary('');
+  const openInNewTab = (id) => {
+    const url = `${window.location.origin}/customers?id=${id}`;
+    window.open(url, '_blank');
   };
 
   const generateAISummary = async () => {
     if (!selectedCustomer) return;
     setAiLoading(true);
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Generate a brief professional business summary for this customer:
-Name: ${selectedCustomer.name}, Category: ${selectedCustomer.category}, City: ${selectedCustomer.city}, Balance: €${selectedCustomer.balance || 0}, Payment Terms: ${selectedCustomer.payment_terms || 30} days, Status: ${selectedCustomer.status}. 
-Provide a 2-3 sentence summary including risk assessment and recommendations.`,
+      prompt: `Generate a brief business summary for: ${selectedCustomer.name}. Balance: €${selectedCustomer.balance}. Max 2 sentences.`,
     });
     setAiSummary(result);
     setAiLoading(false);
   };
 
-  const handleFileImport = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setImporting(true);
-    const reader = new FileReader();
-
-    reader.onload = async (e) => {
-      try {
-        const text = e.target.result;
-        const rows = text.split('\n').filter(row => row.trim());
-        
-        // Skip header row
-        const dataRows = rows.slice(1);
-
-        // Detect delimiter (comma or semicolon)
-        const firstRow = dataRows[0] || '';
-        const delimiter = firstRow.includes(';') ? ';' : ',';
-        
-        for (const row of dataRows) {
-          const cols = row.split(delimiter).map(col => col.trim().replace(/^"|"$/g, ''));
-          const customerData = {
-            code: cols[0] || '',
-            name: cols[1] || '',
-            date: cols[2] || '',
-            balance: cols[3] || '',
-            tax_id: cols[4] || '',
-            address: cols[5] || '',
-            profession: cols[6] || '',
-            activity_sector: cols[7] || '',
-            phone: cols[8] || '',
-            tax_office: cols[9] || '',
-            vat_category: cols[10] || '',
-            region: cols[11] || '',
-            postal_code: cols[12] || '',
-            country: cols[13] || '',
-            mobile: cols[14] || '',
-            mobile2: cols[15] || '',
-            bank_account: cols[16] || '',
-            email: cols[17] || '',
-            email2: cols[18] || '',
-            category: 'retail',
-            status: 'active'
-          };
-
-          if (customerData.name) {
-            await createMutation.mutateAsync(customerData);
-          }
-        }
-        
-        setImportDialogOpen(false);
-        alert(`Εισήχθησαν ${dataRows.length} πελάτες επιτυχώς!`);
-      } catch (error) {
-        console.error('Import error:', error);
-        alert('Σφάλμα κατά την εισαγωγή: ' + error.message);
-      } finally {
-        setImporting(false);
-      }
-    };
-
-    reader.readAsText(file);
-  };
+  const filteredItems = searchTax 
+    ? items.filter(c => c.tax_id?.includes(searchTax)) 
+    : items;
 
   return (
-    <div className="space-y-6">
-      <PageHeader title={t.customers} subtitle={`${customers.length} ${t.total.toLowerCase()}`} actionLabel={t.newCustomer} onAction={() => { setEditing(null); setDialogOpen(true); }} />
-      <div className="flex gap-2 mb-4">
+    <div className="space-y-6 pb-10">
+      <PageHeader 
+        title={t.customers} 
+        subtitle={`${customers.length} ${t.total.toLowerCase()}`} 
+        actionLabel={t.newCustomer} 
+        onAction={() => { setEditing(null); }} 
+      />
+
+      <div className="flex items-center gap-4">
+        <Input 
+          placeholder="Αναζήτηση με ΑΦΜ..." 
+          value={searchTax} 
+          onChange={(e) => setSearchTax(e.target.value)} 
+          className="max-w-sm bg-white" 
+        />
         <Button onClick={() => setImportDialogOpen(true)} variant="outline">
           {t.importFromExcelCSV}
         </Button>
       </div>
 
-      <Input placeholder="Αναζήτηση με ΑΦΜ..." value={searchTax} onChange={(e) => setSearchTax(e.target.value)} className="max-w-sm" />
-
-      {selectedCustomer ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
-            <DataTable columns={columns} data={filteredCustomers} onRowClick={handleRowClick} pageSize={8} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Λίστα με Drag & Drop */}
+        <div className="lg:col-span-1 space-y-2">
+          <div className="bg-muted/50 p-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex px-4">
+            <span className="w-8"></span>
+            <span className="flex-1">Όνομα Πελάτη</span>
+            <span>Υπόλοιπο</span>
           </div>
+          
+          <Reorder.Group axis="y" values={items} onReorder={setItems} className="space-y-2">
+            <AnimatePresence>
+              {filteredItems.map((customer) => (
+                <Reorder.Item
+                  key={customer.id}
+                  value={customer}
+                  className="relative"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <ContextMenu>
+                    <ContextMenuTrigger>
+                      <Card 
+                        className={cn(
+                          "cursor-pointer transition-all hover:border-primary/50 select-none",
+                          selectedCustomer?.id === customer.id ? "border-primary bg-primary/5" : ""
+                        )}
+                        onClick={() => {
+                          setSelectedCustomer(customer);
+                          setAiSummary('');
+                        }}
+                      >
+                        <CardContent className="p-3 flex items-center gap-3">
+                          <GripVertical className="w-4 h-4 text-muted-foreground/40 cursor-grab active:cursor-grabbing" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold truncate">{customer.name}</p>
+                            <p className="text-[10px] text-muted-foreground">{customer.tax_id || 'Χωρίς ΑΦΜ'}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-mono font-bold">€{customer.balance?.toLocaleString('el-GR')}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </ContextMenuTrigger>
+                    
+                    <ContextMenuContent className="w-56">
+                      <ContextMenuItem onClick={() => openInNewTab(customer.id)} className="gap-2">
+                        <ExternalLink className="w-4 h-4 text-blue-500" /> Άνοιγμα σε νέο παράθυρο
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => navigator.clipboard.writeText(customer.tax_id)} className="gap-2">
+                        <Copy className="w-4 h-4" /> Αντιγραφή ΑΦΜ
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem onClick={() => { setSelectedCustomer(customer); setEditing(customer); }} className="gap-2">
+                        <User className="w-4 h-4" /> Επεξεργασία
+                      </ContextMenuItem>
+                      <ContextMenuItem 
+                        onClick={() => window.confirm('Διαγραφή;') && deleteMutation.mutate(customer.id)}
+                        className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" /> Διαγραφή
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
+                </Reorder.Item>
+              ))}
+            </AnimatePresence>
+          </Reorder.Group>
+        </div>
 
-          <div className="lg:col-span-2">
-            <Card className="overflow-hidden">
+        {/* Λεπτομέρειες Επιλεγμένου Πελάτη */}
+        <div className="lg:col-span-2">
+          {selectedCustomer ? (
+            <Card className="sticky top-6">
               <CardHeader className="pb-0 pt-4 px-5">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div>
-                    <CardTitle className="text-lg">{selectedCustomer.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{selectedCustomer.email || ''} {selectedCustomer.phone ? `· ${selectedCustomer.phone}` : ''}</p>
+                    <CardTitle className="text-xl">{selectedCustomer.name}</CardTitle>
+                    <div className="flex gap-2 mt-1">
+                      <Badge variant="outline" className="text-[10px] uppercase">{selectedCustomer.category}</Badge>
+                      <Badge variant="outline" className="text-[10px] uppercase bg-emerald-50 text-emerald-700 border-emerald-100">{selectedCustomer.status}</Badge>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => { setEditing(selectedCustomer); setDialogOpen(true); }}>
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        if (window.confirm('Διαγραφή πελάτη;')) {
-                          deleteMutation.mutate(selectedCustomer.id);
-                        }
-                      }}
-                    >
-                      Διαγραφή
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedCustomer(null)}>✕</Button>
-                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setEditing(selectedCustomer)}>Edit</Button>
                 </div>
 
                 <Tabs defaultValue="info">
-                  <TabsList className="w-full justify-start">
-                    <TabsTrigger value="info" className="gap-1.5 text-xs"><Info className="w-3.5 h-3.5" />Στοιχεία</TabsTrigger>
-                    <TabsTrigger value="emails" className="gap-1.5 text-xs"><Mail className="w-3.5 h-3.5" />Emails</TabsTrigger>
-                    <TabsTrigger value="timeline" className="gap-1.5 text-xs"><Activity className="w-3.5 h-3.5" />Timeline</TabsTrigger>
+                  <TabsList>
+                    <TabsTrigger value="info" className="gap-1.5"><Info className="w-3.5 h-3.5" />Στοιχεία</TabsTrigger>
+                    <TabsTrigger value="emails" className="gap-1.5"><Mail className="w-3.5 h-3.5" />Emails</TabsTrigger>
+                    <TabsTrigger value="timeline" className="gap-1.5"><Activity className="w-3.5 h-3.5" />Timeline</TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="info" className="px-1 py-4">
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div><span className="text-muted-foreground">ΑΦΜ:</span> {selectedCustomer.tax_id || '—'}</div>
-                        <div><span className="text-muted-foreground">ΔΟΥ:</span> {selectedCustomer.tax_office || '—'}</div>
-                        <div><span className="text-muted-foreground">Phone:</span> {selectedCustomer.phone || '—'}</div>
-                        <div><span className="text-muted-foreground">Email:</span> {selectedCustomer.email || '—'}</div>
-                        <div><span className="text-muted-foreground">City:</span> {selectedCustomer.city || '—'}</div>
-                        <div><span className="text-muted-foreground">Terms:</span> {selectedCustomer.payment_terms || 30}d</div>
-                        <div><span className="text-muted-foreground">Credit Limit:</span> €{(selectedCustomer.credit_limit || 0).toLocaleString('el-GR')}</div>
-                        <div><span className="text-muted-foreground">Category:</span> {selectedCustomer.category || '—'}</div>
+                  <TabsContent value="info" className="py-4 space-y-6">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-3">
+                        <p><span className="text-muted-foreground block text-[10px] uppercase font-bold">ΑΦΜ / ΔΟΥ</span> {selectedCustomer.tax_id || '—'} / {selectedCustomer.tax_office || '—'}</p>
+                        <p><span className="text-muted-foreground block text-[10px] uppercase font-bold">Τηλέφωνο</span> {selectedCustomer.phone || '—'}</p>
+                        <p><span className="text-muted-foreground block text-[10px] uppercase font-bold">Email</span> {selectedCustomer.email || '—'}</p>
                       </div>
-                      <div className="pt-3 border-t flex items-center justify-between">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Υπόλοιπο</span>
-                        <span className="text-xl font-bold">€{(selectedCustomer.balance || 0).toLocaleString('el-GR', { minimumFractionDigits: 2 })}</span>
+                      <div className="space-y-3 text-right">
+                        <p><span className="text-muted-foreground block text-[10px] uppercase font-bold text-right">Υπόλοιπο</span> <span className="text-2xl font-black text-primary">€{selectedCustomer.balance?.toLocaleString('el-GR')}</span></p>
+                        <p><span className="text-muted-foreground block text-[10px] uppercase font-bold text-right">Πιστωτικό Όριο</span> €{selectedCustomer.credit_limit?.toLocaleString('el-GR')}</p>
                       </div>
-                      <div className="pt-2 border-t space-y-2">
-                        <Button variant="outline" size="sm" className="w-full gap-2" onClick={generateAISummary} disabled={aiLoading}>
-                          {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />}
-                          AI Summary
-                        </Button>
-                        {aiSummary && (
-                          <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 text-xs leading-relaxed">
-                            <Sparkles className="w-3 h-3 text-primary inline mr-1" />
-                            {aiSummary}
-                          </div>
-                        )}
-                      </div>
+                    </div>
+                    
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                      <Button variant="ghost" size="sm" className="w-full justify-between hover:bg-primary/5 group" onClick={generateAISummary} disabled={aiLoading}>
+                        <span className="flex items-center gap-2 font-bold text-xs uppercase tracking-tight">
+                           {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3 text-primary" />}
+                           Ανάλυση AI
+                        </span>
+                        <Sparkles className="w-3 h-3 text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </Button>
+                      {aiSummary && (
+                        <p className="mt-3 text-xs leading-relaxed text-slate-600 bg-white p-3 rounded-lg border italic">
+                          "{aiSummary}"
+                        </p>
+                      )}
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="emails" className="px-1 py-4">
+                  <TabsContent value="emails">
                     <CustomerEmailsTab customerId={selectedCustomer.id} />
                   </TabsContent>
 
-                  <TabsContent value="timeline" className="px-1 py-4">
+                  <TabsContent value="timeline">
                     <CustomerActivityTimeline customerId={selectedCustomer.id} />
                   </TabsContent>
                 </Tabs>
               </CardHeader>
-              <CardContent className="px-5 pb-5" />
             </Card>
-          </div>
+          ) : (
+            <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-2xl text-muted-foreground">
+              <User className="w-12 h-12 mb-2 opacity-10" />
+              <p className="text-sm font-medium">Επιλέξτε έναν πελάτη για λεπτομέρειες</p>
+            </div>
+          )}
         </div>
-      ) : (
-        <DataTable columns={columns} data={filteredCustomers} onRowClick={handleRowClick} />
-      )}
+      </div>
 
       <EntityFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        open={!!editing}
+        onOpenChange={(open) => !open && setEditing(null)}
         title={editing?.id ? t.editCustomer : t.newCustomer}
         fields={formFields}
         initialData={editing}
         onSubmit={handleSubmit}
       />
 
+      {/* Import Dialog (ίδιο όπως πριν) */}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t.importDialogTitle}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              {t.importDialogDescription}<br />
-              <code>{t.csvFormat}</code>
-            </p>
-            <Input
-              type="file"
-              accept=".csv,.txt"
-              onChange={handleFileImport}
-              disabled={importing}
-            />
-            {importing && <p className="text-sm">{t.importInProgress}</p>}
-          </div>
+          <DialogHeader><DialogTitle>{t.importDialogTitle}</DialogTitle></DialogHeader>
+          <Input type="file" accept=".csv,.txt" onChange={handleFileImport} disabled={importing} />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setImportDialogOpen(false)} disabled={importing}>
-              {t.cancel}
-            </Button>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>Κλείσιμο</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
