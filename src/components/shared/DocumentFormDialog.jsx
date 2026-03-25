@@ -121,12 +121,9 @@ export default function DocumentFormDialog({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Number</Label>
-              <Input
-                value={form.number || ''}
-                onChange={(e) => setForm((f) => ({ ...f, number: e.target.value }))}
-                required
-                placeholder="e.g. INV-001"
-              />
+              <div className="h-10 w-full rounded-md border bg-muted px-3 flex items-center text-sm font-semibold text-foreground">
+                {form.number || '—'}
+              </div>
             </div>
 
             <div className="space-y-1.5">
