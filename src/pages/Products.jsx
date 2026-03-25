@@ -1,212 +1,392 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
-import PageHeader from '../components/shared/PageHeader';
-import DataTable from '../components/shared/DataTable';
-import PriceTiersEditor from '../components/products/PriceTiersEditor';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Layers } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Plus, Trash2, Loader2 } from 'lucide-react';
 
-const UNIT_OPTIONS = ['piece', 'kg', 'liter', 'meter', 'box', 'pallet'];
-const VAT_OPTIONS = ['0', '6', '13', '24'];
-const STATUS_OPTIONS = ['active', 'inactive', 'discontinued'];
+function getBaseProductPrice(product, entityType) {
+  return entityType === 'customer'
+    ? Number(product?.sell_price || 0)
+    : Number(product?.buy_price || 0);
+}
 
-const columns = [
-  { key: 'sku', label: 'SKU' },
-  { key: 'name', label: 'Product Name' },
-  { key: 'category', label: 'Category', type: 'badge' },
-  { key: 'buy_price', label: 'Buy Price', type: 'currency' },
-  { key: 'sell_price', label: 'Sell Price', type: 'currency' },
-  { key: 'vat_rate', label: 'VAT %', type: 'number' },
-  { key: 'unit', label: 'Unit' },
-  {
-    key: 'enable_price_tiers',
-    label: 'Price Tiers',
-    render: (val, row) =>
-      val ? (
-        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1 text-[11px]">
-          <Layers className="w-3 h-3" />
-          {(row.price_tiers || []).length} tiers
-        </Badge>
-      ) : (
-        <span className="text-muted-foreground text-xs">—</span>
-      ),
-  },
-  { key: 'status', label: 'Status', type: 'status' },
-];
+function getTierMinQty(tier) {
+  return Number(
+    tier?.min_qty ??
+    tier?.min_quantity ??
+    tier?.quantity ??
+    tier?.qty ??
+    tier?.from_qty ??
+    tier?.from ??
+    0
+  );
+}
 
-const emptyForm = {
-  sku: '', name: '', description: '', category: '', unit: 'piece',
-  buy_price: '', sell_price: '', vat_rate: '24', barcode: '',
-  min_stock: '', supplier_name: '', status: 'active', enable_price_tiers: false, price_tiers: [],
-};
+function getTierPriceValue(tier) {
+  return Number(
+    tier?.price ??
+    tier?.unit_price ??
+    tier?.sell_price ??
+    tier?.amount ??
+    0
+  );
+}
 
-export default function Products() {
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const qc = useQueryClient();
+function getPriceByQuantity(product, quantity, entityType) {
+  const basePrice = getBaseProductPrice(product, entityType);
+  const qty = Number(quantity || 0);
 
-  const { data: products } = useQuery({
-    queryKey: ['products'],
-    queryFn: () => base44.entities.Product.list(),
-    initialData: [],
-  });
+  if (!product?.enable_price_tiers || entityType !== 'customer') {
+    return basePrice;
+  }
 
-  const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Product.create(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
-  });
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Product.update(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
-  });
+  const tiers = Array.isArray(product.price_tiers) ? product.price_tiers : [];
 
-  const openNew = () => { setForm(emptyForm); setDialogOpen(true); };
-  const openEdit = (row) => {
-    setForm({ ...emptyForm, ...row, vat_rate: String(row.vat_rate ?? '24'), price_tiers: row.price_tiers || [], enable_price_tiers: row.enable_price_tiers ?? false });
-    setDialogOpen(true);
+  if (tiers.length === 0) {
+    return basePrice;
+  }
+
+  const normalizedTiers = tiers
+    .map((tier) => ({
+      minQty: getTierMinQty(tier),
+      price: getTierPriceValue(tier),
+    }))
+    .filter((tier) => Number.isFinite(tier.minQty) && Number.isFinite(tier.price))
+    .sort((a, b) => a.minQty - b.minQty);
+
+  let matchedPrice = basePrice;
+
+  for (const tier of normalizedTiers) {
+    if (qty >= tier.minQty) {
+      matchedPrice = tier.price;
+    }
+  }
+
+  return matchedPrice;
+}
+
+export default function DocumentFormDialog({
+  open,
+  onOpenChange,
+  title,
+  initialData,
+  onSubmit,
+  customers,
+  suppliers,
+  products,
+  entityType = 'customer',
+}) {
+  const [form, setForm] = useState({});
+  const [items, setItems] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setForm(
+        initialData || {
+          date: new Date().toISOString().split('T')[0],
+        }
+      );
+      setItems(initialData?.items || []);
+    }
+  }, [open, initialData]);
+
+  const entities = entityType === 'customer' ? (customers || []) : (suppliers || []);
+  const entityIdKey = entityType === 'customer' ? 'customer_id' : 'supplier_id';
+
+  const addItem = () => {
+    setItems((prev) => [
+      ...prev,
+      {
+        product_id: '',
+        product_name: '',
+        sku: '',
+        quantity: 1,
+        unit_price: 0,
+        vat_rate: 24,
+        discount_pct: 0,
+        line_total: 0,
+      },
+    ]);
   };
 
-  const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+  const removeItem = (idx) => {
+    setItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const updateItem = (idx, field, value) => {
+    setItems((prev) => {
+      const newItems = [...prev];
+      const currentItem = { ...newItems[idx], [field]: value };
+      let product = null;
+
+      if (field === 'product_id') {
+        product = (products || []).find((p) => p.id === value);
+
+        if (product) {
+          currentItem.product_id = product.id;
+          currentItem.product_name = product.name;
+          currentItem.sku = product.sku;
+          currentItem.vat_rate = Number(product.vat_rate || 24);
+
+          const qty = Number(currentItem.quantity || 1);
+          currentItem.unit_price = getPriceByQuantity(product, qty, entityType);
+        }
+      } else if (currentItem.product_id) {
+        product = (products || []).find((p) => p.id === currentItem.product_id);
+
+        if (product && field === 'quantity') {
+          const qty = Number(value || 0);
+          currentItem.unit_price = getPriceByQuantity(product, qty, entityType);
+        }
+      }
+
+      const qty = Number(currentItem.quantity) || 0;
+      const price = Number(currentItem.unit_price) || 0;
+      const disc = Number(currentItem.discount_pct) || 0;
+
+      currentItem.line_total = qty * price * (1 - disc / 100);
+
+      newItems[idx] = currentItem;
+      return newItems;
+    });
+  };
+
+  const subtotal = items.reduce((s, i) => s + (i.line_total || 0), 0);
+  const vatTotal = items.reduce(
+    (s, i) => s + (i.line_total || 0) * ((i.vat_rate || 0) / 100),
+    0
+  );
+  const total = subtotal + vatTotal;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const data = {
-      ...form,
-      vat_rate: Number(form.vat_rate),
-      buy_price: form.buy_price !== '' ? Number(form.buy_price) : 0,
-      sell_price: form.sell_price !== '' ? Number(form.sell_price) : 0,
-      min_stock: form.min_stock !== '' ? Number(form.min_stock) : 0,
-    };
-    if (form.id) await updateMutation.mutateAsync({ id: form.id, data });
-    else await createMutation.mutateAsync(data);
-    setDialogOpen(false);
+    setSaving(true);
+
+    try {
+      const entityNameKey = entityType === 'customer' ? 'customer_name' : 'supplier_name';
+      const entity = entities.find((entry) => entry.id === form[entityIdKey]);
+
+      await onSubmit({
+        ...form,
+        [entityNameKey]: entity?.name || '',
+        items,
+        subtotal,
+        vat_total: vatTotal,
+        total,
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const isLoading = createMutation.isPending || updateMutation.isPending;
-
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Products"
-        subtitle={`${products.length} products in catalog`}
-        actionLabel="New Product"
-        onAction={openNew}
-      />
-      <DataTable columns={columns} data={products} onRowClick={openEdit} />
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-6xl w-[96vw] max-h-[92vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{form.id ? 'Edit Product' : 'New Product'}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>SKU Code *</Label>
-                <Input value={form.sku} onChange={e => set('sku', e.target.value)} required placeholder="e.g. PRD-001" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Product Name *</Label>
-                <Input value={form.name} onChange={e => set('name', e.target.value)} required />
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Number</Label>
+              <div className="h-10 w-full rounded-md border bg-muted px-3 flex items-center text-sm font-semibold text-foreground">
+                {form.number || '—'}
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label>Description</Label>
-              <Textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2} />
+              <Label>{entityType === 'customer' ? 'Customer' : 'Supplier'}</Label>
+              <Select
+                value={form[entityIdKey] || ''}
+                onValueChange={(v) => setForm((f) => ({ ...f, [entityIdKey]: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {entities.map((entity) => (
+                    <SelectItem key={entity.id} value={entity.id}>
+                      {entity.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Category</Label>
-                <Input value={form.category} onChange={e => set('category', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Unit</Label>
-                <Select value={form.unit} onValueChange={v => set('unit', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{UNIT_OPTIONS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
-                </Select>
+            <div className="space-y-1.5">
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={form.date || ''}
+                onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Input
+                value={form.notes || ''}
+                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold">Line Items</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addItem}
+                className="gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Item
+              </Button>
+            </div>
+
+            <div className="border rounded-lg overflow-x-auto">
+              <div className="min-w-[980px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="text-xs min-w-[360px]">Product</TableHead>
+                      <TableHead className="text-xs min-w-[110px]">Qty</TableHead>
+                      <TableHead className="text-xs min-w-[130px]">Price</TableHead>
+                      <TableHead className="text-xs min-w-[110px]">Disc %</TableHead>
+                      <TableHead className="text-xs min-w-[90px]">VAT %</TableHead>
+                      <TableHead className="text-xs min-w-[130px]">Total</TableHead>
+                      <TableHead className="w-[60px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
+                    {items.map((item, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="align-top">
+                          <Select
+                            value={item.product_id || ''}
+                            onValueChange={(v) => updateItem(idx, 'product_id', v)}
+                          >
+                            <SelectTrigger className="h-10 text-sm">
+                              <SelectValue placeholder="Select product" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(products || []).map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.sku} — {p.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+
+                        <TableCell className="align-top">
+                          <Input
+                            type="number"
+                            className="h-10 text-sm min-w-[90px]"
+                            value={item.quantity ?? 0}
+                            onChange={(e) =>
+                              updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)
+                            }
+                          />
+                        </TableCell>
+
+                        <TableCell className="align-top">
+                          <Input
+                            type="number"
+                            className="h-10 text-sm min-w-[110px]"
+                            value={item.unit_price ?? 0}
+                            onChange={(e) =>
+                              updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)
+                            }
+                          />
+                        </TableCell>
+
+                        <TableCell className="align-top">
+                          <Input
+                            type="number"
+                            className="h-10 text-sm min-w-[90px]"
+                            value={item.discount_pct ?? 0}
+                            onChange={(e) =>
+                              updateItem(idx, 'discount_pct', parseFloat(e.target.value) || 0)
+                            }
+                          />
+                        </TableCell>
+
+                        <TableCell className="align-top">
+                          <div className="h-10 flex items-center text-sm font-medium">
+                            {item.vat_rate || 0}%
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="align-top">
+                          <div className="h-10 flex items-center text-sm font-semibold">
+                            €{(item.line_total || 0).toFixed(2)}
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="align-top">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9"
+                            onClick={() => removeItem(idx)}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+
+                    {items.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-sm">
+                          No items added
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label>Buy Price (€)</Label>
-                <Input type="number" min="0" step="0.01" value={form.buy_price} onChange={e => set('buy_price', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Sell Price (€)</Label>
-                <Input type="number" min="0" step="0.01" value={form.sell_price} onChange={e => set('sell_price', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>VAT Rate</Label>
-                <Select value={String(form.vat_rate)} onValueChange={v => set('vat_rate', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{VAT_OPTIONS.map(v => <SelectItem key={v} value={v}>{v}%</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Barcode</Label>
-                <Input value={form.barcode} onChange={e => set('barcode', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Min Stock</Label>
-                <Input type="number" min="0" value={form.min_stock} onChange={e => set('min_stock', e.target.value)} />
+            <div className="flex justify-end">
+              <div className="w-full max-w-xs text-right space-y-1 text-sm">
+                <div className="flex justify-between gap-8">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span>€{subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between gap-8">
+                  <span className="text-muted-foreground">VAT:</span>
+                  <span>€{vatTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between gap-8 font-bold text-base border-t pt-2">
+                  <span>Total:</span>
+                  <span>€{total.toFixed(2)}</span>
+                </div>
               </div>
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Primary Supplier</Label>
-                <Input value={form.supplier_name} onChange={e => set('supplier_name', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Status</Label>
-                <Select value={form.status} onValueChange={v => set('status', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="border-t pt-4 space-y-4">
-              <div className="flex items-center gap-3">
-                <Switch
-                  id="enable_price_tiers"
-                  checked={form.enable_price_tiers}
-                  onCheckedChange={v => set('enable_price_tiers', v)}
-                />
-                <Label htmlFor="enable_price_tiers" className="cursor-pointer font-medium">
-                  Κλιμάκωση Τιμών
-                </Label>
-              </div>
-              {form.enable_price_tiers && (
-                <PriceTiersEditor
-                  tiers={form.price_tiers}
-                  onChange={(tiers) => set('price_tiers', tiers)}
-                />
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Άκυρο</Button>
-              <Button type="submit" disabled={isLoading}>{isLoading ? 'Αποθήκευση...' : 'Αποθήκευση'}</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {initialData?.id ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
