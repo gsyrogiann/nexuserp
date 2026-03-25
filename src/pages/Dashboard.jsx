@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { fetchList } from '@/lib/apiHelpers';
+import { calculateDashboardStats } from '@/lib/dashboardHelpers';
 import PageHeader from '../components/shared/PageHeader';
 import KPIGrid from '../components/dashboard/KPIGrid';
 import SalesChart from '../components/dashboard/SalesChart';
@@ -42,23 +43,26 @@ export default function Dashboard() {
 
   const { data: logs = [] } = useQuery({
     queryKey: ['activityLogs'],
-    queryFn: () => fetchList(base44.entities.ActivityLog, {
-      limit: 20,
-    }),
+    queryFn: () =>
+      fetchList(base44.entities.ActivityLog, { limit: 20 }),
+  });
+
+  // 🔥 CENTRALIZED STATS (σημαντικό)
+  const stats = calculateDashboardStats({
+    customers,
+    products,
+    salesInvoices,
+    purchaseInvoices,
+    payments,
+    salesOrders,
   });
 
   return (
     <div className="space-y-6">
       <PageHeader title="Dashboard" subtitle="Business overview and AI insights" />
 
-      <KPIGrid
-        customers={customers}
-        products={products}
-        salesInvoices={salesInvoices}
-        purchaseInvoices={purchaseInvoices}
-        payments={payments}
-        salesOrders={salesOrders}
-      />
+      {/* 🔥 ΑΛΛΑΞΑΜΕ ΤΟ KPIGrid */}
+      <KPIGrid stats={stats} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
