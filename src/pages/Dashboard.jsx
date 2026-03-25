@@ -9,17 +9,45 @@ import RecentActivity from '../components/dashboard/RecentActivity';
 import AIInsightsWidget from '../components/dashboard/AIInsightsWidget';
 
 export default function Dashboard() {
-  const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => base44.entities.Customer.list(), initialData: [] });
-  const { data: products } = useQuery({ queryKey: ['products'], queryFn: () => base44.entities.Product.list(), initialData: [] });
-  const { data: salesInvoices } = useQuery({ queryKey: ['salesInvoices'], queryFn: () => base44.entities.SalesInvoice.list(), initialData: [] });
-  const { data: purchaseInvoices } = useQuery({ queryKey: ['purchaseInvoices'], queryFn: () => base44.entities.PurchaseInvoice.list(), initialData: [] });
-  const { data: payments } = useQuery({ queryKey: ['payments'], queryFn: () => base44.entities.Payment.list(), initialData: [] });
-  const { data: salesOrders } = useQuery({ queryKey: ['salesOrders'], queryFn: () => base44.entities.SalesOrder.list(), initialData: [] });
-  const { data: logs } = useQuery({ queryKey: ['activityLogs'], queryFn: () => base44.entities.ActivityLog.list('-created_date', 10), initialData: [] });
+  const { data: customers = [] } = useQuery({
+    queryKey: ['customers'],
+    queryFn: () => base44.entities.Customer.list('-created_date', 200),
+  });
+
+  const { data: products = [] } = useQuery({
+    queryKey: ['products'],
+    queryFn: () => base44.entities.Product.list('-created_date', 200),
+  });
+
+  const { data: salesInvoices = [] } = useQuery({
+    queryKey: ['salesInvoices'],
+    queryFn: () => base44.entities.SalesInvoice.list('-created_date', 200),
+  });
+
+  const { data: purchaseInvoices = [] } = useQuery({
+    queryKey: ['purchaseInvoices'],
+    queryFn: () => base44.entities.PurchaseInvoice.list('-created_date', 200),
+  });
+
+  const { data: payments = [] } = useQuery({
+    queryKey: ['payments'],
+    queryFn: () => base44.entities.Payment.list('-created_date', 200),
+  });
+
+  const { data: salesOrders = [] } = useQuery({
+    queryKey: ['salesOrders'],
+    queryFn: () => base44.entities.SalesOrder.list('-created_date', 200),
+  });
+
+  const { data: logs = [] } = useQuery({
+    queryKey: ['activityLogs'],
+    queryFn: () => base44.entities.ActivityLog.list('-created_date', 20),
+  });
 
   return (
     <div className="space-y-6">
       <PageHeader title="Dashboard" subtitle="Business overview and AI insights" />
+
       <KPIGrid
         customers={customers}
         products={products}
@@ -28,14 +56,20 @@ export default function Dashboard() {
         payments={payments}
         salesOrders={salesOrders}
       />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <SalesChart invoices={salesInvoices} />
         </div>
         <AlertsPanel salesInvoices={salesInvoices} products={products} />
       </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AIInsightsWidget customers={customers} salesInvoices={salesInvoices} products={products} />
+        <AIInsightsWidget
+          customers={customers}
+          salesInvoices={salesInvoices}
+          products={products}
+        />
         <RecentActivity logs={logs} />
       </div>
     </div>
