@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { fetchList } from '@/lib/apiHelpers';
 import PageHeader from '../components/shared/PageHeader';
 import KPIGrid from '../components/dashboard/KPIGrid';
 import SalesChart from '../components/dashboard/SalesChart';
@@ -11,37 +12,39 @@ import AIInsightsWidget from '../components/dashboard/AIInsightsWidget';
 export default function Dashboard() {
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => base44.entities.Customer.list('-created_date', 200),
+    queryFn: () => fetchList(base44.entities.Customer),
   });
 
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
-    queryFn: () => base44.entities.Product.list('-created_date', 200),
+    queryFn: () => fetchList(base44.entities.Product),
   });
 
   const { data: salesInvoices = [] } = useQuery({
     queryKey: ['salesInvoices'],
-    queryFn: () => base44.entities.SalesInvoice.list('-created_date', 200),
+    queryFn: () => fetchList(base44.entities.SalesInvoice),
   });
 
   const { data: purchaseInvoices = [] } = useQuery({
     queryKey: ['purchaseInvoices'],
-    queryFn: () => base44.entities.PurchaseInvoice.list('-created_date', 200),
+    queryFn: () => fetchList(base44.entities.PurchaseInvoice),
   });
 
   const { data: payments = [] } = useQuery({
     queryKey: ['payments'],
-    queryFn: () => base44.entities.Payment.list('-created_date', 200),
+    queryFn: () => fetchList(base44.entities.Payment),
   });
 
   const { data: salesOrders = [] } = useQuery({
     queryKey: ['salesOrders'],
-    queryFn: () => base44.entities.SalesOrder.list('-created_date', 200),
+    queryFn: () => fetchList(base44.entities.SalesOrder),
   });
 
   const { data: logs = [] } = useQuery({
     queryKey: ['activityLogs'],
-    queryFn: () => base44.entities.ActivityLog.list('-created_date', 20),
+    queryFn: () => fetchList(base44.entities.ActivityLog, {
+      limit: 20,
+    }),
   });
 
   return (
