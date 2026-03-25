@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { fetchList } from '@/lib/apiHelpers';
@@ -18,13 +18,25 @@ const columns = [
   { key: 'status', label: 'Status', type: 'status' },
 ];
 
+function getNextInvoiceNumber(invoices = []) {
+  const numericValues = invoices
+    .map((invoice) => String(invoice.number || '').trim())
+    .map((number) => {
+      const match = number.match(/(\d+)$/);
+      return match ? parseInt(match[1], 10) : null;
+    })
+    .filter((value) => Number.isInteger(value));
+
+  const maxNumber = numericValues.length > 0 ? Math.max(...numericValues) : 0;
+  return String(maxNumber + 1).padStart(3, '0');
+}
+
 export default function SalesInvoices() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
   const qc = useQueryClient();
 
-  // 🔥 FIX: σωστό fetch παντού
   const { data: invoices = [] } = useQuery({
     queryKey: ['salesInvoices'],
     queryFn: () => fetchList(base44.entities.SalesInvoice),
@@ -39,6 +51,10 @@ export default function SalesInvoices() {
     queryKey: ['products'],
     queryFn: () => fetchList(base44.entities.Product),
   });
+
+  const nextInvoiceNumber = useMemo(() => {
+    return getNextInvoiceNumber(invoices);
+  }, [invoices]);
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.SalesInvoice.create(data),
@@ -61,6 +77,7 @@ export default function SalesInvoices() {
     } else {
       await createMutation.mutateAsync({
         ...payload,
+        number: data.number || nextInvoiceNumber,
         status: 'draft',
         paid_amount: 0,
       });
@@ -70,11 +87,8 @@ export default function SalesInvoices() {
     setDialogOpen(false);
   };
 
-  // 🔥 καθαρά stats
   const totalRevenue = invoices.reduce((s, i) => s + (i.total || 0), 0);
-
   const totalPaid = invoices.reduce((s, i) => s + (i.paid_amount || 0), 0);
-
   const overdue = invoices.filter((i) => i.status === 'overdue').length;
 
   return (
@@ -84,7 +98,13 @@ export default function SalesInvoices() {
         subtitle={`${invoices.length} invoices`}
         actionLabel="New Invoice"
         onAction={() => {
-          setEditing({});
+          setEditing({
+            number: nextInvoiceNumber,
+            date: new Date().toISOString().split('T')[0],
+            notes: '',
+            customer_id: '',
+            items: [],
+          });
           setDialogOpen(true);
         }}
       />
