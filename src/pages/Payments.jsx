@@ -6,7 +6,7 @@ import PageHeader from '../components/shared/PageHeader';
 import DataTable from '../components/shared/DataTable';
 import EntityFormDialog from '../components/shared/EntityFormDialog';
 import StatsCard from '../components/shared/StatsCard';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CreditCard, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 
 const columns = [
@@ -68,7 +68,6 @@ export default function Payments() {
 
   const qc = useQueryClient();
 
-  // 🔥 FIX: σωστό fetch (pagination safe)
   const { data: payments = [] } = useQuery({
     queryKey: ['payments'],
     queryFn: () => fetchList(base44.entities.Payment),
@@ -85,16 +84,21 @@ export default function Payments() {
   });
 
   const handleSubmit = async (data) => {
+    const payload = {
+      ...data,
+      entity_id: data.entity_id || data.entity_name || 'manual_entry',
+    };
+
     if (editing?.id) {
-      await updateMutation.mutateAsync({ id: editing.id, data });
+      await updateMutation.mutateAsync({ id: editing.id, data: payload });
     } else {
-      await createMutation.mutateAsync(data);
+      await createMutation.mutateAsync(payload);
     }
+
     setEditing(null);
     setDialogOpen(false);
   };
 
-  // 🔥 καθαρό aggregation (όχι unsafe)
   const incoming = payments
     .filter((p) => p.type === 'incoming' && p.status === 'completed')
     .reduce((s, p) => s + (p.amount || 0), 0);
