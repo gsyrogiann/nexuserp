@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { fetchList } from '@/lib/apiHelpers'; // ✅ ΠΡΟΣΘΗΚΗ
+import { fetchList } from '@/lib/apiHelpers'; 
 import PageHeader from '../components/shared/PageHeader';
 import DataTable from '../components/shared/DataTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Trash2, Archive, History } from 'lucide-react';
+import { Trash2, Archive } from 'lucide-react';
  
 const STATUS_OPTIONS = ['open', 'in_progress', 'waiting', 'closed'];
 const PRIORITY_OPTIONS = ['low', 'normal', 'high', 'critical'];
@@ -57,13 +57,13 @@ export default function Tickets() {
   const [dailyArchive, setDailyArchive] = useState([]);
   const qc = useQueryClient();
  
-  // ✅ ΔΙΟΡΘΩΣΗ: fetchList αντί για .list()
+  // Fetch Tickets
   const { data: tickets = [] } = useQuery({
     queryKey: ['tickets'],
     queryFn: () => fetchList(base44.entities.ServiceTicket, { sort: '-created_date' }),
   });
  
-  // ✅ ΔΙΟΡΘΩΣΗ: fetchList αντί για .list()
+  // Fetch Customers for Search
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
     queryFn: () => fetchList(base44.entities.Customer, { sort: 'name' }),
