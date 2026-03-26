@@ -177,12 +177,20 @@ export default function DocumentFormDialog({
       const entityNameKey = entityType === 'customer' ? 'customer_name' : 'supplier_name';
       const entity = entities.find((entry) => entry.id === form[entityIdKey]);
 
+      // Validate required fields
+      if (!form[entityIdKey]) {
+        alert(`Please select a ${entityType === 'customer' ? 'customer' : 'supplier'}.`);
+        setSaving(false);
+        return;
+      }
+
       // Auto-generate a number if not already set (required field)
       const number = form.number || `${Date.now()}`;
 
       await onSubmit({
         ...form,
         number,
+        [entityIdKey]: form[entityIdKey],
         [entityNameKey]: entity?.name || '',
         items,
         subtotal,
