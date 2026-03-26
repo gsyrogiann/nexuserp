@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { fetchList } from '@/lib/apiHelpers'; // ✅ ΠΡΟΣΘΗΚΗ
+import { fetchList } from '@/lib/apiHelpers'; 
 import PageHeader from '../components/shared/PageHeader';
 import DataTable from '../components/shared/DataTable';
 import EntityFormDialog from '../components/shared/EntityFormDialog';
@@ -45,7 +45,7 @@ export default function Suppliers() {
   const [editing, setEditing] = useState(null);
   const qc = useQueryClient();
 
-  // ✅ ΔΙΟΡΘΩΣΗ: fetchList αντί για .list()
+  // Fetch Suppliers list
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers'],
     queryFn: () => fetchList(base44.entities.Supplier),
@@ -62,9 +62,23 @@ export default function Suppliers() {
   });
 
   const handleSubmit = async (data) => {
-    if (editing?.id) await updateMutation.mutateAsync({ id: editing.id, data });
-    else await createMutation.mutateAsync(data);
+    if (editing?.id) {
+      await updateMutation.mutateAsync({ id: editing.id, data });
+    } else {
+      await createMutation.mutateAsync(data);
+    }
     setEditing(null);
+    setDialogOpen(false);
+  };
+
+  const handleRowClick = (row) => {
+    setEditing(row);
+    setDialogOpen(true);
+  };
+
+  const handleNewAction = () => {
+    setEditing({});
+    setDialogOpen(true);
   };
 
   return (
@@ -73,12 +87,12 @@ export default function Suppliers() {
         title="Suppliers"
         subtitle={`${suppliers.length} total suppliers`}
         actionLabel="New Supplier"
-        onAction={() => { setEditing({}); setDialogOpen(true); }}
+        onAction={handleNewAction}
       />
       <DataTable
         columns={columns}
         data={suppliers}
-        onRowClick={(row) => { setEditing(row); setDialogOpen(true); }}
+        onRowClick={handleRowClick}
       />
       <EntityFormDialog
         open={dialogOpen}
