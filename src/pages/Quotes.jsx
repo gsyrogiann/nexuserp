@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { fetchList } from '@/lib/apiHelpers'; // ✅ ΠΡΟΣΘΗΚΗ
+import { fetchList } from '@/lib/apiHelpers'; 
 import PageHeader from '../components/shared/PageHeader';
 import DataTable from '../components/shared/DataTable';
 import DocumentFormDialog from '../components/shared/DocumentFormDialog';
 import StatsCard from '../components/shared/StatsCard';
-import { FileText, Check, X, Clock } from 'lucide-react';
+import { FileText, Check, Clock } from 'lucide-react';
  
 const columns = [
   { key: 'number', label: 'Quote #' },
@@ -22,19 +22,19 @@ export default function Quotes() {
   const [editing, setEditing] = useState(null);
   const qc = useQueryClient();
  
-  // ✅ ΔΙΟΡΘΩΣΗ: fetchList αντί για .list()
+  // Fetch Quotes
   const { data: quotes = [] } = useQuery({
     queryKey: ['quotes'],
     queryFn: () => fetchList(base44.entities.Quote),
   });
  
-  // ✅ ΔΙΟΡΘΩΣΗ: fetchList αντί για .list()
+  // Fetch Customers
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
     queryFn: () => fetchList(base44.entities.Customer),
   });
  
-  // ✅ ΔΙΟΡΘΩΣΗ: fetchList αντί για .list()
+  // Fetch Products
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
     queryFn: () => fetchList(base44.entities.Product),
@@ -51,9 +51,23 @@ export default function Quotes() {
   });
  
   const handleSubmit = async (data) => {
-    if (editing?.id) await updateMutation.mutateAsync({ id: editing.id, data });
-    else await createMutation.mutateAsync({ ...data, status: 'draft' });
+    if (editing?.id) {
+      await updateMutation.mutateAsync({ id: editing.id, data });
+    } else {
+      await createMutation.mutateAsync({ ...data, status: 'draft' });
+    }
     setEditing(null);
+    setDialogOpen(false);
+  };
+
+  const handleRowClick = (row) => {
+    setEditing(row);
+    setDialogOpen(true);
+  };
+
+  const handleNewAction = () => {
+    setEditing({});
+    setDialogOpen(true);
   };
  
   const accepted = quotes.filter(q => q.status === 'accepted').length;
@@ -65,18 +79,21 @@ export default function Quotes() {
         title="Quotes"
         subtitle={`${quotes.length} quotes`}
         actionLabel="New Quote"
-        onAction={() => { setEditing({}); setDialogOpen(true); }}
+        onAction={handleNewAction}
       />
+      
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatsCard label="Total Quotes" value={quotes.length} icon={FileText} />
         <StatsCard label="Accepted" value={accepted} icon={Check} />
         <StatsCard label="Pending" value={pending} icon={Clock} />
       </div>
+
       <DataTable
         columns={columns}
         data={quotes}
-        onRowClick={(row) => { setEditing(row); setDialogOpen(true); }}
+        onRowClick={handleRowClick}
       />
+
       <DocumentFormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
