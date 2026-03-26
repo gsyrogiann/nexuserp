@@ -177,8 +177,12 @@ export default function DocumentFormDialog({
       const entityNameKey = entityType === 'customer' ? 'customer_name' : 'supplier_name';
       const entity = entities.find((entry) => entry.id === form[entityIdKey]);
 
+      // Auto-generate a number if not already set (required field)
+      const number = form.number || `${Date.now()}`;
+
       await onSubmit({
         ...form,
+        number,
         [entityNameKey]: entity?.name || '',
         items,
         subtotal,
@@ -201,9 +205,12 @@ export default function DocumentFormDialog({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Number</Label>
-              <div className="h-10 w-full rounded-md border bg-muted px-3 flex items-center text-sm font-semibold text-foreground">
-                {form.number || '—'}
-              </div>
+              <Input
+                value={form.number || ''}
+                placeholder="Auto-generated if empty"
+                onKeyDown={preventEnterSubmit}
+                onChange={(e) => setForm((f) => ({ ...f, number: e.target.value }))}
+              />
             </div>
 
             <div className="space-y-1.5">
