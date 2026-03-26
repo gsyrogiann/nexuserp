@@ -7,6 +7,59 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 
+function getBaseProductPrice(product, entityType) {
+  return entityType === 'customer'
+    ? Number(product?.sell_price || 0)
+    : Number(product?.buy_price || 0);
+}
+
+function getTierPrice(product, quantity, entityType) {
+  const basePrice = getBaseProductPrice(product, entityType);
+  const qty = Number(quantity || 0);
+
+  if (entityType !== 'customer') {
+    return basePrice;
+  }
+
+  if (!product?.enable_price_tiers) {
+    return basePrice;
+  }
+
+  const tiers = Array.isArray(product.price_tiers) ? product.price_tiers : [];
+  if (tiers.length === 0) {
+    return basePrice;
+  }
+
+  const sortedTiers = [...tiers]
+    .map((tier) => ({
+      min_qty: Number(tier?.min_qty || 0),
+      price: Number(tier?.price || 0),
+    }))
+    .filter((tier) => Number.isFinite(tier.min_qty) && Number.isFinite(tier.price))
+    .sort((a, b) => a.min_qty - b.min_qty);
+
+  let matchedPrice = basePrice;
+
+  for (const tier of sortedTiers) {
+    if (qty >= tier.min_qty) {
+      matchedPrice = tier.price;
+    }
+  }
+
+  return matchedPrice;
+}
+
+function recalculateLine(item) {
+  const quantity = Number(item.quantity || 0);
+  const unitPrice = Number(item.unit_price || 0);
+  const discountPct = Number(item.discount_pct || 0);
+
+  return {
+    ...item,
+    line_total: quantity * unitPrice * (1 - discountPct / 100),
+  };
+}
+
 export default function DocumentFormDialog({
   open,
   onOpenChange,
@@ -36,6 +89,12 @@ export default function DocumentFormDialog({
   const entities = entityType === 'customer' ? (customers || []) : (suppliers || []);
   const entityIdKey = entityType === 'customer' ? 'customer_id' : 'supplier_id';
 
+  const preventEnterSubmit = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+    }
+  };
+
   const addItem = () => {
     setItems((prev) => [
       ...prev,
@@ -58,33 +117,54 @@ export default function DocumentFormDialog({
 
   const updateItem = (idx, field, value) => {
     setItems((prev) => {
-      const newItems = [...prev];
-      newItems[idx] = { ...newItems[idx], [field]: value };
+      const next = [...prev];
+      let item = { ...next[idx], [field]: value };
+
+      const selectedProduct = item.product_id
+        ? (products || []).find((p) => p.id === item.product_id)
+        : null;
 
       if (field === 'product_id') {
-        const prod = (products || []).find((p) => p.id === value);
-        if (prod) {
-          newItems[idx].product_name = prod.name;
-          newItems[idx].sku = prod.sku;
-          newItems[idx].unit_price =
-            entityType === 'customer' ? (prod.sell_price || 0) : (prod.buy_price || 0);
-          newItems[idx].vat_rate = prod.vat_rate || 24;
+        const product = (products || []).find((p) => p.id === value);
+
+        if (product) {
+          item = {
+            ...item,
+            product_id: product.id,
+            product_name: product.name,
+            sku: product.sku,
+            vat_rate: Number(product.vat_rate || 24),
+            quantity: Number(item.quantity || 1),
+            unit_price: getTierPrice(product, Number(item.quantity || 1), entityType),
+          };
         }
       }
 
-      const qty = Number(newItems[idx].quantity) || 0;
-      const price = Number(newItems[idx].unit_price) || 0;
-      const disc = Number(newItems[idx].discount_pct) || 0;
+      if (field === 'quantity') {
+        const qty = Number(value || 0);
+        if (selectedProduct) {
+          item.unit_price = getTierPrice(selectedProduct, qty, entityType);
+        }
+      }
 
-      newItems[idx].line_total = qty * price * (1 - disc / 100);
+      if (field === 'unit_price') {
+        item.unit_price = Number(value || 0);
+      }
 
-      return newItems;
+      if (field === 'discount_pct') {
+        item.discount_pct = Number(value || 0);
+      }
+
+      item = recalculateLine(item);
+      next[idx] = item;
+
+      return next;
     });
   };
 
-  const subtotal = items.reduce((s, i) => s + (i.line_total || 0), 0);
+  const subtotal = items.reduce((sum, item) => sum + (item.line_total || 0), 0);
   const vatTotal = items.reduce(
-    (s, i) => s + (i.line_total || 0) * ((i.vat_rate || 0) / 100),
+    (sum, item) => sum + (item.line_total || 0) * (Number(item.vat_rate || 0) / 100),
     0
   );
   const total = subtotal + vatTotal;
@@ -219,8 +299,9 @@ export default function DocumentFormDialog({
                             type="number"
                             className="h-10 text-sm min-w-[90px]"
                             value={item.quantity ?? 0}
+                            onKeyDown={preventEnterSubmit}
                             onChange={(e) =>
-                              updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)
+                              updateItem(idx, 'quantity', Number(e.target.value || 0))
                             }
                           />
                         </TableCell>
@@ -230,8 +311,9 @@ export default function DocumentFormDialog({
                             type="number"
                             className="h-10 text-sm min-w-[110px]"
                             value={item.unit_price ?? 0}
+                            onKeyDown={preventEnterSubmit}
                             onChange={(e) =>
-                              updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)
+                              updateItem(idx, 'unit_price', Number(e.target.value || 0))
                             }
                           />
                         </TableCell>
@@ -241,8 +323,9 @@ export default function DocumentFormDialog({
                             type="number"
                             className="h-10 text-sm min-w-[90px]"
                             value={item.discount_pct ?? 0}
+                            onKeyDown={preventEnterSubmit}
                             onChange={(e) =>
-                              updateItem(idx, 'discount_pct', parseFloat(e.target.value) || 0)
+                              updateItem(idx, 'discount_pct', Number(e.target.value || 0))
                             }
                           />
                         </TableCell>
