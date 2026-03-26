@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { fetchList } from '@/lib/apiHelpers'; // ✅ ΠΡΟΣΘΗΚΗ
 import PageHeader from '../components/shared/PageHeader';
 import DataTable from '../components/shared/DataTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -12,25 +13,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Trash2, Archive, History } from 'lucide-react';
-
+ 
 const STATUS_OPTIONS = ['open', 'in_progress', 'waiting', 'closed'];
 const PRIORITY_OPTIONS = ['low', 'normal', 'high', 'critical'];
 const CATEGORY_OPTIONS = ['technical', 'commercial', 'complaint', 'other'];
-
+ 
 const priorityColors = {
   low: 'bg-gray-100 text-gray-600 border-gray-200',
   normal: 'bg-blue-100 text-blue-700 border-blue-200',
   high: 'bg-orange-100 text-orange-700 border-orange-200',
   critical: 'bg-red-100 text-red-700 border-red-200',
 };
-
+ 
 const statusColors = {
   open: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   in_progress: 'bg-blue-100 text-blue-700 border-blue-200',
   waiting: 'bg-amber-100 text-amber-700 border-amber-200',
   closed: 'bg-gray-100 text-gray-600 border-gray-200',
 };
-
+ 
 const emptyForm = {
   ticket_number: '',
   title: '',
@@ -47,58 +48,56 @@ const emptyForm = {
   resolution_notes: '',
   internal_notes: '',
 };
-
+ 
 export default function Tickets() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchTaxId, setSearchTaxId] = useState('');
-  const [dailyArchive, setDailyArchive] = useState([]); // State για το Αρχείο Ημέρας
+  const [dailyArchive, setDailyArchive] = useState([]);
   const qc = useQueryClient();
-
-  // Queries
+ 
+  // ✅ ΔΙΟΡΘΩΣΗ: fetchList αντί για .list()
   const { data: tickets = [] } = useQuery({
     queryKey: ['tickets'],
-    queryFn: () => base44.entities.ServiceTicket.list('-created_date'),
+    queryFn: () => fetchList(base44.entities.ServiceTicket, { sort: '-created_date' }),
   });
-
+ 
+  // ✅ ΔΙΟΡΘΩΣΗ: fetchList αντί για .list()
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => base44.entities.Customer.list('name'),
+    queryFn: () => fetchList(base44.entities.Customer, { sort: 'name' }),
   });
-
+ 
   // Mutations
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.ServiceTicket.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets'] }),
   });
-
+ 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.ServiceTicket.update(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets'] }),
   });
-
+ 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.ServiceTicket.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets'] }),
   });
-
-  // Functions
+ 
   const handleDelete = async (e, row) => {
-    e.stopPropagation(); // Σταματάμε το άνοιγμα του edit dialog
+    e.stopPropagation();
     if (window.confirm(`Οριστική διαγραφή του ${row.ticket_number};`)) {
-      // Προσθήκη στο Αρχείο Ημέρας πριν τη διαγραφή
       const archiveEntry = {
         ...row,
         archivedAt: new Date().toLocaleTimeString('el-GR'),
         reason: 'Manual Delete'
       };
       setDailyArchive(prev => [archiveEntry, ...prev]);
-      
       await deleteMutation.mutateAsync(row.id);
     }
   };
-
+ 
   const columns = [
     { key: 'ticket_number', label: '#' },
     { key: 'title', label: 'Title' },
@@ -126,9 +125,9 @@ export default function Tickets() {
       key: 'actions',
       label: '',
       render: (_, row) => (
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           className="text-muted-foreground hover:text-red-600"
           onClick={(e) => handleDelete(e, row)}
         >
@@ -137,24 +136,24 @@ export default function Tickets() {
       )
     }
   ];
-
+ 
   const filteredCustomers = searchTaxId
     ? customers.filter(c => c.tax_id && c.tax_id.includes(searchTaxId))
     : [];
-
+ 
   const openNew = () => {
     const count = tickets.length + 1;
     setForm({ ...emptyForm, ticket_number: `TKT-${String(count).padStart(4, '0')}` });
     setDialogOpen(true);
   };
-
+ 
   const openEdit = (row) => {
     setForm({ ...emptyForm, ...row });
     setDialogOpen(true);
   };
-
+ 
   const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
-
+ 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.id) {
@@ -164,13 +163,13 @@ export default function Tickets() {
     }
     setDialogOpen(false);
   };
-
+ 
   const filteredTickets = statusFilter === 'all'
     ? tickets
     : tickets.filter(t => t.status === statusFilter);
-
+ 
   const isLoading = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
-
+ 
   return (
     <div className="space-y-6 pb-20">
       <PageHeader
@@ -179,7 +178,7 @@ export default function Tickets() {
         actionLabel="New Ticket"
         onAction={openNew}
       />
-
+ 
       <div className="flex flex-wrap gap-2">
         {['all', 'open', 'in_progress', 'waiting', 'closed'].map((val) => (
           <button
@@ -192,23 +191,23 @@ export default function Tickets() {
                 : 'bg-card border-border text-muted-foreground hover:border-primary/50'
             )}
           >
-            {val.charAt(0).toUpperCase() + val.slice(1).replace('_', ' ')} 
+            {val.charAt(0).toUpperCase() + val.slice(1).replace('_', ' ')}
             <span className="ml-1 opacity-70">
               {val === 'all' ? tickets.length : tickets.filter(t => t.status === val).length}
             </span>
           </button>
         ))}
       </div>
-
+ 
       <DataTable columns={columns} data={filteredTickets} onRowClick={openEdit} />
-
-      {/* ΑΡΧΕΙΟ ΗΜΕΡΑ (DAILY ARCHIVE) SECTION */}
+ 
+      {/* ΑΡΧΕΙΟ ΗΜΕΡΑ */}
       <div className="mt-12 space-y-4">
         <div className="flex items-center gap-2 text-slate-800">
           <Archive className="w-5 h-5" />
           <h2 className="text-lg font-bold tracking-tight">Αρχείο Ημέρας & Logs Διαγραφών</h2>
         </div>
-        
+ 
         <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 border-b text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -226,7 +225,7 @@ export default function Tickets() {
                     <td className="px-6 py-4 font-medium text-slate-900">{item.ticket_number}</td>
                     <td className="px-6 py-4 text-slate-600">{item.customer}</td>
                     <td className="px-6 py-4">
-                      <Badge className="bg-red-50 text-red-700 border-red-100 text-[10px]">DIΕΓΡΑΜΜΕΝΟ</Badge>
+                      <Badge className="bg-red-50 text-red-700 border-red-100 text-[10px]">ΔΙΕΓΡΑΜΜΕΝΟ</Badge>
                     </td>
                     <td className="px-6 py-4 text-slate-500 font-mono text-xs">{item.archivedAt}</td>
                   </tr>
@@ -242,7 +241,7 @@ export default function Tickets() {
           </table>
         </div>
       </div>
-
+ 
       {/* EDIT/NEW DIALOG */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -260,12 +259,12 @@ export default function Tickets() {
                 <Input value={form.title} onChange={e => set('title', e.target.value)} required />
               </div>
             </div>
-
+ 
             <div className="space-y-1.5">
               <Label>Customer Search (ΑΦΜ)</Label>
               <div className="relative">
-                <Input 
-                  placeholder="Αναζήτηση με ΑΦΜ..." 
+                <Input
+                  placeholder="Αναζήτηση με ΑΦΜ..."
                   value={searchTaxId}
                   onChange={(e) => setSearchTaxId(e.target.value)}
                 />
@@ -287,7 +286,7 @@ export default function Tickets() {
                 )}
               </div>
             </div>
-
+ 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label>Status</Label>
@@ -317,12 +316,12 @@ export default function Tickets() {
                 </Select>
               </div>
             </div>
-
+ 
             <div className="space-y-1.5">
               <Label>Description</Label>
               <Textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3} />
             </div>
-
+ 
             <DialogFooter className="border-t pt-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Άκυρο</Button>
               <Button type="submit" disabled={isLoading}>{isLoading ? 'Αποθήκευση...' : 'Αποθήκευση'}</Button>
