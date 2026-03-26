@@ -1,36 +1,53 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { fetchList } from '@/lib/apiHelpers'; // ✅ ΠΡΟΣΘΗΚΗ
 import PageHeader from '../components/shared/PageHeader';
 import DataTable from '../components/shared/DataTable';
 import DocumentFormDialog from '../components/shared/DocumentFormDialog';
 import StatsCard from '../components/shared/StatsCard';
-import { ShoppingBag, Clock, CheckCircle, Truck } from 'lucide-react';
+import { ShoppingCart, Truck, Clock, CheckCircle } from 'lucide-react';
 
 const columns = [
-  { key: 'number', label: 'PO #' },
-  { key: 'supplier_name', label: 'Supplier' },
+  { key: 'number', label: 'Order #' },
+  { key: 'customer_name', label: 'Customer' },
   { key: 'date', label: 'Date', type: 'date' },
-  { key: 'expected_date', label: 'Expected', type: 'date' },
+  { key: 'delivery_date', label: 'Delivery', type: 'date' },
   { key: 'total', label: 'Total', type: 'currency' },
   { key: 'status', label: 'Status', type: 'status' },
 ];
 
-export default function PurchaseOrders() {
+export default function SalesOrders() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const qc = useQueryClient();
-  const { data: orders } = useQuery({ queryKey: ['purchaseOrders'], queryFn: () => base44.entities.PurchaseOrder.list(), initialData: [] });
-  const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list(), initialData: [] });
-  const { data: products } = useQuery({ queryKey: ['products'], queryFn: () => base44.entities.Product.list(), initialData: [] });
+
+  // ✅ ΔΙΟΡΘΩΣΗ: fetchList αντί για .list()
+  const { data: orders = [] } = useQuery({
+    queryKey: ['salesOrders'],
+    queryFn: () => fetchList(base44.entities.SalesOrder),
+  });
+
+  // ✅ ΔΙΟΡΘΩΣΗ: fetchList αντί για .list()
+  const { data: customers = [] } = useQuery({
+    queryKey: ['customers'],
+    queryFn: () => fetchList(base44.entities.Customer),
+  });
+
+  // ✅ ΔΙΟΡΘΩΣΗ: fetchList αντί για .list()
+  const { data: products = [] } = useQuery({
+    queryKey: ['products'],
+    queryFn: () => fetchList(base44.entities.Product),
+  });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.PurchaseOrder.create(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['purchaseOrders'] }),
+    mutationFn: (data) => base44.entities.SalesOrder.create(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['salesOrders'] }),
   });
+
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.PurchaseOrder.update(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['purchaseOrders'] }),
+    mutationFn: ({ id, data }) => base44.entities.SalesOrder.update(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['salesOrders'] }),
   });
 
   const handleSubmit = async (data) => {
@@ -39,18 +56,37 @@ export default function PurchaseOrders() {
     setEditing(null);
   };
 
-  const pending = orders.filter(o => !['received', 'cancelled'].includes(o.status)).length;
+  const active = orders.filter(o => !['delivered', 'cancelled'].includes(o.status)).length;
+  const delivered = orders.filter(o => o.status === 'delivered').length;
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Purchase Orders" subtitle={`${orders.length} purchase orders`} actionLabel="New PO" onAction={() => { setEditing({}); setDialogOpen(true); }} />
+      <PageHeader
+        title="Sales Orders"
+        subtitle={`${orders.length} orders`}
+        actionLabel="New Order"
+        onAction={() => { setEditing({}); setDialogOpen(true); }}
+      />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatsCard label="Total POs" value={orders.length} icon={ShoppingBag} />
-        <StatsCard label="Pending" value={pending} icon={Clock} />
-        <StatsCard label="Received" value={orders.filter(o => o.status === 'received').length} icon={CheckCircle} />
+        <StatsCard label="Total Orders" value={orders.length} icon={ShoppingCart} />
+        <StatsCard label="Active" value={active} icon={Clock} />
+        <StatsCard label="Delivered" value={delivered} icon={CheckCircle} />
       </div>
-      <DataTable columns={columns} data={orders} onRowClick={(row) => { setEditing(row); setDialogOpen(true); }} />
-      <DocumentFormDialog open={dialogOpen} onOpenChange={setDialogOpen} title={editing?.id ? 'Edit PO' : 'New Purchase Order'} initialData={editing} onSubmit={handleSubmit} suppliers={suppliers} products={products} entityType="supplier" />
+      <DataTable
+        columns={columns}
+        data={orders}
+        onRowClick={(row) => { setEditing(row); setDialogOpen(true); }}
+      />
+      <DocumentFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={editing?.id ? 'Edit Order' : 'New Sales Order'}
+        initialData={editing}
+        onSubmit={handleSubmit}
+        customers={customers}
+        products={products}
+        entityType="customer"
+      />
     </div>
   );
 }
