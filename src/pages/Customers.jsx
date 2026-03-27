@@ -23,11 +23,13 @@ import { Reorder, AnimatePresence } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Bot, Loader2, Sparkles, Mail, Activity, Info,
-  GripVertical, ExternalLink, Copy, Trash2, User, Search, FilterX, Upload, Pencil
+  GripVertical, ExternalLink, Copy, Trash2, User, Search, FilterX, Upload, Pencil,
+  PhoneCall, Play, MessageSquare, BrainCircuit, Headphones
 } from 'lucide-react';
 import { t } from '@/lib/translations';
 import { cn } from '@/lib/utils';
 
+// --- ΦΟΡΜΑ ΠΕΛΑΤΗ ---
 const formFields = [
   { key: 'code', label: t.code },
   { key: 'name', label: t.companyName },
@@ -95,17 +97,26 @@ export default function Customers() {
 
   const qc = useQueryClient();
 
-  // PAGINATION FIX: Χρήση fetchList για πλήρη δεδομένα
+  // Queries
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
     queryFn: () => fetchList(base44.entities.Customer),
+  });
+
+  // VoIP Call Logs Query (Προετοιμασία για 3CX API)
+  const { data: callLogs = [] } = useQuery({
+    queryKey: ['callLogs', selectedCustomer?.id],
+    queryFn: () => fetchList(base44.entities.CallLog, { 
+      filter: { customer_id: selectedCustomer?.id },
+      sort: '-created_date'
+    }),
+    enabled: !!selectedCustomer?.id
   });
 
   useEffect(() => {
     setItems(customers);
   }, [customers]);
 
-  // Sync selected customer with refreshed data
   useEffect(() => {
     if (!selectedCustomer) return;
     const refreshed = customers.find((c) => c.id === selectedCustomer.id);
@@ -140,7 +151,6 @@ export default function Customers() {
     setEditing(null);
   };
 
-  // SMART FILTER: Αναζήτηση σε όνομα ΚΑΙ ΑΦΜ
   const filteredItems = useMemo(() => {
     if (!searchTerm) return items;
     const lowSearch = searchTerm.toLowerCase();
@@ -161,31 +171,6 @@ export default function Customers() {
       setAiSummary(result);
     } finally {
       setAiLoading(false);
-    }
-  };
-
-  const openInNewTab = (id) => {
-    window.open(`${window.location.origin}/Customers?id=${id}`, '_blank');
-  };
-
-  const handleFileImport = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setImporting(true);
-    try {
-      const text = await file.text();
-      const lines = text.split('\n').filter((l) => l.trim());
-      const headers = lines[0].split(',').map((h) => h.trim().replace(/"/g, ''));
-      const records = lines.slice(1).map((line) => {
-        const values = line.split(',').map((v) => v.trim().replace(/"/g, ''));
-        const obj = {};
-        headers.forEach((h, i) => { obj[h] = values[i] || ''; });
-        return obj;
-      }).filter((r) => r.name);
-      for (const record of records) { await createMutation.mutateAsync(record); }
-    } finally {
-      setImporting(false);
-      setImportDialogOpen(false);
     }
   };
 
@@ -213,8 +198,8 @@ export default function Customers() {
             className="pl-10 bg-slate-50 border-none focus-visible:ring-1 focus-visible:ring-primary h-11 rounded-xl"
           />
         </div>
-        <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="w-full sm:w-auto rounded-xl h-11 gap-2">
-          <Upload className="w-4 h-4" />
+        <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="w-full sm:w-auto rounded-xl h-11 gap-2 border-slate-200 hover:bg-slate-50">
+          <Upload className="w-4 h-4 text-slate-500" />
           {t.importFromExcelCSV}
         </Button>
       </div>
@@ -229,14 +214,9 @@ export default function Customers() {
 
           <ScrollArea className="h-[calc(100vh-320px)] pr-4">
             {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
-                <Loader2 className="w-6 h-6 animate-spin" />
-                <p className="text-xs font-medium">Φόρτωση πελατολογίου...</p>
-              </div>
-            ) : filteredItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-50 rounded-2xl border-2 border-dashed">
-                <FilterX className="w-8 h-8 mb-2 opacity-20" />
-                <p className="text-xs font-medium">Δεν βρέθηκαν πελάτες</p>
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3 font-mono">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <p className="text-[10px] uppercase tracking-widest">Nexus Syncing...</p>
               </div>
             ) : (
               <Reorder.Group axis="y" values={items} onReorder={setItems} className="space-y-2">
@@ -253,27 +233,27 @@ export default function Customers() {
                         <ContextMenuTrigger>
                           <Card
                             className={cn(
-                              'cursor-pointer transition-all hover:shadow-md border-slate-200 rounded-xl overflow-hidden',
+                              'cursor-pointer transition-all hover:shadow-md border-slate-200 rounded-xl overflow-hidden group',
                               selectedCustomer?.id === customer.id ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : ''
                             )}
                             onClick={() => { setSelectedCustomer(customer); setAiSummary(''); }}
                           >
                             <CardContent className="p-4 flex items-center gap-4">
-                              <GripVertical className="w-4 h-4 text-slate-300 cursor-grab active:cursor-grabbing" />
+                              <GripVertical className="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-bold truncate text-slate-900">{customer.name}</p>
                                 <p className="text-[10px] font-mono text-slate-500 uppercase">{customer.tax_id || 'Χωρίς ΑΦΜ'}</p>
                               </div>
                               <div className="text-right">
-                                <p className={cn("text-sm font-black", customer.balance > 0 ? "text-red-600" : "text-emerald-600")}>
+                                <p className={cn("text-sm font-black italic", customer.balance > 0 ? "text-red-600" : "text-emerald-600")}>
                                   €{(customer.balance || 0).toLocaleString('el-GR')}
                                 </p>
                               </div>
                             </CardContent>
                           </Card>
                         </ContextMenuTrigger>
-                        <ContextMenuContent className="w-56 rounded-xl shadow-xl">
-                          <ContextMenuItem onClick={() => openInNewTab(customer.id)} className="gap-3 py-2.5">
+                        <ContextMenuContent className="w-56 rounded-xl shadow-xl border-slate-100">
+                          <ContextMenuItem onClick={() => window.open(`${window.location.origin}/Customers?id=${customer.id}`, '_blank')} className="gap-3 py-2.5">
                             <ExternalLink className="w-4 h-4 text-blue-500" /> Νέο Παράθυρο
                           </ContextMenuItem>
                           <ContextMenuItem onClick={() => navigator.clipboard.writeText(customer.tax_id || '')} className="gap-3 py-2.5">
@@ -299,45 +279,51 @@ export default function Customers() {
         {/* Details Area */}
         <div className="lg:col-span-2">
           {selectedCustomer ? (
-            <Card className="sticky top-6 border-slate-200 shadow-xl shadow-slate-200/50 rounded-2xl overflow-hidden">
-              <CardHeader className="pb-0 pt-6 px-6 bg-slate-50/50">
-                <div className="flex items-start justify-between gap-4 mb-4">
+            <Card className="sticky top-6 border-slate-200 shadow-2xl shadow-slate-200/50 rounded-[2rem] overflow-hidden">
+              <CardHeader className="pb-0 pt-8 px-8 bg-slate-50/50 border-b border-slate-100">
+                <div className="flex items-start justify-between gap-4 mb-6">
                   <div className="space-y-1">
-                    <CardTitle className="text-2xl font-black tracking-tight text-slate-900">{selectedCustomer.name}</CardTitle>
+                    <CardTitle className="text-3xl font-black tracking-tight text-slate-900 italic uppercase italic tracking-tighter">{selectedCustomer.name}</CardTitle>
                     <div className="flex gap-2">
-                      <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-widest">{selectedCustomer.category}</Badge>
-                      <Badge className={cn("text-[9px] font-black uppercase tracking-widest", 
+                      <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-lg">{selectedCustomer.category}</Badge>
+                      <Badge className={cn("text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-lg", 
                         selectedCustomer.status === 'active' ? "bg-emerald-500 text-white" : "bg-red-500 text-white")}>
                         {selectedCustomer.status}
                       </Badge>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" className="rounded-xl font-bold px-5" onClick={() => setEditing(selectedCustomer)}>Edit</Button>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="icon" className="rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100">
+                        <PhoneCall className="w-4 h-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" className="rounded-xl font-bold px-6 h-10 border-slate-200" onClick={() => setEditing(selectedCustomer)}>Edit</Button>
+                  </div>
                 </div>
 
                 <Tabs defaultValue="info" className="w-full">
-                  <TabsList className="bg-transparent border-b rounded-none w-full justify-start h-auto p-0 gap-6">
-                    {['info', 'emails', 'timeline'].map(tab => (
-                      <TabsTrigger key={tab} value={tab} className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-1 pb-3 text-xs font-bold uppercase tracking-widest">
+                  <TabsList className="bg-transparent border-b rounded-none w-full justify-start h-auto p-0 gap-8">
+                    {['info', 'emails', 'calls', 'timeline'].map(tab => (
+                      <TabsTrigger key={tab} value={tab} className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-1 pb-4 text-[10px] font-black uppercase tracking-widest">
                         {tab === 'info' && <><Info className="w-3.5 h-3.5 mr-2" /> Στοιχεία</>}
                         {tab === 'emails' && <><Mail className="w-3.5 h-3.5 mr-2" /> Emails</>}
+                        {tab === 'calls' && <><PhoneCall className="w-3.5 h-3.5 mr-2" /> Κλήσεις</>}
                         {tab === 'timeline' && <><Activity className="w-3.5 h-3.5 mr-2" /> Timeline</>}
                       </TabsTrigger>
                     ))}
                   </TabsList>
 
-                  <TabsContent value="info" className="py-6 space-y-8 animate-in fade-in slide-in-from-top-2">
+                  <TabsContent value="info" className="py-8 space-y-8 animate-in fade-in slide-in-from-top-2">
                     <div className="grid grid-cols-2 gap-8">
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                         <DetailItem label="ΑΦΜ / ΔΟΥ" value={`${selectedCustomer.tax_id || '—'} / ${selectedCustomer.tax_office || '—'}`} />
                         <DetailItem label="Τηλέφωνο" value={selectedCustomer.phone || '—'} />
                         <DetailItem label="Email" value={selectedCustomer.email || '—'} />
                         <DetailItem label="Διεύθυνση" value={`${selectedCustomer.address || '—'}, ${selectedCustomer.city || ''}`} />
                       </div>
-                      <div className="space-y-4 text-right">
+                      <div className="space-y-6 text-right">
                         <div>
-                          <span className="text-slate-400 block text-[10px] uppercase font-black tracking-widest mb-1">Τρέχον Υπόλοιπο</span>
-                          <span className={cn("text-3xl font-black tracking-tighter", selectedCustomer.balance > 0 ? "text-red-600" : "text-emerald-600")}>
+                          <span className="text-slate-400 block text-[10px] font-black uppercase tracking-[0.2em] mb-1 italic">Τρέχον Υπόλοιπο</span>
+                          <span className={cn("text-4xl font-black tracking-tighter italic", selectedCustomer.balance > 0 ? "text-red-600" : "text-emerald-600")}>
                             €{(selectedCustomer.balance || 0).toLocaleString('el-GR')}
                           </span>
                         </div>
@@ -345,26 +331,93 @@ export default function Customers() {
                       </div>
                     </div>
 
-                    {/* AI Insights */}
-                    <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-lg relative overflow-hidden group">
-                      <Sparkles className="absolute top-0 right-0 w-32 h-32 text-white/5 -mr-8 -mt-8 rotate-12 group-hover:scale-110 transition-transform" />
+                    {/* AI Strategic Insights */}
+                    <div className="p-6 rounded-[2rem] bg-slate-900 text-white shadow-2xl relative overflow-hidden group border border-slate-800">
+                      <Sparkles className="absolute top-0 right-0 w-32 h-32 text-white/5 -mr-8 -mt-8 rotate-12 group-hover:rotate-0 transition-all duration-700" />
                       <div className="relative z-10">
                         <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-2">
-                            <Bot className="w-4 h-4 text-blue-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Nexus AI Intelligence</span>
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-500/20 rounded-xl">
+                                <Bot className="w-4 h-4 text-blue-400" />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-[0.3em] italic text-blue-200/70">Nexus Strategic AI</span>
                           </div>
-                          <Button variant="secondary" size="xs" className="h-7 text-[10px] font-black bg-white/10 hover:bg-white/20 border-none text-white rounded-lg px-3" onClick={generateAISummary} disabled={aiLoading}>
+                          <Button variant="secondary" size="xs" className="h-8 text-[10px] font-black bg-white/10 hover:bg-white/20 border-none text-white rounded-xl px-4" onClick={generateAISummary} disabled={aiLoading}>
                             {aiLoading ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <Sparkles className="w-3 h-3 mr-2 text-amber-400" />}
-                            ΑΝΑΛΥΣΗ
+                            GENERATE INSIGHT
                           </Button>
                         </div>
                         {aiSummary ? (
-                          <p className="text-xs leading-relaxed font-medium italic text-slate-200">"{aiSummary}"</p>
+                          <div className="flex gap-4">
+                             <QuoteIcon className="w-6 h-6 text-slate-700 shrink-0" />
+                             <p className="text-sm font-medium italic text-slate-200 leading-relaxed">"{aiSummary}"</p>
+                          </div>
                         ) : (
-                          <p className="text-[11px] text-slate-400">Πατήστε το κουμπί για μια γρήγορη επιχειρηματική σύνοψη του πελάτη.</p>
+                          <p className="text-[11px] text-slate-500 font-medium">Ενεργοποιήστε την AI ανάλυση για στρατηγική σύνοψη της καρτέλας.</p>
                         )}
                       </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* --- VOIP CALL HISTORY TAB --- */}
+                  <TabsContent value="calls" className="py-6 animate-in fade-in slide-in-from-right-4">
+                    <div className="space-y-4">
+                       <div className="flex items-center justify-between px-2">
+                          <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">Ιστορικό Κλήσεων VoIP (3CX)</h4>
+                          <Badge variant="outline" className="text-[9px] font-black border-slate-200">Local AI Enabled</Badge>
+                       </div>
+                       
+                       <ScrollArea className="h-[400px]">
+                          {callLogs.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-100">
+                               <div className="p-4 bg-white rounded-full shadow-sm mb-4"><Headphones className="w-6 h-6 text-slate-300" /></div>
+                               <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter">Δεν βρέθηκαν κλήσεις</p>
+                               <p className="text-[10px] text-slate-400 mt-1">Η σύνδεση με το 3CX είναι ενεργή.</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3 pr-4">
+                               {callLogs.map((call) => (
+                                 <Card key={call.id} className="rounded-2xl border-slate-100 hover:shadow-md transition-all group overflow-hidden">
+                                    <div className="p-4 flex items-center gap-4">
+                                       <div className={cn("p-3 rounded-xl", call.type === 'in' ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600")}>
+                                          <PhoneCall className="w-4 h-4" />
+                                       </div>
+                                       <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 mb-1">
+                                             <span className="text-xs font-black uppercase tracking-tighter italic">{new Date(call.created_date).toLocaleString('el-GR')}</span>
+                                             <Badge className={cn("text-[8px] font-black px-1.5 h-4", 
+                                                call.sentiment === 'positive' ? "bg-emerald-500" : 
+                                                call.sentiment === 'angry' ? "bg-red-500" : "bg-slate-400")}>
+                                                {call.sentiment || 'NEUTRAL'}
+                                             </Badge>
+                                          </div>
+                                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{call.duration}s • {call.extension || 'Ext 101'}</p>
+                                       </div>
+                                       <div className="flex gap-2">
+                                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-slate-50 hover:bg-slate-900 hover:text-white group-hover:scale-110 transition-all">
+                                             <Play className="w-4 h-4" />
+                                          </Button>
+                                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-slate-50 hover:bg-blue-600 hover:text-white">
+                                             <BrainCircuit className="w-4 h-4" />
+                                          </Button>
+                                       </div>
+                                    </div>
+                                    
+                                    {/* AI Insight Expanded Section (Optional) */}
+                                    <div className="px-4 pb-4 pt-0">
+                                       <div className="p-3 bg-slate-50 rounded-xl border border-slate-100/50">
+                                          <div className="flex items-center gap-2 mb-2 text-primary">
+                                             <Sparkles className="w-3 h-3" />
+                                             <span className="text-[9px] font-black uppercase">Local AI Psychography</span>
+                                          </div>
+                                          <p className="text-[11px] leading-relaxed italic text-slate-600 line-clamp-2">"{call.ai_summary || 'Η απομαγνητοφώνηση είναι σε επεξεργασία από το τοπικό Whisper μοντέλο...'}"</p>
+                                       </div>
+                                    </div>
+                                 </Card>
+                               ))}
+                            </div>
+                          )}
+                       </ScrollArea>
                     </div>
                   </TabsContent>
 
@@ -379,10 +432,10 @@ export default function Customers() {
               </CardHeader>
             </Card>
           ) : (
-            <div className="h-[500px] flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl text-slate-300 bg-slate-50/50">
-              <div className="p-6 rounded-full bg-white shadow-sm mb-4"><User className="w-10 h-10 opacity-20" /></div>
-              <p className="text-sm font-bold tracking-tight">Επιλέξτε έναν πελάτη από τη λίστα</p>
-              <p className="text-xs opacity-60 mt-1">για να δείτε το ιστορικό, τα οικονομικά και τα emails.</p>
+            <div className="h-[500px] flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-[3rem] text-slate-300 bg-slate-50/50">
+              <div className="p-8 rounded-full bg-white shadow-xl mb-6 ring-8 ring-slate-100/50"><User className="w-12 h-12 opacity-20" /></div>
+              <p className="text-sm font-black tracking-widest uppercase italic text-slate-400">Επιλογή Καρτέλας Πελάτη</p>
+              <p className="text-[10px] font-medium opacity-60 mt-2 max-w-[200px] text-center uppercase tracking-tighter">Δείτε ιστορικό κλήσεων, emails και AI αναλύσεις σε ένα περιβάλλον.</p>
             </div>
           )}
         </div>
@@ -398,22 +451,37 @@ export default function Customers() {
       />
 
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="rounded-2xl">
-          <DialogHeader><DialogTitle className="font-black italic uppercase tracking-tighter text-2xl">Nexus Data Import</DialogTitle></DialogHeader>
-          <div className="py-6"><Input type="file" accept=".csv,.txt" onChange={handleFileImport} disabled={importing} className="rounded-xl" /></div>
-          <DialogFooter><Button variant="ghost" onClick={() => setImportDialogOpen(false)}>Κλείσιμο</Button></DialogFooter>
+        <DialogContent className="rounded-[2rem] border-none shadow-2xl">
+          <DialogHeader><DialogTitle className="font-black italic uppercase tracking-tighter text-3xl">Nexus Data Import</DialogTitle></DialogHeader>
+          <div className="py-8 space-y-4">
+             <div className="p-6 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50 text-center">
+                <Upload className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                <p className="text-xs font-bold text-slate-500 mb-4 uppercase tracking-tighter">Επιλέξτε αρχείο .CSV ή .TXT</p>
+                <Input type="file" accept=".csv,.txt" onChange={handleFileImport} disabled={importing} className="rounded-xl border-slate-200 bg-white" />
+             </div>
+          </div>
+          <DialogFooter><Button variant="ghost" className="rounded-xl font-bold" onClick={() => setImportDialogOpen(false)}>Ακύρωση</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
 
-// Helper Component
+// --- HELPER COMPONENTS ---
+
 function DetailItem({ label, value, align = "left" }) {
   return (
     <div className={align === "right" ? "text-right" : ""}>
-      <span className="text-slate-400 block text-[10px] uppercase font-black tracking-widest mb-1">{label}</span>
-      <span className="text-sm font-bold text-slate-900">{value}</span>
+      <span className="text-slate-400 block text-[10px] uppercase font-black tracking-[0.2em] mb-1 italic">{label}</span>
+      <span className="text-sm font-black text-slate-900 italic tracking-tight">{value}</span>
     </div>
+  );
+}
+
+function QuoteIcon(props) {
+  return (
+    <svg {...props} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14.017 21L14.017 18C14.017 16.8954 14.9124 16 16.017 16H19.017C19.5693 16 20.017 15.5523 20.017 15V9C20.017 8.44772 19.5693 8 19.017 8H16.017C14.9124 8 14.017 7.10457 14.017 6V3L14.017 3C14.017 1.89543 14.9124 1 16.017 1L19.017 1C21.2261 1 23.017 2.79086 23.017 5V15C23.017 18.3137 20.3307 21 17.017 21H14.017ZM1 21L1 18C1 16.8954 1.89543 16 3 16H6C6.55228 16 7 15.5523 7 15V9C7 8.44772 6.55228 8 6 8H3C1.89543 8 1 7.10457 1 6V3L1 3C1 1.89543 1.89543 1 3 1H6C8.20914 1 10 2.79086 10 5V15C10 18.3137 7.31371 21 4 21H1Z" />
+    </svg>
   );
 }
