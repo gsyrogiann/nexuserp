@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, Truck, Package, Warehouse as WarehouseIcon,
   ShoppingCart, ShoppingBag, FileText, CreditCard, BarChart3,
   Bot, ChevronDown, ChevronRight, Menu, X, Settings, Mail, AlertCircle, Ticket, 
-  Calendar as CalendarIcon, TrendingUp, Sparkles
+  Calendar as CalendarIcon, TrendingUp, Sparkles, ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -68,9 +68,10 @@ const navGroups = [
     ]
   },
   {
-    label: 'Intelligence', // Μετονομασία από AI σε Intelligence
+    label: 'Administration', // Νέο Group για τον Διαχειριστή
     items: [
-      { label: 'Nexus AI Admin', path: '/AIAssistant', icon: Sparkles } // Μόνο μία επιλογή AI
+      { label: 'Nexus AI Admin', path: '/AIAssistant', icon: Sparkles },
+      { label: 'Ρυθμίσεις', path: '/Settings', icon: Settings } // Η νέα μας σελίδα
     ]
   }
 ];
@@ -155,7 +156,7 @@ export default function Sidebar() {
       {!collapsed && (
         <div className="p-4 border-t border-sidebar-border bg-sidebar-accent/5">
           <div className="flex items-center gap-3 px-2 py-1.5 text-xs text-sidebar-foreground/40 font-mono">
-            <Settings className="w-3.5 h-3.5" />
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
             <span>v1.2.0-core</span>
           </div>
         </div>
