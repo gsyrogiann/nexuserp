@@ -13,6 +13,7 @@ import { PhoneCall, Send, Save, Loader2 } from 'lucide-react';
 export default function Settings() {
   const qc = useQueryClient();
 
+  // Φορτώνουμε τις ρυθμίσεις
   const { data: settings = [], isLoading } = useQuery({
     queryKey: ['appSettings'],
     queryFn: () => fetchList(base44.entities.AppSettings),
@@ -23,30 +24,24 @@ export default function Settings() {
   const updateMutation = useMutation({
     mutationFn: async (data) => {
       const payload = {
+        id: config?.id, // Αν υπάρχει id, το στέλνουμε για update
         voip_host: data.voip_host || "",
         voip_api_key: data.voip_api_key || "",
         telegram_token: data.telegram_token || ""
       };
 
-      console.log("Internal API request attempt:", payload);
+      console.log("Saving via Proxy Function...");
 
-      // Χρησιμοποιούμε το εσωτερικό api.request του SDK που είναι το πιο low-level
-      const path = config?.id 
-        ? `/entities/AppSettings/${config.id}` 
-        : `/entities/AppSettings`;
-      
-      return await base44.api.request(path, {
-        method: config?.id ? 'PATCH' : 'POST',
-        data: payload
-      });
+      // Η base44.func είναι η πιο σίγουρη μέθοδος στο sandbox
+      return await base44.func('saveSettings', payload);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['appSettings'] });
-      alert("✅ ΤΑ ΚΑΤΑΦΕΡΑΜΕ! Οι ρυθμίσεις σώθηκαν.");
+      alert("✅ ΕΠΙΤΥΧΙΑ! Οι ρυθμίσεις αποθηκεύτηκαν.");
     },
     onError: (err) => {
-      console.error("Internal SDK Error:", err);
-      alert("❌ Σφάλμα: " + (err.message || "Αποτυχία σύνδεσης"));
+      console.error("Function Error:", err);
+      alert("❌ Σφάλμα: " + (err.message || "Αποτυχία συγχρονισμού"));
     }
   });
 
@@ -65,23 +60,25 @@ export default function Settings() {
       <form onSubmit={handleSubmit}>
         <Tabs defaultValue="telegram">
           <TabsList className="mb-8">
-            <TabsTrigger value="voip" className="px-10"><PhoneCall className="mr-2 w-4 h-4"/> 3CX</TabsTrigger>
             <TabsTrigger value="telegram" className="px-10"><Send className="mr-2 w-4 h-4"/> Telegram AI</TabsTrigger>
+            <TabsTrigger value="voip" className="px-10"><PhoneCall className="mr-2 w-4 h-4"/> 3CX</TabsTrigger>
           </TabsList>
 
           <TabsContent value="telegram">
-            <Card className="rounded-[2.5rem] shadow-2xl p-10 space-y-6">
-              <Label className="font-bold">Bot Token</Label>
-              <Input name="telegram_token" defaultValue={config?.telegram_token} placeholder="Βάλε το token εδώ" className="h-14 rounded-2xl" />
+            <Card className="rounded-[2.5rem] shadow-2xl p-10 space-y-6 border-slate-200">
+              <Label className="font-bold text-slate-500 uppercase text-xs">Bot Token</Label>
+              <Input name="telegram_token" defaultValue={config?.telegram_token} placeholder="8261327279:..." className="h-14 rounded-2xl border-slate-200" />
               
               <Button 
-                type="button" variant="outline" className="w-full h-12 rounded-xl border-dashed border-[#0088cc] text-[#0088cc]"
+                type="button" variant="outline" className="w-full h-12 rounded-xl border-dashed border-[#0088cc] text-[#0088cc] font-bold"
                 onClick={async () => {
                   if(!config?.telegram_token) return alert("Σώσε πρώτα το token!");
                   const url = `https://api.telegram.org/bot${config.telegram_token}/setWebhook?url=${window.location.origin}/api/telegram-webhook`;
-                  const res = await fetch(url);
-                  const d = await res.json();
-                  alert(d.ok ? "✅ Το Webhook ενεργοποιήθηκε!" : "❌ Telegram: " + d.description);
+                  try {
+                    const res = await fetch(url);
+                    const d = await res.json();
+                    alert(d.ok ? "✅ Το Bot είναι Live!" : "❌ Telegram: " + d.description);
+                  } catch (e) { alert("Αποτυχία κλήσης Webhook."); }
                 }}
               >
                 Σύνδεση με Telegram
@@ -91,8 +88,8 @@ export default function Settings() {
         </Tabs>
 
         <div className="fixed bottom-10 right-10">
-          <Button type="submit" disabled={updateMutation.isPending} className="h-16 px-12 rounded-2xl bg-slate-900 text-white font-black italic shadow-2xl uppercase">
-            {updateMutation.isPending ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />}
+          <Button type="submit" disabled={updateMutation.isPending} className="h-16 px-12 rounded-2xl bg-slate-900 text-white font-black shadow-2xl uppercase tracking-widest gap-3">
+            {updateMutation.isPending ? <Loader2 className="animate-spin" /> : <Save className="w-5 h-5 text-emerald-400" />}
             Αποθήκευση
           </Button>
         </div>
