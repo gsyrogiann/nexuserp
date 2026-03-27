@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PhoneCall, Globe, Truck, Save, Loader2, ShieldCheck, MessageSquare, Send } from 'lucide-react';
+import { PhoneCall, Globe, Truck, Save, Loader2, ShieldCheck, Send, MessageSquare } from 'lucide-react';
 
 export default function Settings() {
   const qc = useQueryClient();
@@ -22,15 +22,20 @@ export default function Settings() {
 
   const updateMutation = useMutation({
     mutationFn: async (data) => {
-      if (config.id) {
+      // Logic: Αν δεν υπάρχει το config.id, κάνουμε create, αλλιώς update
+      if (config && config.id) {
         return base44.entities.AppSettings.update(config.id, data);
       }
       return base44.entities.AppSettings.create(data);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['appSettings'] });
-      alert("Οι ρυθμίσεις αποθηκεύτηκαν επιτυχώς!");
+      alert("Επιτυχία! Οι ρυθμίσεις αποθηκεύτηκαν στο Nexus.");
     },
+    onError: (err) => {
+      console.error("Save Error:", err);
+      alert("Σφάλμα κατά την αποθήκευση. Δες το console (F12).");
+    }
   });
 
   const handleSubmit = (e) => {
@@ -68,38 +73,19 @@ export default function Settings() {
 
           {/* 3CX TAB */}
           <TabsContent value="voip" className="animate-in slide-in-from-left-4 duration-300">
-            <Card className="rounded-[2.5rem] border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden">
+            <Card className="rounded-[2.5rem] border-slate-200 shadow-2xl overflow-hidden">
               <CardHeader className="bg-slate-50/50 border-b p-8">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-200">
-                    <PhoneCall className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-2xl font-black italic uppercase tracking-tighter">Διασύνδεση 3CX</CardTitle>
-                    <p className="text-xs text-slate-500 font-medium">Σύνδεση τηλεφωνικού κέντρου για αυτόματο Call Logging & AI</p>
-                  </div>
-                </div>
+                <CardTitle className="text-2xl font-black italic uppercase tracking-tighter">Διασύνδεση 3CX</CardTitle>
               </CardHeader>
               <CardContent className="p-10 space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   <div className="space-y-3">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic">3CX FQDN / Host</Label>
-                    <Input 
-                      name="voip_host" 
-                      defaultValue={config.voip_host} 
-                      placeholder="π.χ. nexus-erp.3cx.gr" 
-                      className="rounded-2xl h-14 border-slate-200 focus:ring-primary font-bold italic"
-                    />
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">3CX FQDN</Label>
+                    <Input name="voip_host" defaultValue={config.voip_host} placeholder="nexus.3cx.gr" className="rounded-2xl h-14" />
                   </div>
                   <div className="space-y-3">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic">API Key / Secret</Label>
-                    <Input 
-                      name="voip_api_key" 
-                      type="password" 
-                      defaultValue={config.voip_api_key} 
-                      placeholder="••••••••••••••••" 
-                      className="rounded-2xl h-14 border-slate-200 focus:ring-primary"
-                    />
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">API Key</Label>
+                    <Input name="voip_api_key" type="password" defaultValue={config.voip_api_key} className="rounded-2xl h-14" />
                   </div>
                 </div>
               </CardContent>
@@ -108,61 +94,38 @@ export default function Settings() {
 
           {/* TELEGRAM TAB */}
           <TabsContent value="telegram" className="animate-in slide-in-from-left-4 duration-300">
-            <Card className="rounded-[2.5rem] border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden">
+            <Card className="rounded-[2.5rem] border-slate-200 shadow-2xl overflow-hidden">
               <CardHeader className="bg-slate-50/50 border-b p-8">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-[#0088cc] rounded-2xl text-white shadow-lg shadow-blue-100">
-                    <Send className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-2xl font-black italic uppercase tracking-tighter">Telegram AI Bridge</CardTitle>
-                    <p className="text-xs text-slate-500 font-medium">Δωρεάν επικοινωνία με το Nexus AI από το κινητό σου</p>
-                  </div>
-                </div>
+                <CardTitle className="text-2xl font-black italic uppercase tracking-tighter text-[#0088cc]">Telegram AI Bridge</CardTitle>
               </CardHeader>
               <CardContent className="p-10 space-y-8">
                 <div className="space-y-3">
-                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic">Telegram Bot Token</Label>
-                  <Input 
-                    name="telegram_token" 
-                    type="password" 
-                    defaultValue={config.telegram_token} 
-                    placeholder="Επικολλήστε το Token από τον BotFather" 
-                    className="rounded-2xl h-14 border-slate-200 focus:ring-primary font-bold"
-                  />
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bot Token</Label>
+                  <Input name="telegram_token" defaultValue={config.telegram_token} placeholder="8261327279:..." className="rounded-2xl h-14" />
                 </div>
-                <div className="p-6 rounded-3xl bg-blue-50 border border-blue-100 flex items-start gap-4">
-                  <div className="p-2 bg-white rounded-xl shadow-sm">
-                    <MessageSquare className="w-5 h-5 text-[#0088cc]" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-black text-blue-900 uppercase tracking-tight italic">AI Bot Status</p>
-                    <p className="text-xs text-blue-700 leading-relaxed font-medium">
-                      Μόλις αποθηκεύσετε το Token, το Nexus ERP θα μπορεί να "διαβάζει" τα μηνύματα που στέλνετε στο Bot σας και να απαντάει μέσω του AI.
-                    </p>
-                  </div>
-                </div>
+                
+                <Button 
+                  type="button"
+                  variant="outline"
+                  className="w-full rounded-xl border-dashed border-2 border-[#0088cc] text-[#0088cc] font-bold h-12"
+                  onClick={async () => {
+                    if(!config.telegram_token) return alert("Βάλε πρώτα το token και πάτα Αποθήκευση!");
+                    const url = `https://api.telegram.org/bot${config.telegram_token}/setWebhook?url=${window.location.origin}/api/telegram-webhook`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    if(data.ok) alert("Το Bot συνδέθηκε live!");
+                    else alert("Σφάλμα: " + data.description);
+                  }}
+                >
+                  <Send className="w-4 h-4 mr-2" /> Σύνδεση Bot με το ERP
+                </Button>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="ecommerce" className="py-20 text-center bg-slate-50 rounded-[3rem] border-2 border-dashed">
-            <Globe className="w-12 h-12 mx-auto text-slate-200 mb-4" />
-            <p className="text-sm font-bold text-slate-400 uppercase italic">Coming Soon: WooCommerce & Shopify Sync</p>
-          </TabsContent>
-
-          <TabsContent value="courier" className="py-20 text-center bg-slate-50 rounded-[3rem] border-2 border-dashed">
-            <Truck className="w-12 h-12 mx-auto text-slate-200 mb-4" />
-            <p className="text-sm font-bold text-slate-400 uppercase italic">Coming Soon: ACS, General & Speedex API</p>
           </TabsContent>
         </Tabs>
 
         <div className="fixed bottom-10 right-10 z-50">
-          <Button 
-            type="submit" 
-            disabled={updateMutation.isPending}
-            className="h-16 px-10 rounded-2xl shadow-2xl bg-slate-900 hover:bg-slate-800 text-white font-black italic uppercase tracking-widest gap-3 border-b-4 border-slate-700 active:border-b-0 active:translate-y-1 transition-all"
-          >
+          <Button type="submit" disabled={updateMutation.isPending} className="h-16 px-10 rounded-2xl shadow-2xl bg-slate-900 text-white font-black italic uppercase tracking-widest gap-3">
             {updateMutation.isPending ? <Loader2 className="animate-spin w-5 h-5" /> : <Save className="w-5 h-5 text-emerald-400" />}
             Αποθήκευση Ρυθμίσεων
           </Button>
