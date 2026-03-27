@@ -28,7 +28,7 @@ import UnmatchedEmails from './pages/UnmatchedEmails';
 import Tickets from './pages/Tickets';
 import Calendar from './pages/Calendar';
 import SalesPipeline from './pages/SalesPipeline';
-import VoIPSettings from './pages/VoIPSettings';
+import Settings from './pages/Settings'; // <--- ΝΕΟ IMPORT
 
 /**
  * AccessDenied View
@@ -95,14 +95,13 @@ const AuthenticatedApp = () => {
         <Route path="/UnmatchedEmails" element={<UnmatchedEmails />} />
 
         {/* ΠΡΟΣΤΑΤΕΥΜΕΝΕΣ ΔΙΑΔΡΟΜΕΣ */}
-        {/* Αν ο χρήστης δεν είναι admin, δείχνουμε το AccessDenied αντί για τη σελίδα */}
         <Route path="/SalesInvoices" element={isAdmin ? <SalesInvoices /> : <AccessDenied />} />
         <Route path="/PurchaseInvoices" element={isAdmin ? <PurchaseInvoices /> : <AccessDenied />} />
         <Route path="/Payments" element={isAdmin ? <Payments /> : <AccessDenied />} />
         <Route path="/Reports" element={isAdmin ? <Reports /> : <AccessDenied />} />
         <Route path="/AIAssistant" element={isAdmin ? <AIAssistant /> : <AccessDenied />} />
         <Route path="/EmailSettings" element={isAdmin ? <EmailSettings /> : <AccessDenied />} />
-        <Route path="/VoIPSettings" element={isAdmin ? <VoIPSettings /> : <AccessDenied />} />
+        <Route path="/Settings" element={isAdmin ? <Settings /> : <AccessDenied />} /> {/* <--- ΑΝΤΙΚΑΤΑΣΤΑΣΗ VOIP SETTINGS */}
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
