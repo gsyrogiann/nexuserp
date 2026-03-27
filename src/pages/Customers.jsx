@@ -20,9 +20,10 @@ import {
   ContextMenuSeparator
 } from '@/components/ui/context-menu';
 import { Reorder, AnimatePresence } from 'framer-motion';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Bot, Loader2, Sparkles, Mail, Activity, Info,
-  GripVertical, ExternalLink, Copy, Trash2, User, Search, FilterX
+  GripVertical, ExternalLink, Copy, Trash2, User, Search, FilterX, Upload, Pencil
 } from 'lucide-react';
 import { t } from '@/lib/translations';
 import { cn } from '@/lib/utils';
@@ -161,6 +162,10 @@ export default function Customers() {
     } finally {
       setAiLoading(false);
     }
+  };
+
+  const openInNewTab = (id) => {
+    window.open(`${window.location.origin}/Customers?id=${id}`, '_blank');
   };
 
   const handleFileImport = async (e) => {
