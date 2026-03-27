@@ -23,5 +23,6 @@ base44.entities = {
   SalesInvoice: "SalesInvoice",
   Payment: "Payment",
   CallLog: "CallLog",      // Το κουτί για τις κλήσεις 3CX
-  AppSettings: "AppSettings" // Το κουτί για τα API Keys (3CX, myDATA, Courier)
+  AppSettings: "AppSettings", // Το κουτί για τα API Keys (3CX, myDATA, Courier)
+  UnifiedMessage: "UnifiedMessage" // Το κανάλι επικοινωνίας με το κινητό (Telegram/WhatsApp)
 };
