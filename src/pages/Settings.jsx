@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PhoneCall, Globe, Truck, Save, Loader2, ShieldCheck } from 'lucide-react';
+import { PhoneCall, Globe, Truck, Save, Loader2, ShieldCheck, MessageSquare, Send } from 'lucide-react';
 
 export default function Settings() {
   const qc = useQueryClient();
@@ -55,6 +55,9 @@ export default function Settings() {
             <TabsTrigger value="voip" className="rounded-xl gap-2 font-bold px-8 py-3 data-[state=active]:bg-slate-900 data-[state=active]:text-white">
               <PhoneCall className="w-4 h-4" /> 3CX VoIP
             </TabsTrigger>
+            <TabsTrigger value="telegram" className="rounded-xl gap-2 font-bold px-8 py-3 data-[state=active]:bg-slate-900 data-[state=active]:text-white">
+              <Send className="w-4 h-4" /> Telegram AI
+            </TabsTrigger>
             <TabsTrigger value="ecommerce" className="rounded-xl gap-2 font-bold px-8 py-3 data-[state=active]:bg-slate-900 data-[state=active]:text-white">
               <Globe className="w-4 h-4" /> E-Shop
             </TabsTrigger>
@@ -63,6 +66,7 @@ export default function Settings() {
             </TabsTrigger>
           </TabsList>
 
+          {/* 3CX TAB */}
           <TabsContent value="voip" className="animate-in slide-in-from-left-4 duration-300">
             <Card className="rounded-[2.5rem] border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden">
               <CardHeader className="bg-slate-50/50 border-b p-8">
@@ -98,15 +102,43 @@ export default function Settings() {
                     />
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
+          {/* TELEGRAM TAB */}
+          <TabsContent value="telegram" className="animate-in slide-in-from-left-4 duration-300">
+            <Card className="rounded-[2.5rem] border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden">
+              <CardHeader className="bg-slate-50/50 border-b p-8">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-[#0088cc] rounded-2xl text-white shadow-lg shadow-blue-100">
+                    <Send className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-2xl font-black italic uppercase tracking-tighter">Telegram AI Bridge</CardTitle>
+                    <p className="text-xs text-slate-500 font-medium">Δωρεάν επικοινωνία με το Nexus AI από το κινητό σου</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-10 space-y-8">
+                <div className="space-y-3">
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic">Telegram Bot Token</Label>
+                  <Input 
+                    name="telegram_token" 
+                    type="password" 
+                    defaultValue={config.telegram_token} 
+                    placeholder="Επικολλήστε το Token από τον BotFather" 
+                    className="rounded-2xl h-14 border-slate-200 focus:ring-primary font-bold"
+                  />
+                </div>
                 <div className="p-6 rounded-3xl bg-blue-50 border border-blue-100 flex items-start gap-4">
                   <div className="p-2 bg-white rounded-xl shadow-sm">
-                    <ShieldCheck className="w-5 h-5 text-blue-600" />
+                    <MessageSquare className="w-5 h-5 text-[#0088cc]" />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-black text-blue-900 uppercase tracking-tight italic">Ασφαλής Σύνδεση</p>
+                    <p className="text-sm font-black text-blue-900 uppercase tracking-tight italic">AI Bot Status</p>
                     <p className="text-xs text-blue-700 leading-relaxed font-medium">
-                      Τα κλειδιά σας αποθηκεύονται κρυπτογραφημένα. Μόλις πατήσετε αποθήκευση, το Nexus θα ξεκινήσει να "ακούει" τις κλήσεις από το 3CX Webhook.
+                      Μόλις αποθηκεύσετε το Token, το Nexus ERP θα μπορεί να "διαβάζει" τα μηνύματα που στέλνετε στο Bot σας και να απαντάει μέσω του AI.
                     </p>
                   </div>
                 </div>
