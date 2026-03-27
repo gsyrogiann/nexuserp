@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-// Ορισμός Στηλών με Χρωματική Σήμανση Κατάστασης
 const columns = [
   { key: 'number', label: 'Παραστατικό #', className: "font-mono font-bold text-blue-600" },
   { key: 'customer_name', label: 'Πελάτης', className: "font-medium" },
@@ -62,27 +61,13 @@ export default function SalesInvoices() {
 
   const qc = useQueryClient();
 
-  // Φόρτωση Δεδομένων (PAGINATION FIX)
-  const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ['salesInvoices'],
-    queryFn: () => fetchList(base44.entities.SalesInvoice),
-  });
+  // Queries
+  const { data: invoices = [], isLoading } = useQuery({ queryKey: ['salesInvoices'], queryFn: () => fetchList(base44.entities.SalesInvoice) });
+  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: () => fetchList(base44.entities.Customer) });
+  const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: () => fetchList(base44.entities.Product) });
 
-  const { data: customers = [] } = useQuery({
-    queryKey: ['customers'],
-    queryFn: () => fetchList(base44.entities.Customer),
-  });
+  const nextInvoiceNumber = useMemo(() => getNextInvoiceNumber(invoices), [invoices]);
 
-  const { data: products = [] } = useQuery({
-    queryKey: ['products'],
-    queryFn: () => fetchList(base44.entities.Product),
-  });
-
-  const nextInvoiceNumber = useMemo(() => {
-    return getNextInvoiceNumber(invoices);
-  }, [invoices]);
-
-  // SMART FILTER
   const filteredInvoices = useMemo(() => {
     return invoices.filter(inv => 
       inv.number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -90,6 +75,7 @@ export default function SalesInvoices() {
     );
   }, [invoices, searchTerm]);
 
+  // Mutations
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.SalesInvoice.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['salesInvoices'] }),
@@ -100,6 +86,33 @@ export default function SalesInvoices() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['salesInvoices'] }),
   });
 
+  // --- AUTOMATED STOCK LOGIC ---
+  const handleStockMovement = async (invoiceData) => {
+    if (!invoiceData.items || invoiceData.items.length === 0) return;
+
+    for (const item of invoiceData.items) {
+      await base44.entities.StockMovement.create({
+        product_id: item.product_id,
+        product_name: item.name,
+        type: 'out',
+        quantity: item.quantity,
+        reference_type: 'Sales Invoice',
+        reference_id: invoiceData.number,
+        warehouse_name: 'Main Warehouse', // Default αποθήκη
+        created_date: new Date().toISOString()
+      });
+      
+      // Update την ποσότητα στο Product Entity
+      const product = products.find(p => p.id === item.product_id);
+      if (product) {
+        const newQty = (Number(product.stock_quantity) || 0) - (Number(item.quantity) || 0);
+        await base44.entities.Product.update(product.id, { stock_quantity: newQty });
+      }
+    }
+    qc.invalidateQueries({ queryKey: ['products'] });
+    qc.invalidateQueries({ queryKey: ['stockMovements'] });
+  };
+
   const handleSubmit = async (data) => {
     const payload = {
       ...data,
@@ -109,39 +122,35 @@ export default function SalesInvoices() {
     if (editing?.id) {
       await updateMutation.mutateAsync({ id: editing.id, data: payload });
     } else {
-      await createMutation.mutateAsync({
+      const newInvoice = await createMutation.mutateAsync({
         ...payload,
         number: data.number || nextInvoiceNumber,
         status: 'unpaid',
         paid_amount: 0,
       });
+      
+      // Αυτόματη ενημέρωση αποθήκης μόνο σε νέα τιμολόγια
+      await handleStockMovement(data);
     }
 
     setEditing(null);
     setDialogOpen(false);
   };
 
-  // Οικονομικά Στοιχεία
-  const totalInvoiced = invoices.reduce((s, i) => s + (i.total || 0), 0);
-  const totalPaid = invoices.reduce((s, i) => s + (i.paid_amount || 0), 0);
+  // Οικονομικά
+  const totalInvoiced = invoices.reduce((s, i) => s + (Number(i.total) || 0), 0);
+  const totalPaid = invoices.reduce((s, i) => s + (Number(i.paid_amount) || 0), 0);
   const outstanding = totalInvoiced - totalPaid;
   const overdueCount = invoices.filter((i) => i.status === 'overdue').length;
 
-  // AI Financial Analysis
   const analyzeFinance = async () => {
     setAiLoading(true);
     try {
-      const prompt = `Ανάλυσε τα οικονομικά στοιχεία του Nexus ERP: 
-      Συνολικά Τιμολογημένα: €${totalInvoiced}. 
-      Εισπράξεις: €${totalPaid}. 
-      Ανεξόφλητα: €${outstanding}. 
-      Ληξιπρόθεσμα: ${overdueCount}. 
-      Δώσε μια συμβουλή στρατηγικής για το Cash Flow σε 2 προτάσεις.`;
-      
+      const prompt = `Ανάλυσε τα οικονομικά: Τιμολογημένα: €${totalInvoiced}, Εισπράξεις: €${totalPaid}, Ανεξόφλητα: €${outstanding}. Δώσε 2 προτάσεις για βελτίωση ρευστότητας.`;
       const result = await base44.integrations.Core.InvokeLLM({ prompt });
       setAiAnalysis(result);
     } catch (e) {
-      setAiAnalysis("Αδυναμία ανάλυσης δεδομένων.");
+      setAiAnalysis("Σφάλμα ανάλυσης.");
     } finally {
       setAiLoading(false);
     }
@@ -151,60 +160,56 @@ export default function SalesInvoices() {
     <div className="space-y-6 pb-12 animate-in fade-in duration-500">
       <PageHeader
         title="Τιμολόγια Πωλήσεων"
-        subtitle={`${invoices.length} συνολικά παραστατικά`}
+        subtitle={`${invoices.length} παραστατικά`}
         actionLabel="Νέο Τιμολόγιο"
         onAction={() => {
           setEditing({
             number: nextInvoiceNumber,
             date: new Date().toISOString().split('T')[0],
-            notes: '',
-            customer_id: '',
             items: [],
           });
           setDialogOpen(true);
         }}
       />
 
-      {/* Finance Dashboard */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard label="Τιμολογημένα" value={`€${totalInvoiced.toLocaleString('el-GR')}`} icon={Receipt} />
         <StatsCard label="Εισπράξεις" value={`€${totalPaid.toLocaleString('el-GR')}`} icon={Wallet} />
         <StatsCard label="Ανεξόφλητα" value={`€${outstanding.toLocaleString('el-GR')}`} icon={AlertTriangle} />
-        <div className="bg-slate-900 rounded-2xl p-5 text-white shadow-xl relative overflow-hidden group">
+        
+        <div className="bg-slate-900 rounded-[2rem] p-5 text-white shadow-xl relative overflow-hidden group border border-slate-800">
           <Sparkles className="absolute top-0 right-0 w-24 h-24 text-white/5 -mr-4 -mt-4" />
           <div className="relative z-10 flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">AI Cashflow Advisor</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 italic font-mono">AI CFO Insights</span>
               <Bot className="w-4 h-4 text-blue-400" />
             </div>
             {aiAnalysis ? (
-              <p className="text-[11px] leading-relaxed italic text-blue-100 mb-2">"{aiAnalysis}"</p>
+              <p className="text-[11px] leading-relaxed italic text-blue-100/90 font-medium">"{aiAnalysis}"</p>
             ) : (
-              <div className="text-2xl font-black">{overdueCount} <span className="text-xs font-normal text-slate-400 uppercase">Overdue</span></div>
+              <div className="text-2xl font-black italic tracking-tighter">{overdueCount} <span className="text-xs font-normal text-slate-500 uppercase tracking-normal">Overdue</span></div>
             )}
             <Button 
               variant="ghost" 
-              size="xs" 
               onClick={analyzeFinance} 
               disabled={aiLoading}
-              className="mt-2 h-7 bg-white/10 hover:bg-white/20 border-none text-white text-[10px] font-bold rounded-lg"
+              className="mt-3 h-8 bg-blue-600/20 hover:bg-blue-600/40 text-blue-200 text-[10px] font-black rounded-xl border border-blue-500/20"
             >
-              {aiLoading ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <TrendingUp className="w-3 h-3 mr-2 text-blue-400" />}
-              {aiAnalysis ? "ΕΠΑΝΑΛΗΨΗ ΑΝΑΛΥΣΗΣ" : "ΑΝΑΛΥΣΗ ΤΩΡΑ"}
+              {aiLoading ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <TrendingUp className="w-3 h-3 mr-2" />}
+              {aiAnalysis ? "ΑΝΑΝΕΩΣΗ" : "AI ANALYSIS"}
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex gap-4">
+      <div className="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100 flex gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input 
-            placeholder="Αναζήτηση με Αρ. Παραστατικού ή Όνομα Πελάτη..." 
+            placeholder="Αναζήτηση παραστατικού ή πελάτη..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-slate-50 border-none focus-visible:ring-1 focus-visible:ring-blue-600 rounded-xl h-11"
+            className="pl-12 bg-slate-50/50 border-none rounded-2xl h-12 text-sm focus-visible:ring-2 focus-visible:ring-blue-600/20"
           />
         </div>
       </div>
@@ -213,21 +218,17 @@ export default function SalesInvoices() {
         columns={columns}
         data={filteredInvoices}
         loading={isLoading}
-        onRowClick={(row) => {
-          setEditing(row);
-          setDialogOpen(true);
-        }}
+        onRowClick={(row) => { setEditing(row); setDialogOpen(true); }}
       />
 
-      {/* DOCUMENT FORM - Εδώ γίνεται η αυτόματη εφαρμογή των Tiers */}
       <DocumentFormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title={editing?.id ? 'Επεξεργασία Τιμολογίου' : 'Έκδοση Νέου Τιμολογίου'}
+        title={editing?.id ? 'Επεξεργασία' : 'Νέο Τιμολόγιο'}
         initialData={editing}
         onSubmit={handleSubmit}
         customers={customers}
-        products={products} // Τα προϊόντα περιλαμβάνουν τα price_tiers
+        products={products}
         entityType="customer"
       />
     </div>
