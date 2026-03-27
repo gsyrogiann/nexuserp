@@ -13,7 +13,7 @@ import { PhoneCall, Globe, Truck, Save, Loader2, Send } from 'lucide-react';
 export default function Settings() {
   const qc = useQueryClient();
 
-  // Λήψη ρυθμίσεων από τη βάση
+  // Λήψη των ρυθμίσεων από τη βάση (Entity: AppSettings)
   const { data: settings = [], isLoading } = useQuery({
     queryKey: ['appSettings'],
     queryFn: () => fetchList(base44.entities.AppSettings),
@@ -21,7 +21,7 @@ export default function Settings() {
 
   const config = settings[0] || null;
 
-  // Η "Πυρηνική" μέθοδος αποθήκευσης που παρακάμπτει τα σφάλματα του SDK
+  // Mutation με χρήση των πλέον συμβατών εντολών patch/post
   const updateMutation = useMutation({
     mutationFn: async (data) => {
       const payload = {
@@ -30,18 +30,19 @@ export default function Settings() {
         telegram_token: data.telegram_token || ""
       };
 
-      console.log("Nuclear Save Attempt:", payload);
+      console.log("Saving with compatible methods:", payload);
 
-      // Χρησιμοποιούμε την base44.call για να μιλήσουμε απευθείας στον server
-      const action = config?.id ? 'update' : 'create';
-      const methodPath = `entities.AppSettings.${action}`;
-      const args = config?.id ? [config.id, payload] : [payload];
-
-      return await base44.call(methodPath, args);
+      if (config && config.id) {
+        // Ενημέρωση υπάρχουσας εγγραφής
+        return await base44.patch(`entities/AppSettings/${config.id}`, payload);
+      } else {
+        // Δημιουργία νέας εγγραφής αν η βάση είναι άδεια
+        return await base44.post(`entities/AppSettings`, payload);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['appSettings'] });
-      alert("✅ ΕΠΙΤΥΧΙΑ! Το Nexus ERP ενημερώθηκε.");
+      alert("✅ ΕΠΙΤΥΧΙΑ! Οι ρυθμίσεις αποθηκεύτηκαν στο Nexus.");
     },
     onError: (err) => {
       console.error("Save Error:", err);
@@ -125,7 +126,7 @@ export default function Settings() {
                     try {
                         const res = await fetch(url);
                         const data = await res.json();
-                        if(data.ok) alert("Το Bot συνδέθηκε επιτυχώς με το ERP!");
+                        if(data.ok) alert("✅ Το Bot συνδέθηκε επιτυχώς με το ERP!");
                         else alert("Telegram Error: " + data.description);
                     } catch (e) {
                         alert("Αποτυχία κλήσης στο Telegram API.");
