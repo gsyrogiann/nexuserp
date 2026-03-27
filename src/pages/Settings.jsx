@@ -8,12 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PhoneCall, Globe, Truck, Save, Loader2, ShieldCheck, Send, MessageSquare } from 'lucide-react';
+import { PhoneCall, Globe, Truck, Save, Loader2, Send } from 'lucide-react';
 
 export default function Settings() {
   const qc = useQueryClient();
 
-  // Fetch settings from base44
   const { data: settings = [], isLoading } = useQuery({
     queryKey: ['appSettings'],
     queryFn: () => fetchList(base44.entities.AppSettings),
@@ -23,30 +22,33 @@ export default function Settings() {
 
   const updateMutation = useMutation({
     mutationFn: async (data) => {
-      // Καθαρισμός των δεδομένων πριν την αποστολή
       const payload = {
         voip_host: data.voip_host || "",
         voip_api_key: data.voip_api_key || "",
         telegram_token: data.telegram_token || ""
       };
 
-      console.log("Sending to Base44:", payload);
+      // Απευθείας κλήση στο API για να παρακάμψουμε το SDK "is not a function"
+      const method = config?.id ? 'PATCH' : 'POST';
+      const url = config?.id 
+        ? `${window.location.origin}/api/entities/AppSettings/${config.id}`
+        : `${window.location.origin}/api/entities/AppSettings`;
 
-      if (config && config.id) {
-        // Αν υπάρχει εγγραφή, κάνουμε UPDATE
-        return await base44.entities.AppSettings.update(config.id, payload);
-      } else {
-        // Αν είναι η πρώτη φορά, κάνουμε CREATE
-        return await base44.entities.AppSettings.create(payload);
-      }
+      const response = await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) throw new Error('Αποτυχία επικοινωνίας με το API');
+      return await response.json();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['appSettings'] });
       alert("✅ Το Nexus ERP ενημερώθηκε επιτυχώς!");
     },
     onError: (err) => {
-      console.error("Critical Sync Error:", err);
-      alert("❌ Σφάλμα: " + (err.message || "Αποτυχία σύνδεσης με τη βάση"));
+      alert("❌ Σφάλμα API: " + err.message);
     }
   });
 
@@ -61,42 +63,32 @@ export default function Settings() {
 
   return (
     <div className="space-y-6 pb-20 animate-in fade-in duration-500">
-      <PageHeader 
-        title="Ρυθμίσεις Συστήματος" 
-        subtitle="Διαχείριση API Keys και Διασυνδέσεων Nexus ERP" 
-      />
+      <PageHeader title="Ρυθμίσεις Συστήματος" subtitle="Διαχείριση API Keys" />
 
       <form onSubmit={handleSubmit}>
         <Tabs defaultValue="voip" className="w-full">
-          <TabsList className="bg-white p-1 rounded-2xl border mb-8 shadow-sm inline-flex">
-            <TabsTrigger value="voip" className="rounded-xl gap-2 font-bold px-8 py-3 data-[state=active]:bg-slate-900 data-[state=active]:text-white">
-              <PhoneCall className="w-4 h-4" /> 3CX VoIP
+          <TabsList className="bg-white p-1 rounded-2xl border mb-8 shadow-sm">
+            <TabsTrigger value="voip" className="rounded-xl px-8 py-3 data-[state=active]:bg-slate-900 data-[state=active]:text-white">
+              <PhoneCall className="w-4 h-4 mr-2" /> 3CX VoIP
             </TabsTrigger>
-            <TabsTrigger value="telegram" className="rounded-xl gap-2 font-bold px-8 py-3 data-[state=active]:bg-slate-900 data-[state=active]:text-white">
-              <Send className="w-4 h-4" /> Telegram AI
-            </TabsTrigger>
-            <TabsTrigger value="ecommerce" className="rounded-xl gap-2 font-bold px-8 py-3 data-[state=active]:bg-slate-900 data-[state=active]:text-white">
-              <Globe className="w-4 h-4" /> E-Shop
-            </TabsTrigger>
-            <TabsTrigger value="courier" className="rounded-xl gap-2 font-bold px-8 py-3 data-[state=active]:bg-slate-900 data-[state=active]:text-white">
-              <Truck className="w-4 h-4" /> Courier
+            <TabsTrigger value="telegram" className="rounded-xl px-8 py-3 data-[state=active]:bg-slate-900 data-[state=active]:text-white">
+              <Send className="w-4 h-4 mr-2" /> Telegram AI
             </TabsTrigger>
           </TabsList>
 
-          {/* 3CX TAB */}
-          <TabsContent value="voip" className="animate-in slide-in-from-left-4 duration-300">
-            <Card className="rounded-[2.5rem] border-slate-200 shadow-2xl overflow-hidden">
+          <TabsContent value="voip">
+            <Card className="rounded-[2.5rem] border-slate-200 shadow-2xl">
               <CardHeader className="bg-slate-50/50 border-b p-8">
-                <CardTitle className="text-2xl font-black italic uppercase tracking-tighter">Διασύνδεση 3CX</CardTitle>
+                <CardTitle className="text-2xl font-black italic uppercase italic">Διασύνδεση 3CX</CardTitle>
               </CardHeader>
               <CardContent className="p-10 space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   <div className="space-y-3">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">3CX FQDN</Label>
+                    <Label className="text-[10px] font-black uppercase text-slate-400">3CX FQDN</Label>
                     <Input name="voip_host" defaultValue={config?.voip_host} placeholder="nexus.3cx.gr" className="rounded-2xl h-14" />
                   </div>
                   <div className="space-y-3">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">API Key</Label>
+                    <Label className="text-[10px] font-black uppercase text-slate-400">API Key</Label>
                     <Input name="voip_api_key" type="password" defaultValue={config?.voip_api_key} className="rounded-2xl h-14" />
                   </div>
                 </div>
@@ -104,33 +96,24 @@ export default function Settings() {
             </Card>
           </TabsContent>
 
-          {/* TELEGRAM TAB */}
-          <TabsContent value="telegram" className="animate-in slide-in-from-left-4 duration-300">
-            <Card className="rounded-[2.5rem] border-slate-200 shadow-2xl overflow-hidden">
+          <TabsContent value="telegram">
+            <Card className="rounded-[2.5rem] border-slate-200 shadow-2xl">
               <CardHeader className="bg-slate-50/50 border-b p-8">
-                <CardTitle className="text-2xl font-black italic uppercase tracking-tighter text-[#0088cc]">Telegram AI Bridge</CardTitle>
+                <CardTitle className="text-2xl font-black italic uppercase text-[#0088cc]">Telegram AI Bridge</CardTitle>
               </CardHeader>
               <CardContent className="p-10 space-y-8">
                 <div className="space-y-3">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bot Token</Label>
+                  <Label className="text-[10px] font-black uppercase text-slate-400">Bot Token</Label>
                   <Input name="telegram_token" defaultValue={config?.telegram_token} placeholder="8261327279:..." className="rounded-2xl h-14" />
                 </div>
-                
                 <Button 
-                  type="button"
-                  variant="outline"
-                  className="w-full rounded-xl border-dashed border-2 border-[#0088cc] text-[#0088cc] font-bold h-12"
+                  type="button" variant="outline" className="w-full rounded-xl border-[#0088cc] text-[#0088cc] font-bold h-12"
                   onClick={async () => {
-                    if(!config?.telegram_token) return alert("Σώσε πρώτα το token και μετά πάτα σύνδεση!");
+                    if(!config?.telegram_token) return alert("Σώσε πρώτα το token!");
                     const url = `https://api.telegram.org/bot${config.telegram_token}/setWebhook?url=${window.location.origin}/api/telegram-webhook`;
-                    try {
-                        const res = await fetch(url);
-                        const data = await res.json();
-                        if(data.ok) alert("Το Bot συνδέθηκε επιτυχώς με το ERP!");
-                        else alert("Telegram Error: " + data.description);
-                    } catch (e) {
-                        alert("Αποτυχία κλήσης στο Telegram API.");
-                    }
+                    const res = await fetch(url);
+                    const resData = await res.json();
+                    alert(resData.ok ? "Το Bot συνδέθηκε!" : "Σφάλμα: " + resData.description);
                   }}
                 >
                   <Send className="w-4 h-4 mr-2" /> Ενεργοποίηση Webhook
@@ -141,11 +124,7 @@ export default function Settings() {
         </Tabs>
 
         <div className="fixed bottom-10 right-10 z-50">
-          <Button 
-            type="submit" 
-            disabled={updateMutation.isPending} 
-            className="h-16 px-10 rounded-2xl shadow-2xl bg-slate-900 text-white font-black italic uppercase tracking-widest gap-3 border-b-4 border-slate-700 active:border-b-0 active:translate-y-1 transition-all"
-          >
+          <Button type="submit" disabled={updateMutation.isPending} className="h-16 px-10 rounded-2xl bg-slate-900 text-white font-black italic uppercase gap-3">
             {updateMutation.isPending ? <Loader2 className="animate-spin w-5 h-5" /> : <Save className="w-5 h-5 text-emerald-400" />}
             Αποθήκευση Ρυθμίσεων
           </Button>
