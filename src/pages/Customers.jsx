@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { fetchList } from '@/lib/apiHelpers';
@@ -22,7 +22,7 @@ import {
 import { Reorder, AnimatePresence } from 'framer-motion';
 import {
   Bot, Loader2, Sparkles, Mail, Activity, Info,
-  GripVertical, ExternalLink, Copy, Trash2, User
+  GripVertical, ExternalLink, Copy, Trash2, User, Search, FilterX
 } from 'lucide-react';
 import { t } from '@/lib/translations';
 import { cn } from '@/lib/utils';
@@ -74,30 +74,12 @@ const formFields = [
 ];
 
 const emptyCustomer = {
-  code: '',
-  name: '',
-  date: '',
-  balance: 0,
-  tax_id: '',
-  address: '',
-  profession: '',
-  activity_sector: '',
-  phone: '',
-  tax_office: '',
-  vat_category: '',
-  region: '',
-  postal_code: '',
-  country: '',
-  mobile: '',
-  mobile2: '',
-  bank_account: '',
-  email: '',
-  email2: '',
-  category: 'wholesale',
-  payment_terms: 0,
-  credit_limit: 0,
-  status: 'active',
-  notes: '',
+  code: '', name: '', date: '', balance: 0, tax_id: '', address: '',
+  profession: '', activity_sector: '', phone: '', tax_office: '',
+  vat_category: '', region: '', postal_code: '', country: '',
+  mobile: '', mobile2: '', bank_account: '', email: '', email2: '',
+  category: 'wholesale', payment_terms: 0, credit_limit: 0,
+  status: 'active', notes: '',
 };
 
 export default function Customers() {
@@ -105,14 +87,15 @@ export default function Customers() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [aiSummary, setAiSummary] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
-  const [searchTax, setSearchTax] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [items, setItems] = useState([]);
 
   const qc = useQueryClient();
 
-  const { data: customers = [] } = useQuery({
+  // PAGINATION FIX: Χρήση fetchList για πλήρη δεδομένα
+  const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
     queryFn: () => fetchList(base44.entities.Customer),
   });
@@ -121,14 +104,14 @@ export default function Customers() {
     setItems(customers);
   }, [customers]);
 
+  // Sync selected customer with refreshed data
   useEffect(() => {
     if (!selectedCustomer) return;
-    const refreshedSelected = customers.find((c) => c.id === selectedCustomer.id);
-    if (refreshedSelected) {
-      setSelectedCustomer(refreshedSelected);
-    }
+    const refreshed = customers.find((c) => c.id === selectedCustomer.id);
+    if (refreshed) setSelectedCustomer(refreshed);
   }, [customers, selectedCustomer]);
 
+  // Mutations
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Customer.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
@@ -156,18 +139,23 @@ export default function Customers() {
     setEditing(null);
   };
 
-  const openInNewTab = (id) => {
-    const url = `${window.location.origin}/customers?id=${id}`;
-    window.open(url, '_blank');
-  };
+  // SMART FILTER: Αναζήτηση σε όνομα ΚΑΙ ΑΦΜ
+  const filteredItems = useMemo(() => {
+    if (!searchTerm) return items;
+    const lowSearch = searchTerm.toLowerCase();
+    return items.filter(c => 
+      c.name?.toLowerCase().includes(lowSearch) || 
+      c.tax_id?.includes(searchTerm) ||
+      c.code?.toLowerCase().includes(lowSearch)
+    );
+  }, [items, searchTerm]);
 
   const generateAISummary = async () => {
     if (!selectedCustomer) return;
-
     setAiLoading(true);
     try {
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `Generate a brief business summary for: ${selectedCustomer.name}. Balance: €${selectedCustomer.balance || 0}. Max 2 sentences.`,
+        prompt: `Δημιούργησε μια σύντομη επιχειρηματική ανάλυση για τον πελάτη: ${selectedCustomer.name}. Υπόλοιπο: €${selectedCustomer.balance || 0}. Ανέφερε αν είναι στρατηγικός συνεργάτης ή αν υπάρχει ρίσκο. Max 2 προτάσεις στα Ελληνικά.`,
       });
       setAiSummary(result);
     } finally {
@@ -178,37 +166,26 @@ export default function Customers() {
   const handleFileImport = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     setImporting(true);
     try {
       const text = await file.text();
       const lines = text.split('\n').filter((l) => l.trim());
       const headers = lines[0].split(',').map((h) => h.trim().replace(/"/g, ''));
-
       const records = lines.slice(1).map((line) => {
         const values = line.split(',').map((v) => v.trim().replace(/"/g, ''));
         const obj = {};
-        headers.forEach((h, i) => {
-          obj[h] = values[i] || '';
-        });
+        headers.forEach((h, i) => { obj[h] = values[i] || ''; });
         return obj;
       }).filter((r) => r.name);
-
-      for (const record of records) {
-        await createMutation.mutateAsync(record);
-      }
+      for (const record of records) { await createMutation.mutateAsync(record); }
     } finally {
       setImporting(false);
       setImportDialogOpen(false);
     }
   };
 
-  const filteredItems = searchTax
-    ? items.filter((c) => c.tax_id?.includes(searchTax))
-    : items;
-
   return (
-    <div className="space-y-6 pb-10">
+    <div className="space-y-6 pb-10 animate-in fade-in duration-500">
       <PageHeader
         title={t.customers}
         subtitle={`${customers.length} ${t.total.toLowerCase()}`}
@@ -220,228 +197,187 @@ export default function Customers() {
         }}
       />
 
-      <div className="flex items-center gap-4">
-        <Input
-          placeholder="Αναζήτηση με ΑΦΜ..."
-          value={searchTax}
-          onChange={(e) => setSearchTax(e.target.value)}
-          className="max-w-sm bg-white"
-        />
-        <Button onClick={() => setImportDialogOpen(true)} variant="outline">
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Input
+            placeholder="Αναζήτηση με Όνομα ή ΑΦΜ..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 bg-slate-50 border-none focus-visible:ring-1 focus-visible:ring-primary h-11 rounded-xl"
+          />
+        </div>
+        <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="w-full sm:w-auto rounded-xl h-11 gap-2">
+          <Upload className="w-4 h-4" />
           {t.importFromExcelCSV}
         </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-2">
-          <div className="bg-muted/50 p-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex px-4">
-            <span className="w-8"></span>
-            <span className="flex-1">Όνομα Πελάτη</span>
+        {/* Customer List */}
+        <div className="lg:col-span-1 space-y-3">
+          <div className="bg-slate-100/50 p-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-500 flex px-6">
+            <span className="flex-1">Πελάτης</span>
             <span>Υπόλοιπο</span>
           </div>
 
-          <Reorder.Group axis="y" values={items} onReorder={setItems} className="space-y-2">
-            <AnimatePresence>
-              {filteredItems.map((customer) => (
-                <Reorder.Item
-                  key={customer.id}
-                  value={customer}
-                  className="relative"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                >
-                  <ContextMenu>
-                    <ContextMenuTrigger>
-                      <Card
-                        className={cn(
-                          'cursor-pointer transition-all hover:border-primary/50 select-none',
-                          selectedCustomer?.id === customer.id ? 'border-primary bg-primary/5' : ''
-                        )}
-                        onClick={() => {
-                          setSelectedCustomer(customer);
-                          setAiSummary('');
-                        }}
-                      >
-                        <CardContent className="p-3 flex items-center gap-3">
-                          <GripVertical className="w-4 h-4 text-muted-foreground/40 cursor-grab active:cursor-grabbing" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold truncate">{customer.name}</p>
-                            <p className="text-[10px] text-muted-foreground">{customer.tax_id || 'Χωρίς ΑΦΜ'}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs font-mono font-bold">
-                              €{(customer.balance || 0).toLocaleString('el-GR')}
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </ContextMenuTrigger>
-
-                    <ContextMenuContent className="w-56">
-                      <ContextMenuItem onClick={() => openInNewTab(customer.id)} className="gap-2">
-                        <ExternalLink className="w-4 h-4 text-blue-500" />
-                        Άνοιγμα σε νέο παράθυρο
-                      </ContextMenuItem>
-
-                      <ContextMenuItem
-                        onClick={() => navigator.clipboard.writeText(customer.tax_id || '')}
-                        className="gap-2"
-                      >
-                        <Copy className="w-4 h-4" />
-                        Αντιγραφή ΑΦΜ
-                      </ContextMenuItem>
-
-                      <ContextMenuSeparator />
-
-                      <ContextMenuItem
-                        onClick={() => {
-                          setSelectedCustomer(customer);
-                          setAiSummary('');
-                          setEditing(customer);
-                        }}
-                        className="gap-2"
-                      >
-                        <User className="w-4 h-4" />
-                        Επεξεργασία
-                      </ContextMenuItem>
-
-                      <ContextMenuItem
-                        onClick={() => window.confirm('Διαγραφή;') && deleteMutation.mutate(customer.id)}
-                        className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Διαγραφή
-                      </ContextMenuItem>
-                    </ContextMenuContent>
-                  </ContextMenu>
-                </Reorder.Item>
-              ))}
-            </AnimatePresence>
-          </Reorder.Group>
+          <ScrollArea className="h-[calc(100vh-320px)] pr-4">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <p className="text-xs font-medium">Φόρτωση πελατολογίου...</p>
+              </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-50 rounded-2xl border-2 border-dashed">
+                <FilterX className="w-8 h-8 mb-2 opacity-20" />
+                <p className="text-xs font-medium">Δεν βρέθηκαν πελάτες</p>
+              </div>
+            ) : (
+              <Reorder.Group axis="y" values={items} onReorder={setItems} className="space-y-2">
+                <AnimatePresence mode="popLayout">
+                  {filteredItems.map((customer) => (
+                    <Reorder.Item
+                      key={customer.id}
+                      value={customer}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                    >
+                      <ContextMenu>
+                        <ContextMenuTrigger>
+                          <Card
+                            className={cn(
+                              'cursor-pointer transition-all hover:shadow-md border-slate-200 rounded-xl overflow-hidden',
+                              selectedCustomer?.id === customer.id ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : ''
+                            )}
+                            onClick={() => { setSelectedCustomer(customer); setAiSummary(''); }}
+                          >
+                            <CardContent className="p-4 flex items-center gap-4">
+                              <GripVertical className="w-4 h-4 text-slate-300 cursor-grab active:cursor-grabbing" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold truncate text-slate-900">{customer.name}</p>
+                                <p className="text-[10px] font-mono text-slate-500 uppercase">{customer.tax_id || 'Χωρίς ΑΦΜ'}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className={cn("text-sm font-black", customer.balance > 0 ? "text-red-600" : "text-emerald-600")}>
+                                  €{(customer.balance || 0).toLocaleString('el-GR')}
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent className="w-56 rounded-xl shadow-xl">
+                          <ContextMenuItem onClick={() => openInNewTab(customer.id)} className="gap-3 py-2.5">
+                            <ExternalLink className="w-4 h-4 text-blue-500" /> Νέο Παράθυρο
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => navigator.clipboard.writeText(customer.tax_id || '')} className="gap-3 py-2.5">
+                            <Copy className="w-4 h-4 text-slate-400" /> Αντιγραφή ΑΦΜ
+                          </ContextMenuItem>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem onClick={() => setEditing(customer)} className="gap-3 py-2.5 font-bold">
+                            <Pencil className="w-4 h-4 text-amber-500" /> Επεξεργασία
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => window.confirm('Οριστική διαγραφή;') && deleteMutation.mutate(customer.id)} className="gap-3 py-2.5 text-red-600 focus:bg-red-50">
+                            <Trash2 className="w-4 h-4" /> Διαγραφή
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
+                    </Reorder.Item>
+                  ))}
+                </AnimatePresence>
+              </Reorder.Group>
+            )}
+          </ScrollArea>
         </div>
 
+        {/* Details Area */}
         <div className="lg:col-span-2">
           {selectedCustomer ? (
-            <Card className="sticky top-6">
-              <CardHeader className="pb-0 pt-4 px-5">
-                <div className="flex items-start justify-between gap-4 mb-3">
-                  <div>
-                    <CardTitle className="text-xl">{selectedCustomer.name}</CardTitle>
-                    <div className="flex gap-2 mt-1">
-                      <Badge variant="outline" className="text-[10px] uppercase">
-                        {selectedCustomer.category}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] uppercase bg-emerald-50 text-emerald-700 border-emerald-100"
-                      >
+            <Card className="sticky top-6 border-slate-200 shadow-xl shadow-slate-200/50 rounded-2xl overflow-hidden">
+              <CardHeader className="pb-0 pt-6 px-6 bg-slate-50/50">
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div className="space-y-1">
+                    <CardTitle className="text-2xl font-black tracking-tight text-slate-900">{selectedCustomer.name}</CardTitle>
+                    <div className="flex gap-2">
+                      <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-widest">{selectedCustomer.category}</Badge>
+                      <Badge className={cn("text-[9px] font-black uppercase tracking-widest", 
+                        selectedCustomer.status === 'active' ? "bg-emerald-500 text-white" : "bg-red-500 text-white")}>
                         {selectedCustomer.status}
                       </Badge>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setEditing(selectedCustomer)}>
-                    Edit
-                  </Button>
+                  <Button variant="outline" size="sm" className="rounded-xl font-bold px-5" onClick={() => setEditing(selectedCustomer)}>Edit</Button>
                 </div>
 
-                <Tabs defaultValue="info">
-                  <TabsList>
-                    <TabsTrigger value="info" className="gap-1.5">
-                      <Info className="w-3.5 h-3.5" />
-                      Στοιχεία
-                    </TabsTrigger>
-                    <TabsTrigger value="emails" className="gap-1.5">
-                      <Mail className="w-3.5 h-3.5" />
-                      Emails
-                    </TabsTrigger>
-                    <TabsTrigger value="timeline" className="gap-1.5">
-                      <Activity className="w-3.5 h-3.5" />
-                      Timeline
-                    </TabsTrigger>
+                <Tabs defaultValue="info" className="w-full">
+                  <TabsList className="bg-transparent border-b rounded-none w-full justify-start h-auto p-0 gap-6">
+                    {['info', 'emails', 'timeline'].map(tab => (
+                      <TabsTrigger key={tab} value={tab} className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-1 pb-3 text-xs font-bold uppercase tracking-widest">
+                        {tab === 'info' && <><Info className="w-3.5 h-3.5 mr-2" /> Στοιχεία</>}
+                        {tab === 'emails' && <><Mail className="w-3.5 h-3.5 mr-2" /> Emails</>}
+                        {tab === 'timeline' && <><Activity className="w-3.5 h-3.5 mr-2" /> Timeline</>}
+                      </TabsTrigger>
+                    ))}
                   </TabsList>
 
-                  <TabsContent value="info" className="py-4 space-y-6">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="space-y-3">
-                        <p>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-bold">
-                            ΑΦΜ / ΔΟΥ
-                          </span>
-                          {selectedCustomer.tax_id || '—'} / {selectedCustomer.tax_office || '—'}
-                        </p>
-                        <p>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-bold">
-                            Τηλέφωνο
-                          </span>
-                          {selectedCustomer.phone || '—'}
-                        </p>
-                        <p>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-bold">
-                            Email
-                          </span>
-                          {selectedCustomer.email || '—'}
-                        </p>
+                  <TabsContent value="info" className="py-6 space-y-8 animate-in fade-in slide-in-from-top-2">
+                    <div className="grid grid-cols-2 gap-8">
+                      <div className="space-y-4">
+                        <DetailItem label="ΑΦΜ / ΔΟΥ" value={`${selectedCustomer.tax_id || '—'} / ${selectedCustomer.tax_office || '—'}`} />
+                        <DetailItem label="Τηλέφωνο" value={selectedCustomer.phone || '—'} />
+                        <DetailItem label="Email" value={selectedCustomer.email || '—'} />
+                        <DetailItem label="Διεύθυνση" value={`${selectedCustomer.address || '—'}, ${selectedCustomer.city || ''}`} />
                       </div>
-                      <div className="space-y-3 text-right">
-                        <p>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-bold text-right">
-                            Υπόλοιπο
-                          </span>
-                          <span className="text-2xl font-black text-primary">
+                      <div className="space-y-4 text-right">
+                        <div>
+                          <span className="text-slate-400 block text-[10px] uppercase font-black tracking-widest mb-1">Τρέχον Υπόλοιπο</span>
+                          <span className={cn("text-3xl font-black tracking-tighter", selectedCustomer.balance > 0 ? "text-red-600" : "text-emerald-600")}>
                             €{(selectedCustomer.balance || 0).toLocaleString('el-GR')}
                           </span>
-                        </p>
-                        <p>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-bold text-right">
-                            Πιστωτικό Όριο
-                          </span>
-                          €{(selectedCustomer.credit_limit || 0).toLocaleString('el-GR')}
-                        </p>
+                        </div>
+                        <DetailItem label="Πιστωτικό Όριο" value={`€${(selectedCustomer.credit_limit || 0).toLocaleString('el-GR')}`} align="right" />
                       </div>
                     </div>
 
-                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-between hover:bg-primary/5 group"
-                        onClick={generateAISummary}
-                        disabled={aiLoading}
-                      >
-                        <span className="flex items-center gap-2 font-bold text-xs uppercase tracking-tight">
-                          {aiLoading ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <Bot className="w-3 h-3 text-primary" />
-                          )}
-                          Ανάλυση AI
-                        </span>
-                        <Sparkles className="w-3 h-3 text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </Button>
-
-                      {aiSummary && (
-                        <p className="mt-3 text-xs leading-relaxed text-slate-600 bg-white p-3 rounded-lg border italic">
-                          "{aiSummary}"
-                        </p>
-                      )}
+                    {/* AI Insights */}
+                    <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-lg relative overflow-hidden group">
+                      <Sparkles className="absolute top-0 right-0 w-32 h-32 text-white/5 -mr-8 -mt-8 rotate-12 group-hover:scale-110 transition-transform" />
+                      <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <Bot className="w-4 h-4 text-blue-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Nexus AI Intelligence</span>
+                          </div>
+                          <Button variant="secondary" size="xs" className="h-7 text-[10px] font-black bg-white/10 hover:bg-white/20 border-none text-white rounded-lg px-3" onClick={generateAISummary} disabled={aiLoading}>
+                            {aiLoading ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <Sparkles className="w-3 h-3 mr-2 text-amber-400" />}
+                            ΑΝΑΛΥΣΗ
+                          </Button>
+                        </div>
+                        {aiSummary ? (
+                          <p className="text-xs leading-relaxed font-medium italic text-slate-200">"{aiSummary}"</p>
+                        ) : (
+                          <p className="text-[11px] text-slate-400">Πατήστε το κουμπί για μια γρήγορη επιχειρηματική σύνοψη του πελάτη.</p>
+                        )}
+                      </div>
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="emails">
+                  <TabsContent value="emails" className="py-4">
                     <CustomerEmailsTab customerId={selectedCustomer.id} />
                   </TabsContent>
 
-                  <TabsContent value="timeline">
+                  <TabsContent value="timeline" className="py-4">
                     <CustomerActivityTimeline customerId={selectedCustomer.id} />
                   </TabsContent>
                 </Tabs>
               </CardHeader>
             </Card>
           ) : (
-            <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-2xl text-muted-foreground">
-              <User className="w-12 h-12 mb-2 opacity-10" />
-              <p className="text-sm font-medium">Επιλέξτε έναν πελάτη για λεπτομέρειες</p>
+            <div className="h-[500px] flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl text-slate-300 bg-slate-50/50">
+              <div className="p-6 rounded-full bg-white shadow-sm mb-4"><User className="w-10 h-10 opacity-20" /></div>
+              <p className="text-sm font-bold tracking-tight">Επιλέξτε έναν πελάτη από τη λίστα</p>
+              <p className="text-xs opacity-60 mt-1">για να δείτε το ιστορικό, τα οικονομικά και τα emails.</p>
             </div>
           )}
         </div>
@@ -457,18 +393,22 @@ export default function Customers() {
       />
 
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t.importDialogTitle}</DialogTitle>
-          </DialogHeader>
-          <Input type="file" accept=".csv,.txt" onChange={handleFileImport} disabled={importing} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
-              Κλείσιμο
-            </Button>
-          </DialogFooter>
+        <DialogContent className="rounded-2xl">
+          <DialogHeader><DialogTitle className="font-black italic uppercase tracking-tighter text-2xl">Nexus Data Import</DialogTitle></DialogHeader>
+          <div className="py-6"><Input type="file" accept=".csv,.txt" onChange={handleFileImport} disabled={importing} className="rounded-xl" /></div>
+          <DialogFooter><Button variant="ghost" onClick={() => setImportDialogOpen(false)}>Κλείσιμο</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Helper Component
+function DetailItem({ label, value, align = "left" }) {
+  return (
+    <div className={align === "right" ? "text-right" : ""}>
+      <span className="text-slate-400 block text-[10px] uppercase font-black tracking-widest mb-1">{label}</span>
+      <span className="text-sm font-bold text-slate-900">{value}</span>
     </div>
   );
 }
