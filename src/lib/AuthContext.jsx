@@ -6,7 +6,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import AppLayout from './components/layout/AppLayout';
-import { Lock, ShieldAlert } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 // Page imports
@@ -31,16 +31,15 @@ import SalesPipeline from './pages/SalesPipeline';
 
 /**
  * AdminRoute Guard
- * Προστατεύει σελίδες που απαιτούν αυξημένα δικαιώματα.
+ * Εξασφαλίζει ότι μόνο ο Admin έχει πρόσβαση σε ευαίσθητα δεδομένα.
  */
 const AdminRoute = ({ children }) => {
   const { user, isLoadingAuth } = useAuth();
 
   if (isLoadingAuth) return null;
 
-  // Έλεγχος αν ο χρήστης είναι Admin. 
-  // Προσθέτουμε το email σου ως Super-Admin για απόλυτη ασφάλεια.
-  const isAdmin = user?.role === 'admin' || user?.email === 'gsyrogiann@gmail.com';
+  // Ενημερωμένος έλεγχος με το σωστό email σου
+  const isAdmin = user?.role === 'admin' || user?.email === 'georgesyro1925@gmail.com';
 
   if (!isAdmin) {
     return (
@@ -49,13 +48,13 @@ const AdminRoute = ({ children }) => {
           <Lock className="w-10 h-10 text-red-600" />
         </div>
         <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Πρόσβαση Περιορισμένη</h2>
-        <p className="text-slate-500 max-w-sm mt-2 text-sm">
-          Αυτή η ενότητα του Nexus ERP είναι προσβάσιμη μόνο από διαχειριστές. 
-          Επικοινωνήστε με τον υπεύθυνο συστήματος.
+        <p className="text-slate-500 max-w-sm mt-2 text-sm font-medium">
+          Αυτή η ενότητα του Nexus ERP είναι κλειδωμένη. 
+          Μόνο ο διαχειριστής (georgesyro1925) έχει δικαιώματα πρόσβασης εδώ.
         </p>
         <Button 
           variant="outline" 
-          className="mt-8 rounded-xl font-bold border-slate-200"
+          className="mt-8 rounded-xl font-bold border-slate-200 hover:bg-slate-50"
           onClick={() => window.location.href = '/Dashboard'}
         >
           Επιστροφή στο Dashboard
@@ -72,9 +71,11 @@ const AuthenticatedApp = () => {
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
-      <div className="fixed inset-0 flex flex-col items-center justify-center bg-white">
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-white z-50">
         <div className="w-10 h-10 border-4 border-slate-100 border-t-slate-900 rounded-full animate-spin mb-4"></div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nexus Security Initializing...</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 animate-pulse">
+          Nexus Security Shield Active...
+        </p>
       </div>
     );
   }
@@ -88,7 +89,7 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route path="/" element={<Navigate to="/Dashboard" replace />} />
       <Route element={<AppLayout />}>
-        {/* ΕΛΕΥΘΕΡΕΣ ΔΙΑΔΡΟΜΕΣ (Πρόσβαση για όλο το προσωπικό) */}
+        {/* ΕΛΕΥΘΕΡΕΣ ΔΙΑΔΡΟΜΕΣ */}
         <Route path="/Dashboard" element={<Dashboard />} />
         <Route path="/Customers" element={<Customers />} />
         <Route path="/Suppliers" element={<Suppliers />} />
@@ -102,7 +103,7 @@ const AuthenticatedApp = () => {
         <Route path="/PurchaseOrders" element={<PurchaseOrders />} />
         <Route path="/UnmatchedEmails" element={<UnmatchedEmails />} />
 
-        {/* ΠΡΟΣΤΑΤΕΥΜΕΝΕΣ ΔΙΑΔΡΟΜΕΣ (Μόνο για Admins) */}
+        {/* ΠΡΟΣΤΑΤΕΥΜΕΝΕΣ ΔΙΑΔΡΟΜΕΣ (Μόνο για Admin) */}
         <Route path="/SalesInvoices" element={<AdminRoute><SalesInvoices /></AdminRoute>} />
         <Route path="/PurchaseInvoices" element={<AdminRoute><PurchaseInvoices /></AdminRoute>} />
         <Route path="/Payments" element={<AdminRoute><Payments /></AdminRoute>} />
