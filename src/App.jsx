@@ -29,40 +29,35 @@ import Tickets from './pages/Tickets';
 import Calendar from './pages/Calendar';
 import SalesPipeline from './pages/SalesPipeline';
 
-const AdminRoute = ({ children }) => {
-  const { user, isLoadingAuth } = useAuth();
-
-  if (isLoadingAuth) return null;
-
-  const isAdmin = user?.role === 'admin' || user?.email === 'georgesyro1925@gmail.com';
-
-  if (!isAdmin) {
-    return (
-      <div className="h-[80vh] flex flex-col items-center justify-center text-center p-6">
-        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 border border-red-100 shadow-sm">
-          <Lock className="w-10 h-10 text-red-600" />
-        </div>
-        <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Πρόσβαση Περιορισμένη</h2>
-        <p className="text-slate-500 max-w-sm mt-2 text-sm font-medium">
-          Αυτή η ενότητα του Nexus ERP είναι κλειδωμένη. 
-          Μόνο ο διαχειριστής (georgesyro1925) έχει δικαιώματα πρόσβασης εδώ.
-        </p>
-        <Button 
-          variant="outline" 
-          className="mt-8 rounded-xl font-bold border-slate-200 hover:bg-slate-50"
-          onClick={() => window.location.href = '/Dashboard'}
-        >
-          Επιστροφή στο Dashboard
-        </Button>
-      </div>
-    );
-  }
-
-  return children;
-};
+/**
+ * AccessDenied View
+ * Εμφανίζεται όταν ένας μη-admin προσπαθεί να μπει σε κλειδωμένη σελίδα.
+ */
+const AccessDenied = () => (
+  <div className="h-[80vh] flex flex-col items-center justify-center text-center p-6">
+    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 border border-red-100 shadow-sm">
+      <Lock className="w-10 h-10 text-red-600" />
+    </div>
+    <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Πρόσβαση Περιορισμένη</h2>
+    <p className="text-slate-500 max-w-sm mt-2 text-sm font-medium">
+      Αυτή η ενότητα του Nexus ERP είναι κλειδωμένη. 
+      Μόνο ο διαχειριστής (georgesyro1925) έχει δικαιώματα πρόσβασης εδώ.
+    </p>
+    <Button 
+      variant="outline" 
+      className="mt-8 rounded-xl font-bold border-slate-200"
+      onClick={() => window.location.href = '/Dashboard'}
+    >
+      Επιστροφή στο Dashboard
+    </Button>
+  </div>
+);
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { user, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+
+  // Υπολογισμός αν ο χρήστης είναι Admin
+  const isAdmin = user?.role === 'admin' || user?.email === 'georgesyro1925@gmail.com';
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
@@ -98,13 +93,14 @@ const AuthenticatedApp = () => {
         <Route path="/PurchaseOrders" element={<PurchaseOrders />} />
         <Route path="/UnmatchedEmails" element={<UnmatchedEmails />} />
 
-        {/* ΠΡΟΣΤΑΤΕΥΜΕΝΕΣ ΔΙΑΔΡΟΜΕΣ (Μόνο για Admin) */}
-        <Route path="/SalesInvoices" element={<AdminRoute><SalesInvoices /></AdminRoute>} />
-        <Route path="/PurchaseInvoices" element={<AdminRoute><PurchaseInvoices /></AdminRoute>} />
-        <Route path="/Payments" element={<AdminRoute><Payments /></AdminRoute>} />
-        <Route path="/Reports" element={<AdminRoute><Reports /></AdminRoute>} />
-        <Route path="/AIAssistant" element={<AdminRoute><AIAssistant /></AdminRoute>} />
-        <Route path="/EmailSettings" element={<AdminRoute><EmailSettings /></AdminRoute>} />
+        {/* ΠΡΟΣΤΑΤΕΥΜΕΝΕΣ ΔΙΑΔΡΟΜΕΣ */}
+        {/* Αν ο χρήστης δεν είναι admin, δείχνουμε το AccessDenied αντί για τη σελίδα */}
+        <Route path="/SalesInvoices" element={isAdmin ? <SalesInvoices /> : <AccessDenied />} />
+        <Route path="/PurchaseInvoices" element={isAdmin ? <PurchaseInvoices /> : <AccessDenied />} />
+        <Route path="/Payments" element={isAdmin ? <Payments /> : <AccessDenied />} />
+        <Route path="/Reports" element={isAdmin ? <Reports /> : <AccessDenied />} />
+        <Route path="/AIAssistant" element={isAdmin ? <AIAssistant /> : <AccessDenied />} />
+        <Route path="/EmailSettings" element={isAdmin ? <EmailSettings /> : <AccessDenied />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
