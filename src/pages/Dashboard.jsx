@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { fetchList } from '@/lib/apiHelpers';
@@ -9,11 +9,21 @@ import SalesChart from '../components/dashboard/SalesChart';
 import AlertsPanel from '../components/dashboard/AlertsPanel';
 import RecentActivity from '../components/dashboard/RecentActivity';
 import AIInsightsWidget from '../components/dashboard/AIInsightsWidget';
-import { Loader2, Sparkles, TrendingUp, BrainCircuit, Quote } from 'lucide-react';
+import { 
+  Loader2, 
+  Sparkles, 
+  TrendingUp, 
+  BrainCircuit, 
+  Quote, 
+  MessageSquareMore,
+  X
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
   const [aiAdvice, setAiAdvice] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Φόρτωση όλων των δεδομένων με fetchList (No more 50 limit)
   const { data: customers = [], isLoading: loadingCust } = useQuery({
@@ -51,7 +61,7 @@ export default function Dashboard() {
     queryFn: () => fetchList(base44.entities.ActivityLog, { limit: 20 }),
   });
 
-  // Κεντρικός υπολογισμός στατιστικών με useMemo για ταχύτητα
+  // Κεντρικός υπολογισμός στατιστικών
   const stats = useMemo(() => {
     return calculateDashboardStats({
       customers,
@@ -63,19 +73,16 @@ export default function Dashboard() {
     });
   }, [customers, products, salesInvoices, purchaseInvoices, payments, salesOrders]);
 
-  // Ενεργοποίηση του AI CFO Advice
-  useEffect(() => {
-    async function fetchAdvice() {
-      // Καλούμε το AI μόνο αν έχουμε δεδομένα και δεν έχουμε ήδη συμβουλή
-      if (stats.netRevenue > 0 && !aiAdvice) {
-        setIsAiLoading(true);
-        const advice = await getDashboardAIAdvice(stats);
-        setAiAdvice(advice);
-        setIsAiLoading(false);
-      }
+  // Χειροκίνητη κλήση του AI CFO
+  const handleGetAdvice = async () => {
+    setIsExpanded(true);
+    if (!aiAdvice) {
+      setIsAiLoading(true);
+      const advice = await getDashboardAIAdvice(stats);
+      setAiAdvice(advice);
+      setIsAiLoading(false);
     }
-    fetchAdvice();
-  }, [stats, aiAdvice]);
+  };
 
   const isInitialLoading = loadingCust || loadingProd || loadingSales;
 
@@ -95,58 +102,75 @@ export default function Dashboard() {
           title="Επισκόπηση Επιχείρησης" 
           subtitle="Συνολική εικόνα και AI αναλύσεις σε πραγματικό χρόνο" 
         />
-        <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-2xl border border-blue-100 shadow-sm">
-          <Sparkles className="w-4 h-4 text-blue-600" />
-          <span className="text-[11px] font-black text-blue-700 uppercase italic tracking-tighter">Nexus AI CFO Active</span>
+        <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-2xl border border-blue-100">
+          <TrendingUp className="w-4 h-4 text-blue-600" />
+          <span className="text-[11px] font-black text-blue-700 uppercase italic">Live Nexus Stats</span>
         </div>
       </div>
 
-      {/* --- AI CFO STRATEGIC ADVICE PANEL --- */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 to-blue-900 rounded-[2.5rem] p-8 text-white shadow-2xl border border-white/10">
-        <div className="absolute top-0 right-0 p-10 opacity-10">
-          <BrainCircuit className="w-32 h-32" />
+      {/* --- INTERACTIVE AI CFO PANEL --- */}
+      <div className={`relative overflow-hidden bg-gradient-to-br from-slate-900 to-blue-900 rounded-[2.5rem] p-6 text-white shadow-2xl border border-white/10 transition-all duration-500 ease-in-out ${isExpanded ? 'min-h-[280px]' : 'min-h-[120px]'}`}>
+        <div className="absolute top-0 right-0 p-6 opacity-5">
+          <BrainCircuit className="w-24 h-24" />
         </div>
         
-        <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
-          <div className="p-5 bg-white/10 backdrop-blur-xl rounded-[2rem] border border-white/20 shadow-inner">
-            <BrainCircuit className="w-10 h-10 text-blue-300" />
-          </div>
-          
-          <div className="flex-1 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-200/70 font-mono">Strategic CFO Insight</h3>
+        <div className="relative z-10 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-5">
+              <div className="p-4 bg-white/10 backdrop-blur-xl rounded-[1.5rem] border border-white/20">
+                <BrainCircuit className="w-7 h-7 text-blue-300" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-200/70 font-mono italic">AI CFO Advisor</h3>
+                </div>
+                <p className="text-xs font-medium text-slate-400 mt-1 uppercase tracking-tighter">Real-time analysis active</p>
+              </div>
             </div>
-            
-            {isAiLoading ? (
-              <div className="flex items-center gap-3">
-                <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
-                <p className="text-lg font-medium italic text-slate-300">Αναλύω τα οικονομικά σας δεδομένα...</p>
+
+            <div className="flex items-center gap-4">
+              <div className="flex gap-2">
+                <div className="bg-white/5 px-4 py-2 rounded-xl border border-white/10 backdrop-blur-sm text-center">
+                  <p className="text-[8px] font-black uppercase text-blue-300 mb-1">Profit Margin</p>
+                  <p className="text-xl font-black italic">{stats.profitMargin}%</p>
+                </div>
+                <div className="bg-white/5 px-4 py-2 rounded-xl border border-white/10 backdrop-blur-sm text-center">
+                  <p className="text-[8px] font-black uppercase text-blue-300 mb-1">VAT to Pay</p>
+                  <p className="text-xl font-black italic">€{Math.round(stats.vatToPay)}</p>
+                </div>
               </div>
-            ) : (
-              <div className="flex gap-4">
-                <Quote className="w-8 h-8 text-blue-500 opacity-30 shrink-0 hidden md:block" />
-                <p className="text-xl font-bold leading-tight tracking-tight text-white italic">
-                  {aiAdvice || "Το AI προετοιμάζει την ανάλυση για τη βελτιστοποίηση των κερδών σας."}
-                </p>
-              </div>
-            )}
+
+              <Button 
+                onClick={isExpanded ? () => setIsExpanded(false) : handleGetAdvice}
+                className="bg-blue-600 hover:bg-blue-500 text-white rounded-2xl px-6 font-bold h-12 gap-2 border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 transition-all"
+              >
+                {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isExpanded ? <X className="w-4 h-4" /> : <MessageSquareMore className="w-4 h-4" />)}
+                {isExpanded ? 'Κλείσιμο' : 'Λήψη Συμβουλής'}
+              </Button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 min-w-[200px]">
-            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
-              <p className="text-[9px] font-black uppercase text-blue-300 mb-1">Profit Margin</p>
-              <p className="text-2xl font-black italic">{stats.profitMargin}%</p>
+          {isExpanded && (
+            <div className="mt-4 pt-6 border-t border-white/10 animate-in slide-in-from-top-4 duration-500">
+               {isAiLoading ? (
+                 <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                    <p className="text-lg font-medium italic text-slate-300">Προετοιμασία στρατηγικής ανάλυσης...</p>
+                 </div>
+               ) : (
+                 <div className="flex gap-4 p-5 bg-white/5 rounded-3xl border border-white/5 relative group shadow-inner">
+                    <Quote className="w-10 h-10 text-blue-500 opacity-20 shrink-0" />
+                    <p className="text-xl font-bold leading-relaxed tracking-tight text-white italic">
+                      {aiAdvice || "Απαιτούνται περισσότερα δεδομένα για την παραγωγή συμβουλής."}
+                    </p>
+                 </div>
+               )}
             </div>
-            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
-              <p className="text-[9px] font-black uppercase text-blue-300 mb-1">VAT to Pay</p>
-              <p className="text-2xl font-black italic">€{Math.round(stats.vatToPay)}</p>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* KPI Grid */}
       <KPIGrid stats={stats} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
