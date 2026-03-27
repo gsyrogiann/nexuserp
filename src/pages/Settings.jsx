@@ -13,28 +13,40 @@ import { PhoneCall, Globe, Truck, Save, Loader2, ShieldCheck, Send, MessageSquar
 export default function Settings() {
   const qc = useQueryClient();
 
+  // Fetch settings from base44
   const { data: settings = [], isLoading } = useQuery({
     queryKey: ['appSettings'],
     queryFn: () => fetchList(base44.entities.AppSettings),
   });
 
-  const config = settings[0] || {};
+  const config = settings[0] || null;
 
   const updateMutation = useMutation({
     mutationFn: async (data) => {
-      // Logic: Αν δεν υπάρχει το config.id, κάνουμε create, αλλιώς update
+      // Καθαρισμός των δεδομένων πριν την αποστολή
+      const payload = {
+        voip_host: data.voip_host || "",
+        voip_api_key: data.voip_api_key || "",
+        telegram_token: data.telegram_token || ""
+      };
+
+      console.log("Sending to Base44:", payload);
+
       if (config && config.id) {
-        return base44.entities.AppSettings.update(config.id, data);
+        // Αν υπάρχει εγγραφή, κάνουμε UPDATE
+        return await base44.entities.AppSettings.update(config.id, payload);
+      } else {
+        // Αν είναι η πρώτη φορά, κάνουμε CREATE
+        return await base44.entities.AppSettings.create(payload);
       }
-      return base44.entities.AppSettings.create(data);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['appSettings'] });
-      alert("Επιτυχία! Οι ρυθμίσεις αποθηκεύτηκαν στο Nexus.");
+      alert("✅ Το Nexus ERP ενημερώθηκε επιτυχώς!");
     },
     onError: (err) => {
-      console.error("Save Error:", err);
-      alert("Σφάλμα κατά την αποθήκευση. Δες το console (F12).");
+      console.error("Critical Sync Error:", err);
+      alert("❌ Σφάλμα: " + (err.message || "Αποτυχία σύνδεσης με τη βάση"));
     }
   });
 
@@ -81,11 +93,11 @@ export default function Settings() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   <div className="space-y-3">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">3CX FQDN</Label>
-                    <Input name="voip_host" defaultValue={config.voip_host} placeholder="nexus.3cx.gr" className="rounded-2xl h-14" />
+                    <Input name="voip_host" defaultValue={config?.voip_host} placeholder="nexus.3cx.gr" className="rounded-2xl h-14" />
                   </div>
                   <div className="space-y-3">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">API Key</Label>
-                    <Input name="voip_api_key" type="password" defaultValue={config.voip_api_key} className="rounded-2xl h-14" />
+                    <Input name="voip_api_key" type="password" defaultValue={config?.voip_api_key} className="rounded-2xl h-14" />
                   </div>
                 </div>
               </CardContent>
@@ -101,7 +113,7 @@ export default function Settings() {
               <CardContent className="p-10 space-y-8">
                 <div className="space-y-3">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bot Token</Label>
-                  <Input name="telegram_token" defaultValue={config.telegram_token} placeholder="8261327279:..." className="rounded-2xl h-14" />
+                  <Input name="telegram_token" defaultValue={config?.telegram_token} placeholder="8261327279:..." className="rounded-2xl h-14" />
                 </div>
                 
                 <Button 
@@ -109,15 +121,19 @@ export default function Settings() {
                   variant="outline"
                   className="w-full rounded-xl border-dashed border-2 border-[#0088cc] text-[#0088cc] font-bold h-12"
                   onClick={async () => {
-                    if(!config.telegram_token) return alert("Βάλε πρώτα το token και πάτα Αποθήκευση!");
+                    if(!config?.telegram_token) return alert("Σώσε πρώτα το token και μετά πάτα σύνδεση!");
                     const url = `https://api.telegram.org/bot${config.telegram_token}/setWebhook?url=${window.location.origin}/api/telegram-webhook`;
-                    const res = await fetch(url);
-                    const data = await res.json();
-                    if(data.ok) alert("Το Bot συνδέθηκε live!");
-                    else alert("Σφάλμα: " + data.description);
+                    try {
+                        const res = await fetch(url);
+                        const data = await res.json();
+                        if(data.ok) alert("Το Bot συνδέθηκε επιτυχώς με το ERP!");
+                        else alert("Telegram Error: " + data.description);
+                    } catch (e) {
+                        alert("Αποτυχία κλήσης στο Telegram API.");
+                    }
                   }}
                 >
-                  <Send className="w-4 h-4 mr-2" /> Σύνδεση Bot με το ERP
+                  <Send className="w-4 h-4 mr-2" /> Ενεργοποίηση Webhook
                 </Button>
               </CardContent>
             </Card>
@@ -125,7 +141,11 @@ export default function Settings() {
         </Tabs>
 
         <div className="fixed bottom-10 right-10 z-50">
-          <Button type="submit" disabled={updateMutation.isPending} className="h-16 px-10 rounded-2xl shadow-2xl bg-slate-900 text-white font-black italic uppercase tracking-widest gap-3">
+          <Button 
+            type="submit" 
+            disabled={updateMutation.isPending} 
+            className="h-16 px-10 rounded-2xl shadow-2xl bg-slate-900 text-white font-black italic uppercase tracking-widest gap-3 border-b-4 border-slate-700 active:border-b-0 active:translate-y-1 transition-all"
+          >
             {updateMutation.isPending ? <Loader2 className="animate-spin w-5 h-5" /> : <Save className="w-5 h-5 text-emerald-400" />}
             Αποθήκευση Ρυθμίσεων
           </Button>
