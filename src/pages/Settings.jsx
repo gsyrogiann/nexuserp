@@ -1,7 +1,4 @@
-import React from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
-import { fetchList } from '@/lib/apiHelpers';
+import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,89 +8,75 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PhoneCall, Send, Save, Loader2 } from 'lucide-react';
 
 export default function Settings() {
-  const qc = useQueryClient();
+  const [token, setToken] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Φορτώνουμε τις ρυθμίσεις
-  const { data: settings = [], isLoading } = useQuery({
-    queryKey: ['appSettings'],
-    queryFn: () => fetchList(base44.entities.AppSettings),
-  });
+  // Φορτώνουμε το token από τη μνήμη του browser μόλις ανοίξει η σελίδα
+  useEffect(() => {
+    const savedToken = localStorage.getItem('nexus_telegram_token');
+    if (savedToken) setToken(savedToken);
+  }, []);
 
-  const config = settings[0] || null;
-
-  const updateMutation = useMutation({
-    mutationFn: async (data) => {
-      const payload = {
-        id: config?.id, // Αν υπάρχει id, το στέλνουμε για update
-        voip_host: data.voip_host || "",
-        voip_api_key: data.voip_api_key || "",
-        telegram_token: data.telegram_token || ""
-      };
-
-      console.log("Saving via Proxy Function...");
-
-      // Η base44.func είναι η πιο σίγουρη μέθοδος στο sandbox
-      return await base44.func('saveSettings', payload);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['appSettings'] });
-      alert("✅ ΕΠΙΤΥΧΙΑ! Οι ρυθμίσεις αποθηκεύτηκαν.");
-    },
-    onError: (err) => {
-      console.error("Function Error:", err);
-      alert("❌ Σφάλμα: " + (err.message || "Αποτυχία συγχρονισμού"));
-    }
-  });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData.entries());
-    updateMutation.mutate(data);
+  const handleSave = () => {
+    setIsSaving(true);
+    // Αποθήκευση στη μνήμη του browser (LocalStorage)
+    localStorage.setItem('nexus_telegram_token', token);
+    
+    setTimeout(() => {
+      setIsSaving(false);
+      alert("✅ ΟΚ! Το Token αποθηκεύτηκε τοπικά στον Browser.");
+    }, 500);
   };
-
-  if (isLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin" /></div>;
 
   return (
     <div className="space-y-6 pb-20">
-      <PageHeader title="Ρυθμίσεις Nexus" subtitle="Διαχείριση Bot & VoIP" />
-      <form onSubmit={handleSubmit}>
-        <Tabs defaultValue="telegram">
-          <TabsList className="mb-8">
-            <TabsTrigger value="telegram" className="px-10"><Send className="mr-2 w-4 h-4"/> Telegram AI</TabsTrigger>
-            <TabsTrigger value="voip" className="px-10"><PhoneCall className="mr-2 w-4 h-4"/> 3CX</TabsTrigger>
-          </TabsList>
+      <PageHeader title="Ρυθμίσεις Nexus" subtitle="Local Storage Mode (Safe)" />
+      
+      <Tabs defaultValue="telegram">
+        <TabsList className="mb-8">
+          <TabsTrigger value="telegram" className="px-10"><Send className="mr-2 w-4 h-4"/> Telegram AI</TabsTrigger>
+          <TabsTrigger value="voip" className="px-10"><PhoneCall className="mr-2 w-4 h-4"/> 3CX</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="telegram">
-            <Card className="rounded-[2.5rem] shadow-2xl p-10 space-y-6 border-slate-200">
-              <Label className="font-bold text-slate-500 uppercase text-xs">Bot Token</Label>
-              <Input name="telegram_token" defaultValue={config?.telegram_token} placeholder="8261327279:..." className="h-14 rounded-2xl border-slate-200" />
-              
-              <Button 
-                type="button" variant="outline" className="w-full h-12 rounded-xl border-dashed border-[#0088cc] text-[#0088cc] font-bold"
-                onClick={async () => {
-                  if(!config?.telegram_token) return alert("Σώσε πρώτα το token!");
-                  const url = `https://api.telegram.org/bot${config.telegram_token}/setWebhook?url=${window.location.origin}/api/telegram-webhook`;
-                  try {
-                    const res = await fetch(url);
-                    const d = await res.json();
-                    alert(d.ok ? "✅ Το Bot είναι Live!" : "❌ Telegram: " + d.description);
-                  } catch (e) { alert("Αποτυχία κλήσης Webhook."); }
-                }}
-              >
-                Σύνδεση με Telegram
-              </Button>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        <TabsContent value="telegram">
+          <Card className="rounded-[2.5rem] shadow-2xl p-10 space-y-6 border-slate-200">
+            <Label className="font-bold text-slate-500 uppercase text-xs">Bot Token</Label>
+            <Input 
+              value={token} 
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="8261327279:..." 
+              className="h-14 rounded-2xl border-slate-200" 
+            />
+            
+            <Button 
+              type="button" variant="outline" className="w-full h-12 rounded-xl border-dashed border-[#0088cc] text-[#0088cc] font-bold"
+              onClick={async () => {
+                if(!token) return alert("Βάλε πρώτα το token!");
+                // Το Webhook χρειάζεται το token για να μιλήσει στο Telegram API
+                const url = `https://api.telegram.org/bot${token}/setWebhook?url=${window.location.origin}/api/telegram-webhook`;
+                try {
+                  const res = await fetch(url);
+                  const d = await res.json();
+                  alert(d.ok ? "✅ ΣΥΝΔΕΘΗΚΕ! Το Bot είναι πλέον Live." : "❌ Σφάλμα: " + d.description);
+                } catch (e) { alert("Αποτυχία κλήσης στο Telegram API."); }
+              }}
+            >
+              Ενεργοποίηση Webhook (Σύνδεση)
+            </Button>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-        <div className="fixed bottom-10 right-10">
-          <Button type="submit" disabled={updateMutation.isPending} className="h-16 px-12 rounded-2xl bg-slate-900 text-white font-black shadow-2xl uppercase tracking-widest gap-3">
-            {updateMutation.isPending ? <Loader2 className="animate-spin" /> : <Save className="w-5 h-5 text-emerald-400" />}
-            Αποθήκευση
-          </Button>
-        </div>
-      </form>
+      <div className="fixed bottom-10 right-10">
+        <Button 
+          onClick={handleSave}
+          disabled={isSaving} 
+          className="h-16 px-12 rounded-2xl bg-slate-900 text-white font-black shadow-2xl uppercase tracking-widest gap-3"
+        >
+          {isSaving ? <Loader2 className="animate-spin" /> : <Save className="w-5 h-5 text-emerald-400" />}
+          Αποθήκευση
+        </Button>
+      </div>
     </div>
   );
 }
