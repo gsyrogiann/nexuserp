@@ -11,7 +11,7 @@ export default function Settings() {
   const [token, setToken] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Φορτώνουμε το token από τη μνήμη του browser μόλις ανοίξει η σελίδα
+  // Φορτώνουμε το token από τη μνήμη του browser
   useEffect(() => {
     const savedToken = localStorage.getItem('nexus_telegram_token');
     if (savedToken) setToken(savedToken);
@@ -19,12 +19,10 @@ export default function Settings() {
 
   const handleSave = () => {
     setIsSaving(true);
-    // Αποθήκευση στη μνήμη του browser (LocalStorage)
     localStorage.setItem('nexus_telegram_token', token);
-    
     setTimeout(() => {
       setIsSaving(false);
-      alert("✅ ΟΚ! Το Token αποθηκεύτηκε τοπικά στον Browser.");
+      alert("✅ ΟΚ! Το Token αποθηκεύτηκε τοπικά.");
     }, 500);
   };
 
@@ -52,12 +50,14 @@ export default function Settings() {
               type="button" variant="outline" className="w-full h-12 rounded-xl border-dashed border-[#0088cc] text-[#0088cc] font-bold"
               onClick={async () => {
                 if(!token) return alert("Βάλε πρώτα το token!");
-                // Το Webhook χρειάζεται το token για να μιλήσει στο Telegram API
-                const url = `https://api.telegram.org/bot${token}/setWebhook?url=${window.location.origin}/api/telegram-webhook`;
+                
+                // ΔΙΟΡΘΩΣΗ: Στέλνουμε το Webhook στη διαδρομή των functions
+                const url = `https://api.telegram.org/bot${token}/setWebhook?url=${window.location.origin}/functions/telegramAI`;
+                
                 try {
                   const res = await fetch(url);
                   const d = await res.json();
-                  alert(d.ok ? "✅ ΣΥΝΔΕΘΗΚΕ! Το Bot είναι πλέον Live." : "❌ Σφάλμα: " + d.description);
+                  alert(d.ok ? "✅ ΣΥΝΔΕΘΗΚΕ! Το Bot " + token.split(':')[0] + " είναι Live." : "❌ Σφάλμα: " + d.description);
                 } catch (e) { alert("Αποτυχία κλήσης στο Telegram API."); }
               }}
             >
