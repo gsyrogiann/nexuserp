@@ -30,15 +30,14 @@ export default function Settings() {
         telegram_token: data.telegram_token || ""
       };
 
-      console.log("Forcing save to AppSettings:", payload);
+      console.log("Sending to Base44:", payload);
 
-      // Χρησιμοποιούμε τις generic εντολές του client για να αποφύγουμε το σφάλμα SDK
       if (config && config.id) {
-        // UPDATE αν υπάρχει ήδη record
-        return await base44.update("AppSettings", config.id, payload);
+        // Αν υπάρχει εγγραφή, κάνουμε UPDATE
+        return await base44.entities.AppSettings.update(config.id, payload);
       } else {
-        // CREATE αν είναι η πρώτη φορά
-        return await base44.create("AppSettings", payload);
+        // Αν είναι η πρώτη φορά, κάνουμε CREATE
+        return await base44.entities.AppSettings.create(payload);
       }
     },
     onSuccess: () => {
