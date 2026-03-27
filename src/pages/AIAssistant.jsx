@@ -111,6 +111,11 @@ export default function AIAssistant() {
   const inputRef = useRef(null);
   const qc = useQueryClient();
 
+  const handleImportDone = (msg) => {
+    setActiveTab('chat');
+    setMessages(prev => [...prev, { role: 'assistant', type: 'action', content: msg }]);
+  };
+
   // Load history from localStorage
   useEffect(() => {
     const savedHistory = localStorage.getItem('nexus_assistant_history');
