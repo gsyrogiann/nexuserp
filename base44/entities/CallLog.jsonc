@@ -1,0 +1,69 @@
+{
+  "name": "CallLog",
+  "type": "object",
+  "properties": {
+    "customer_id": {
+      "type": "string",
+      "description": "Relation to Customer"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "caller_number": {
+      "type": "string"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "inbound",
+        "outbound"
+      ],
+      "default": "inbound"
+    },
+    "duration": {
+      "type": "number",
+      "description": "Duration in seconds"
+    },
+    "extension": {
+      "type": "string",
+      "description": "3CX extension"
+    },
+    "recording_url": {
+      "type": "string",
+      "description": "URL to the call recording"
+    },
+    "transcript": {
+      "type": "string",
+      "description": "Full speech-to-text transcript from Whisper"
+    },
+    "sentiment": {
+      "type": "string",
+      "enum": [
+        "positive",
+        "angry",
+        "neutral",
+        "skeptical"
+      ],
+      "default": "neutral"
+    },
+    "psychography": {
+      "type": "string",
+      "description": "e.g. Price-sensitive, High-value, Churn-risk"
+    },
+    "ai_summary": {
+      "type": "string",
+      "description": "AI-generated summary of the call"
+    },
+    "ai_processed": {
+      "type": "boolean",
+      "default": false
+    },
+    "raw_payload": {
+      "type": "string",
+      "description": "Raw JSON from 3CX webhook"
+    }
+  },
+  "required": [
+    "direction"
+  ]
+}

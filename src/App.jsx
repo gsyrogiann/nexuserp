@@ -28,6 +28,7 @@ import UnmatchedEmails from './pages/UnmatchedEmails';
 import Tickets from './pages/Tickets';
 import Calendar from './pages/Calendar';
 import SalesPipeline from './pages/SalesPipeline';
+import VoIPSettings from './pages/VoIPSettings';
 
 /**
  * AccessDenied View
@@ -101,6 +102,7 @@ const AuthenticatedApp = () => {
         <Route path="/Reports" element={isAdmin ? <Reports /> : <AccessDenied />} />
         <Route path="/AIAssistant" element={isAdmin ? <AIAssistant /> : <AccessDenied />} />
         <Route path="/EmailSettings" element={isAdmin ? <EmailSettings /> : <AccessDenied />} />
+        <Route path="/VoIPSettings" element={isAdmin ? <VoIPSettings /> : <AccessDenied />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
