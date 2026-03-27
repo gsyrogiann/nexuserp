@@ -1,154 +1,131 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { appParams } from '@/lib/app-params';
-import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
+import { Toaster } from "@/components/ui/toaster"
+import { QueryClientProvider } from '@tanstack/react-query'
+import { queryClientInstance } from '@/lib/query-client'
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import PageNotFound from './lib/PageNotFound';
+import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import AppLayout from './components/layout/AppLayout';
+import { Lock, ShieldAlert } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-const AuthContext = createContext();
+// Page imports
+import Dashboard from './pages/Dashboard';
+import Customers from './pages/Customers';
+import Suppliers from './pages/Suppliers';
+import Products from './pages/Products';
+import Inventory from './pages/Inventory';
+import Quotes from './pages/Quotes';
+import SalesOrders from './pages/SalesOrders';
+import SalesInvoices from './pages/SalesInvoices';
+import PurchaseOrders from './pages/PurchaseOrders';
+import PurchaseInvoices from './pages/PurchaseInvoices';
+import Payments from './pages/Payments';
+import Reports from './pages/Reports';
+import AIAssistant from './pages/AIAssistant';
+import EmailSettings from './pages/EmailSettings';
+import UnmatchedEmails from './pages/UnmatchedEmails';
+import Tickets from './pages/Tickets';
+import Calendar from './pages/Calendar';
+import SalesPipeline from './pages/SalesPipeline';
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
-  const [authError, setAuthError] = useState(null);
-  const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
+/**
+ * AdminRoute Guard
+ * Προστατεύει σελίδες που απαιτούν αυξημένα δικαιώματα.
+ */
+const AdminRoute = ({ children }) => {
+  const { user, isLoadingAuth } = useAuth();
 
-  useEffect(() => {
-    checkAppState();
-  }, []);
+  if (isLoadingAuth) return null;
 
-  const checkAppState = async () => {
-    try {
-      setIsLoadingPublicSettings(true);
-      setAuthError(null);
-      
-      // First, check app public settings (with token if available)
-      // This will tell us if auth is required, user not registered, etc.
-      const appClient = createAxiosClient({
-        baseURL: `/api/apps/public`,
-        headers: {
-          'X-App-Id': appParams.appId
-        },
-        token: appParams.token, // Include token if available
-        interceptResponses: true
-      });
-      
-      try {
-        const publicSettings = await appClient.get(`/prod/public-settings/by-id/${appParams.appId}`);
-        setAppPublicSettings(publicSettings);
-        
-        // If we got the app public settings successfully, check if user is authenticated
-        if (appParams.token) {
-          await checkUserAuth();
-        } else {
-          setIsLoadingAuth(false);
-          setIsAuthenticated(false);
-        }
-        setIsLoadingPublicSettings(false);
-      } catch (appError) {
-        console.error('App state check failed:', appError);
-        
-        // Handle app-level errors
-        if (appError.status === 403 && appError.data?.extra_data?.reason) {
-          const reason = appError.data.extra_data.reason;
-          if (reason === 'auth_required') {
-            setAuthError({
-              type: 'auth_required',
-              message: 'Authentication required'
-            });
-          } else if (reason === 'user_not_registered') {
-            setAuthError({
-              type: 'user_not_registered',
-              message: 'User not registered for this app'
-            });
-          } else {
-            setAuthError({
-              type: reason,
-              message: appError.message
-            });
-          }
-        } else {
-          setAuthError({
-            type: 'unknown',
-            message: appError.message || 'Failed to load app'
-          });
-        }
-        setIsLoadingPublicSettings(false);
-        setIsLoadingAuth(false);
-      }
-    } catch (error) {
-      console.error('Unexpected error:', error);
-      setAuthError({
-        type: 'unknown',
-        message: error.message || 'An unexpected error occurred'
-      });
-      setIsLoadingPublicSettings(false);
-      setIsLoadingAuth(false);
-    }
-  };
+  // Έλεγχος αν ο χρήστης είναι Admin. 
+  // Προσθέτουμε το email σου ως Super-Admin για απόλυτη ασφάλεια.
+  const isAdmin = user?.role === 'admin' || user?.email === 'gsyrogiann@gmail.com';
 
-  const checkUserAuth = async () => {
-    try {
-      // Now check if the user is authenticated
-      setIsLoadingAuth(true);
-      const currentUser = await base44.auth.me();
-      setUser(currentUser);
-      setIsAuthenticated(true);
-      setIsLoadingAuth(false);
-    } catch (error) {
-      console.error('User auth check failed:', error);
-      setIsLoadingAuth(false);
-      setIsAuthenticated(false);
-      
-      // If user auth fails, it might be an expired token
-      if (error.status === 401 || error.status === 403) {
-        setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
-        });
-      }
-    }
-  };
+  if (!isAdmin) {
+    return (
+      <div className="h-[80vh] flex flex-col items-center justify-center text-center p-6">
+        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 border border-red-100 shadow-sm">
+          <Lock className="w-10 h-10 text-red-600" />
+        </div>
+        <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Πρόσβαση Περιορισμένη</h2>
+        <p className="text-slate-500 max-w-sm mt-2 text-sm">
+          Αυτή η ενότητα του Nexus ERP είναι προσβάσιμη μόνο από διαχειριστές. 
+          Επικοινωνήστε με τον υπεύθυνο συστήματος.
+        </p>
+        <Button 
+          variant="outline" 
+          className="mt-8 rounded-xl font-bold border-slate-200"
+          onClick={() => window.location.href = '/Dashboard'}
+        >
+          Επιστροφή στο Dashboard
+        </Button>
+      </div>
+    );
+  }
 
-  const logout = (shouldRedirect = true) => {
-    setUser(null);
-    setIsAuthenticated(false);
-    
-    if (shouldRedirect) {
-      // Use the SDK's logout method which handles token cleanup and redirect
-      base44.auth.logout(window.location.href);
-    } else {
-      // Just remove the token without redirect
-      base44.auth.logout();
-    }
-  };
+  return children;
+};
 
-  const navigateToLogin = () => {
-    // Use the SDK's redirectToLogin method
-    base44.auth.redirectToLogin(window.location.href);
-  };
+const AuthenticatedApp = () => {
+  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+
+  if (isLoadingPublicSettings || isLoadingAuth) {
+    return (
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-white">
+        <div className="w-10 h-10 border-4 border-slate-100 border-t-slate-900 rounded-full animate-spin mb-4"></div>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nexus Security Initializing...</p>
+      </div>
+    );
+  }
+
+  if (authError) {
+    if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
+    if (authError.type === 'auth_required') { navigateToLogin(); return null; }
+  }
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAuthenticated, 
-      isLoadingAuth,
-      isLoadingPublicSettings,
-      authError,
-      appPublicSettings,
-      logout,
-      navigateToLogin,
-      checkAppState
-    }}>
-      {children}
-    </AuthContext.Provider>
+    <Routes>
+      <Route path="/" element={<Navigate to="/Dashboard" replace />} />
+      <Route element={<AppLayout />}>
+        {/* ΕΛΕΥΘΕΡΕΣ ΔΙΑΔΡΟΜΕΣ (Πρόσβαση για όλο το προσωπικό) */}
+        <Route path="/Dashboard" element={<Dashboard />} />
+        <Route path="/Customers" element={<Customers />} />
+        <Route path="/Suppliers" element={<Suppliers />} />
+        <Route path="/Products" element={<Products />} />
+        <Route path="/Inventory" element={<Inventory />} />
+        <Route path="/Tickets" element={<Tickets />} />
+        <Route path="/Calendar" element={<Calendar />} />
+        <Route path="/SalesPipeline" element={<SalesPipeline />} />
+        <Route path="/Quotes" element={<Quotes />} />
+        <Route path="/SalesOrders" element={<SalesOrders />} />
+        <Route path="/PurchaseOrders" element={<PurchaseOrders />} />
+        <Route path="/UnmatchedEmails" element={<UnmatchedEmails />} />
+
+        {/* ΠΡΟΣΤΑΤΕΥΜΕΝΕΣ ΔΙΑΔΡΟΜΕΣ (Μόνο για Admins) */}
+        <Route path="/SalesInvoices" element={<AdminRoute><SalesInvoices /></AdminRoute>} />
+        <Route path="/PurchaseInvoices" element={<AdminRoute><PurchaseInvoices /></AdminRoute>} />
+        <Route path="/Payments" element={<AdminRoute><Payments /></AdminRoute>} />
+        <Route path="/Reports" element={<AdminRoute><Reports /></AdminRoute>} />
+        <Route path="/AIAssistant" element={<AdminRoute><AIAssistant /></AdminRoute>} />
+        <Route path="/EmailSettings" element={<AdminRoute><EmailSettings /></AdminRoute>} />
+      </Route>
+      <Route path="*" element={<PageNotFound />} />
+    </Routes>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+function App() {
+  return (
+    <AuthProvider>
+      <QueryClientProvider client={queryClientInstance}>
+        <Router>
+          <AuthenticatedApp />
+        </Router>
+        <Toaster />
+      </QueryClientProvider>
+    </AuthProvider>
+  );
+}
+
+export default App;
