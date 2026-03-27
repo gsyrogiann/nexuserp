@@ -151,6 +151,44 @@ export default function Customers() {
     setEditing(null);
   };
 
+  const handleFileImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
+        file_url,
+        json_schema: {
+          type: 'object',
+          properties: {
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  tax_id: { type: 'string' },
+                  email: { type: 'string' },
+                  phone: { type: 'string' },
+                  address: { type: 'string' },
+                }
+              }
+            }
+          }
+        }
+      });
+      const rows = result?.output?.items || result?.output || [];
+      if (rows.length > 0) {
+        await base44.entities.Customer.bulkCreate(rows);
+        qc.invalidateQueries({ queryKey: ['customers'] });
+      }
+    } finally {
+      setImporting(false);
+      setImportDialogOpen(false);
+    }
+  };
+
   const filteredItems = useMemo(() => {
     if (!searchTerm) return items;
     const lowSearch = searchTerm.toLowerCase();
