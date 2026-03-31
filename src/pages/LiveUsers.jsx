@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Eye, Search, Activity, Clock, User, X } from 'lucide-react';
+import { Eye, Search, Activity, Clock, User, X, MousePointerClick, Zap } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -253,16 +253,23 @@ function ActivityModal({ userEmail, onClose }) {
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="outline" className="text-[10px] font-bold">
-                      {activity.page_name || activity.action}
-                    </Badge>
-                    {activity.details && (
-                      <span className="text-xs text-slate-600">{activity.details}</span>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    {format(new Date(activity.timestamp), 'HH:mm:ss', { locale: el })}
-                  </p>
+                        <div className="flex items-center gap-1.5">
+                          {activity.action === 'page_visit' && <Eye className="w-3.5 h-3.5 text-blue-600" />}
+                          {activity.action === 'button_click' && <MousePointerClick className="w-3.5 h-3.5 text-purple-600" />}
+                          {activity.action === 'heartbeat' && <Zap className="w-3.5 h-3.5 text-emerald-600" />}
+                        </div>
+                        <Badge variant="outline" className="text-[10px] font-bold">
+                          {activity.action === 'page_visit' ? `📄 ${activity.page_name}` : 
+                           activity.action === 'button_click' ? '🖱️ Action' :
+                           '💚 Online'}
+                        </Badge>
+                        {activity.details && (
+                          <span className="text-xs text-slate-600 truncate">{activity.details}</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        {format(new Date(activity.timestamp), 'HH:mm:ss', { locale: el })}
+                      </p>
                 </div>
               </div>
             ))}

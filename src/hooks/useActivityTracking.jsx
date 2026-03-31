@@ -77,15 +77,25 @@ export function useActivityTracking() {
   }, [user, location.pathname]);
 }
 
-// Track button/form actions
-export function trackAction(actionName, details) {
+// Track button/form actions - can be called globally
+export async function trackAction(actionName, details) {
   if (!actionName) return;
 
-  base44.entities.UserActivity.create({
-    user_email: (window.__currentUser?.email || 'unknown'),
-    user_name: (window.__currentUser?.full_name || 'unknown'),
-    action: 'button_click',
-    details: `${actionName}: ${details || ''}`,
-    timestamp: new Date().toISOString(),
-  }).catch(err => console.warn('Action log failed:', err));
+  try {
+    const user = await base44.auth.me();
+    base44.entities.UserActivity.create({
+      user_email: user?.email || 'unknown',
+      user_name: user?.full_name || user?.email || 'unknown',
+      action: 'button_click',
+      page_path: window.location.pathname,
+      page_name: PAGE_NAMES[window.location.pathname] || window.location.pathname,
+      details: details || actionName,
+      timestamp: new Date().toISOString(),
+    }).catch(err => console.warn('Action log failed:', err));
+  } catch (err) {
+    console.warn('Could not track action:', err);
+  }
 }
+
+// Make it globally available
+window.trackAction = trackAction;
