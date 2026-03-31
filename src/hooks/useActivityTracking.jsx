@@ -45,10 +45,10 @@ export function useActivityTracking() {
       page_path: location.pathname,
       page_name: pageName,
       timestamp: new Date().toISOString(),
-    }).catch(err => console.warn('Activity log failed:', err));
+    }).catch(err => console.error('Activity log failed:', err));
 
     lastActivityRef.current = Date.now();
-  }, [location.pathname, user?.email]);
+  }, [location.pathname, user]);
 
   // Heartbeat every 30 seconds to track idle time
   useEffect(() => {
@@ -63,15 +63,18 @@ export function useActivityTracking() {
         page_path: location.pathname,
         page_name: pageName,
         timestamp: new Date().toISOString(),
-      }).catch(err => console.warn('Heartbeat failed:', err));
+      }).catch(err => console.error('Heartbeat failed:', err));
     };
+
+    // Send first heartbeat immediately
+    sendHeartbeat();
 
     heartbeatIntervalRef.current = setInterval(sendHeartbeat, 30000); // Every 30 sec
 
     return () => {
       if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
     };
-  }, [user?.email, location.pathname]);
+  }, [user, location.pathname]);
 }
 
 // Track button/form actions
