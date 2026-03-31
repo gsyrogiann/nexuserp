@@ -87,7 +87,8 @@ export default function Settings() {
                 <p>1. Κάνε revoke το παλιό Telegram token από το BotFather.</p>
                 <p>2. Όρισε νέο `TELEGRAM_BOT_TOKEN` στο environment του backend function.</p>
                 <p>3. Προαιρετικά όρισε `TELEGRAM_ALLOWED_CHAT_IDS` για allowlist.</p>
-                <p>4. Ξανακάνε set το webhook στο παραπάνω URL χωρίς αλλαγή στον business logic κώδικα.</p>
+                <p>4. Προαιρετικά όρισε `TELEGRAM_WEBHOOK_SECRET` για header verification από το Telegram.</p>
+                <p>5. Ξανακάνε set το webhook στο παραπάνω URL χωρίς αλλαγή στον business logic κώδικα.</p>
               </div>
 
               <div className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm text-red-900 flex gap-3">

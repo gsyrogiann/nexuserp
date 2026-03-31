@@ -16,6 +16,10 @@ function getAllowedChatIds() {
     .filter(Boolean);
 }
 
+function getWebhookSecret() {
+  return Deno.env.get('TELEGRAM_WEBHOOK_SECRET')?.trim() || '';
+}
+
 async function sendTelegramMessage(botToken: string, chatId: string | number, text: string) {
   const response = await fetch(`${TELEGRAM_API_BASE}/bot${botToken}/sendMessage`, {
     method: 'POST',
@@ -34,11 +38,13 @@ async function sendTelegramMessage(botToken: string, chatId: string | number, te
 
 Deno.serve(async (req) => {
   const botToken = getTelegramBotToken();
+  const webhookSecret = getWebhookSecret();
 
   if (req.method === 'GET') {
     return Response.json({
       ok: true,
       configured: Boolean(botToken),
+      webhookSecretConfigured: Boolean(webhookSecret),
       message: botToken
         ? 'Το Telegram webhook είναι διαθέσιμο και περιμένει POST από το Telegram.'
         : 'Λείπει το TELEGRAM_BOT_TOKEN από το environment.',
@@ -54,6 +60,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    if (webhookSecret) {
+      const requestSecret = req.headers.get('X-Telegram-Bot-Api-Secret-Token')?.trim() || '';
+      if (requestSecret !== webhookSecret) {
+        return Response.json({ error: 'Invalid webhook secret.' }, { status: 401 });
+      }
+    }
+
     const base44 = createClientFromRequest(req);
     const body = await req.json();
     const message = body?.message;

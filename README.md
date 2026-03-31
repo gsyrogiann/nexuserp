@@ -32,6 +32,7 @@ Set Telegram secrets only in your backend/deployment environment:
 ```
 TELEGRAM_BOT_TOKEN=your_new_bot_token
 TELEGRAM_ALLOWED_CHAT_IDS=123456789,987654321
+TELEGRAM_WEBHOOK_SECRET=your_webhook_secret
 OPENAI_API_KEY=your_openai_api_key
 ```
 
