@@ -181,6 +181,16 @@ export default function AIAssistant() {
         const updatedMessages = [...messages, successMsg];
         setMessages(updatedMessages);
         updateHistory(updatedMessages);
+      } else if (action.action === 'send_email') {
+        await base44.functions.invoke('sendEmail', {
+          to: action.to,
+          subject: action.subject,
+          body: action.body
+        });
+        const successMsg = { role: 'assistant', type: 'action', content: `✅ **Email στάλθηκε στο ${action.to}!**` };
+        const updatedMessages = [...messages, successMsg];
+        setMessages(updatedMessages);
+        updateHistory(updatedMessages);
       }
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: `❌ Σφάλμα: ${err.message}` }]);
