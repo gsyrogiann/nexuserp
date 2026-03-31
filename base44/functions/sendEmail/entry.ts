@@ -14,10 +14,13 @@ Deno.serve(async (req) => {
 
     const { accessToken } = await base44.asServiceRole.connectors.getConnection('gmail');
 
+    // RFC 2047 encode subject for non-ASCII characters (e.g. Greek)
+    const encodedSubject = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
+
     // Build RFC 2822 email
     const emailLines = [
       `To: ${to}`,
-      `Subject: ${subject}`,
+      `Subject: ${encodedSubject}`,
       'Content-Type: text/plain; charset=utf-8',
       'MIME-Version: 1.0',
       '',
