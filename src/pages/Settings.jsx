@@ -21,10 +21,9 @@ export default function Settings() {
   const getSettings = (key) => settingsList.find(s => s.key === key) || null;
 
   const saveMutation = useMutation({
-    mutationFn: async ({ key, data }) => {
-      const existing = getSettings(key);
-      if (existing) {
-        return base44.entities.AppSettings.update(existing.id, { ...data, key });
+    mutationFn: async ({ key, data, existingId }) => {
+      if (existingId) {
+        return base44.entities.AppSettings.update(existingId, { ...data, key });
       } else {
         return base44.entities.AppSettings.create({ ...data, key });
       }
@@ -32,6 +31,9 @@ export default function Settings() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['app-settings'] });
       toast.success('Ρυθμίσεις αποθηκεύτηκαν!');
+    },
+    onError: (e) => {
+      toast.error('Σφάλμα αποθήκευσης: ' + e.message);
     },
   });
 
@@ -55,7 +57,7 @@ export default function Settings() {
         <TabsContent value="telegram" className="mt-6">
           <TelegramSettings
             existing={getSettings('telegram')}
-            onSave={(data) => saveMutation.mutate({ key: 'telegram', data })}
+            onSave={(data) => saveMutation.mutate({ key: 'telegram', data, existingId: getSettings('telegram')?.id })}
             saving={saveMutation.isPending}
           />
         </TabsContent>
@@ -63,7 +65,7 @@ export default function Settings() {
         <TabsContent value="voip" className="mt-6">
           <VoIPSettings
             existing={getSettings('voip')}
-            onSave={(data) => saveMutation.mutate({ key: 'voip', data })}
+            onSave={(data) => saveMutation.mutate({ key: 'voip', data, existingId: getSettings('voip')?.id })}
             saving={saveMutation.isPending}
           />
         </TabsContent>
@@ -71,7 +73,7 @@ export default function Settings() {
         <TabsContent value="ai" className="mt-6">
           <AISettings
             existing={getSettings('ai')}
-            onSave={(data) => saveMutation.mutate({ key: 'ai', data })}
+            onSave={(data) => saveMutation.mutate({ key: 'ai', data, existingId: getSettings('ai')?.id })}
             saving={saveMutation.isPending}
           />
         </TabsContent>
@@ -203,7 +205,7 @@ function TelegramSettings({ existing, onSave, saving }) {
             <p>4. Βάλε το URL στο Webhook URL και πάτα <strong>Set</strong></p>
           </div>
 
-          <Button onClick={() => onSave({ telegram_bot_token: token, telegram_webhook_url: webhookUrl })} disabled={saving || !token} className="w-full h-11 rounded-xl font-bold">
+          <Button onClick={() => onSave({ telegram_bot_token: token, telegram_webhook_url: webhookUrl })} disabled={saving} className="w-full h-11 rounded-xl font-bold">
             {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
             Αποθήκευση
           </Button>
