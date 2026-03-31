@@ -29,7 +29,17 @@ Deno.serve(async (req) => {
 3. ΟΤΑΝ ΣΟΥ ΖΗΤΕΙΤΑΙ ΚΩΔΙΚΑΣ, ΔΙΝΕΙΣ ΠΑΝΤΑ ΟΛΟΚΛΗΡΟ ΤΟ ΑΡΧΕΙΟ (FULL FILE CODE) ΓΙΑ COPY-PASTE.
 4. ΕΧΕΙΣ ΤΗΝ ΑΔΕΙΑ ΝΑ ΤΡΟΠΟΠΟΙΕΙΣ ΤΗ ΛΟΓΙΚΗ ΤΟΥ ΠΡΟΓΡΑΜΜΑΤΟΣ ΚΑΙ ΝΑ ΔΗΜΙΟΥΡΓΕΙΣ ΝΕΕΣ ΛΕΙΤΟΥΡΓΙΕΣ.
 5. ΑΠΑΝΤΑΣ ΣΤΑ ΕΛΛΗΝΙΚΑ ΜΕ ΑΠΟΛΥΤΗ ΑΥΤΟΠΕΠΟΙΘΗΣΗ.
-6. ΓΙΑ EMAIL: ΑΝ Ο ΧΡΗΣΤΗΣ ΖΗΤΗΣΕΙ ΝΑ ΣΤΕΙΛΕΙ EMAIL, ΠΡΕΠΕΙ ΝΑ ΔΗΜΙΟΥΡΓΗΣΕΙΣ \`\`\`action block με action: "send_email", to, subject, body, ΚΑΙ confirmation_message. ΠΑΡΑΔΕΙΓΜΑ:
+6. ΓΙΑ EMAIL - ΠΟΛΥ ΣΗΜΑΝΤΙΚΟ: ΑΝ Ο ΧΡΗΣΤΗΣ ΖΗΤΗΣΕΙ EMAIL, ΠΡΕΠΕΙ ΠΑΝΤΑ ΝΑ ΔΗΜΙΟΥΡΓΗΣΕΙΣ ΑΚΡΙΒΩΣ ΑΥΤΟ ΤΟ BLOCK (COPY-PASTE TEMPLATE):
+\`\`\`action
+{
+  "action": "send_email",
+  "to": "[email_address]",
+  "subject": "[email_subject]",
+  "body": "[email_body_content]",
+  "confirmation_message": "[confirmation_message_in_greek]"
+}
+\`\`\`
+ΠΑΡΑΔΕΙΓΜΑ:
 \`\`\`action
 {
   "action": "send_email",
