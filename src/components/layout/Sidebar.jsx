@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/LanguageContext';
 import {
   LayoutDashboard, Users, Truck, Package, Warehouse as WarehouseIcon,
   ShoppingCart, ShoppingBag, FileText, CreditCard, BarChart3,
@@ -77,6 +78,7 @@ const navGroups = [
 ];
 
 export default function Sidebar() {
+  const { t } = useLang();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -125,7 +127,7 @@ export default function Sidebar() {
                 className="flex items-center w-full px-2 py-1.5 text-[10px] uppercase tracking-widest font-bold text-sidebar-foreground/30 hover:text-sidebar-foreground/60 transition-colors"
               >
                 {expandedGroups[group.label] ? <ChevronDown className="w-3 h-3 mr-1" /> : <ChevronRight className="w-3 h-3 mr-1" />}
-                {group.label}
+                {t(group.label)}
               </button>
             )}
             {(collapsed || expandedGroups[group.label]) && (
@@ -143,7 +145,7 @@ export default function Sidebar() {
                     )}
                   >
                     <item.icon className={cn('w-4 h-4 flex-shrink-0', collapsed && 'mx-auto')} />
-                    {!collapsed && <span>{item.label}</span>}
+                    {!collapsed && <span>{t(item.label)}</span>}
                   </Link>
                 ))}
               </div>
