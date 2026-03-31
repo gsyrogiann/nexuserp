@@ -46,9 +46,11 @@ function useSetting(key) {
   const existing = list[0] || null;
 
   const save = async (data) => {
-    console.log('useSetting.save called', { key, existing, data });
-    if (existing?.id) {
-      await base44.entities.AppSettings.update(existing.id, { ...data, key });
+    // Fresh fetch για να αποφύγουμε stale closure
+    const all = await base44.entities.AppSettings.list();
+    const fresh = all.find(s => s.key === key);
+    if (fresh?.id) {
+      await base44.entities.AppSettings.update(fresh.id, { ...data, key });
     } else {
       await base44.entities.AppSettings.create({ ...data, key });
     }

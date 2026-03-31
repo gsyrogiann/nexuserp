@@ -4,8 +4,9 @@ Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
 
   // Διαβάζουμε το bot token από AppSettings (service role)
-  const settings = await base44.asServiceRole.entities.AppSettings.filter({ key: 'telegram' });
-  const botToken = settings?.[0]?.telegram_bot_token;
+  const allSettings = await base44.asServiceRole.entities.AppSettings.list();
+  const telegramSettings = allSettings.find(s => s.key === 'telegram');
+  const botToken = telegramSettings?.telegram_bot_token;
 
   if (!botToken) {
     return Response.json({ error: 'Telegram bot token not configured' }, { status: 503 });
