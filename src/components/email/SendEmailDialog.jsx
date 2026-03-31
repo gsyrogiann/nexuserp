@@ -26,23 +26,15 @@ export default function SendEmailDialog({ open, onClose, customer }) {
     }
     setSending(true);
     try {
-      await base44.integrations.Core.SendEmail({
+      const res = await base44.functions.invoke('sendEmail', {
         to: form.to,
         subject: form.subject,
         body: form.body,
+        customer_id: customer?.id || null,
+        customer_name: customer?.name || '',
       });
 
-      // Log to CustomerActivity
-      if (customer?.id) {
-        await base44.entities.CustomerActivity.create({
-          customer_id: customer.id,
-          customer_name: customer.name,
-          activity_type: 'email_sent',
-          title: `Email: ${form.subject}`,
-          description: form.body.substring(0, 200),
-          occurred_at: new Date().toISOString(),
-        });
-      }
+      if (res.data?.error) throw new Error(res.data.error);
 
       toast.success('Email εστάλη επιτυχώς!');
       onClose();
