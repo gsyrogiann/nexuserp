@@ -213,6 +213,7 @@ export default function AIAssistant() {
     const updatedWithUser = [...messages, userMsg];
     setMessages(updatedWithUser); setInput(''); setLoading(true);
     
+    const startTime = Date.now();
     try {
       const response = await base44.functions.invoke('chatgpt', { 
         messages: [{ role: 'system', content: buildContext() }, ...updatedWithUser.map(m => ({ role: m.role, content: m.content }))] 
@@ -223,10 +224,36 @@ export default function AIAssistant() {
       const assistantMsg = { role: 'assistant', content: stripAction(replyText) };
       const finalMessages = [...updatedWithUser, assistantMsg];
       
+      const responseTime = Date.now() - startTime;
+      const user = await base44.auth.me();
+      
+      // Log interaction
+      base44.entities.AIInteraction.create({
+        source: 'app',
+        user_identifier: user?.email || 'unknown',
+        query: msg,
+        response: replyText,
+        response_time_ms: responseTime,
+        success: true
+      }).catch(err => console.warn('AI interaction log failed:', err));
+      
       setMessages(finalMessages);
       updateHistory(finalMessages, msg);
       if (action) setPendingAction(action);
     } catch (err) {
+      const responseTime = Date.now() - startTime;
+      const user = await base44.auth.me();
+      
+      // Log failed interaction
+      base44.entities.AIInteraction.create({
+        source: 'app',
+        user_identifier: user?.email || 'unknown',
+        query: msg,
+        response: err.message || 'Unknown error',
+        response_time_ms: responseTime,
+        success: false
+      }).catch(() => {});
+      
       setMessages(prev => [...prev, { role: 'assistant', content: `❌ Σφάλμα σύνδεσης.` }]);
     }
     setLoading(false); inputRef.current?.focus();

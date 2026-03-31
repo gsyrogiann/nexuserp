@@ -34,6 +34,7 @@ import SalesPipeline from './pages/SalesPipeline';
 import Settings from './pages/Settings.jsx';
 import MyEmailSettings from './pages/MyEmailSettings';
 import LiveUsers from './pages/LiveUsers';
+import AIInteractionsHistory from './pages/AIInteractionsHistory';
 
 /**
  * AccessDenied View
@@ -115,6 +116,7 @@ const AuthenticatedApp = () => {
         <Route path="/Settings"         element={<ProtectedRoute featureKey="settings"><Settings /></ProtectedRoute>} />
         <Route path="/MyEmailSettings"  element={<MyEmailSettings />} />
         <Route path="/LiveUsers"        element={<LiveUsers />} />
+        <Route path="/AIInteractionsHistory" element={<AIInteractionsHistory />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

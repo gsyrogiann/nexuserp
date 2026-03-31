@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, Truck, Package, Warehouse as WarehouseIcon,
   ShoppingCart, ShoppingBag, FileText, CreditCard, BarChart3,
   Bot, ChevronDown, ChevronRight, Menu, X, Settings, Mail, AlertCircle, Ticket, 
-  Calendar as CalendarIcon, TrendingUp, Sparkles, ShieldCheck, Eye
+  Calendar as CalendarIcon, TrendingUp, Sparkles, ShieldCheck, Eye, Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -75,6 +75,7 @@ const navGroups = [
     label: 'Administration',
     items: [
       { label: 'Live Users', path: '/LiveUsers', icon: Eye },
+      { label: 'AI Ιστορικό', path: '/AIInteractionsHistory', icon: Zap },
       { label: 'Nexus AI Admin', path: '/AIAssistant', icon: Sparkles },
       { label: 'Ρυθμίσεις', path: '/Settings', icon: Settings }
     ]
