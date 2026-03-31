@@ -34,23 +34,36 @@ export default function LiveUsers() {
     );
   }
 
-  // Get all activities from last 24 hours (excluding heartbeats)
-  const { data: activities = [], isLoading } = useQuery({
-    queryKey: ['user-activities'],
-    queryFn: async () => {
-      const all = await base44.entities.UserActivity.list('-timestamp', 1000);
-      // Filter last 24 hours and exclude heartbeats
-      const now = Date.now();
-      const dayAgo = now - 24 * 60 * 60 * 1000;
-      return all.filter(a => 
-        new Date(a.timestamp).getTime() > dayAgo && 
-        a.action !== 'heartbeat'
-      );
-    },
-    refetchInterval: 5000, // Refresh every 5 seconds
-  });
+  // Get all activities and emails from last 24 hours
+   const { data: activities = [], isLoading: activitiesLoading } = useQuery({
+     queryKey: ['user-activities'],
+     queryFn: async () => {
+       const all = await base44.entities.UserActivity.list('-timestamp', 1000);
+       // Filter last 24 hours and exclude heartbeats
+       const now = Date.now();
+       const dayAgo = now - 24 * 60 * 60 * 1000;
+       return all.filter(a => 
+         new Date(a.timestamp).getTime() > dayAgo && 
+         a.action !== 'heartbeat'
+       );
+     },
+     refetchInterval: 5000,
+   });
 
-  // Group by user and get latest activity
+   const { data: allEmails = [], isLoading: emailsLoading } = useQuery({
+     queryKey: ['user-emails'],
+     queryFn: async () => {
+       const emails = await base44.entities.EmailMessage.list('-sent_at', 500);
+       const now = Date.now();
+       const dayAgo = now - 24 * 60 * 60 * 1000;
+       return emails.filter(e => new Date(e.sent_at).getTime() > dayAgo);
+     },
+     refetchInterval: 5000,
+   });
+
+   const isLoading = activitiesLoading || emailsLoading;
+
+  // Group by user and get latest activity (including emails)
   const userSessions = {};
   activities.forEach(activity => {
     if (!userSessions[activity.user_email]) {
@@ -67,18 +80,43 @@ export default function LiveUsers() {
     }
   });
 
-  // Calculate idle time (from last non-heartbeat activity)
+  // Add emails to user activities
+  allEmails.forEach(email => {
+    const senderEmail = email.sender_email;
+    if (!userSessions[senderEmail]) {
+      userSessions[senderEmail] = {
+        email: senderEmail,
+        name: email.sender_name || senderEmail,
+        latestActivity: { ...email, action: 'email_sent', timestamp: email.sent_at },
+        allActivities: [],
+      };
+    }
+    const emailActivity = { ...email, action: 'email_sent', timestamp: email.sent_at };
+    userSessions[senderEmail].allActivities.push(emailActivity);
+    if (new Date(email.sent_at) > new Date(userSessions[senderEmail].latestActivity.timestamp)) {
+      userSessions[senderEmail].latestActivity = emailActivity;
+    }
+  });
+
+  // Calculate idle time (from last activity or email)
   const getUserIdleTime = (userEmail) => {
     const allUserActivities = userSessions[userEmail]?.allActivities || [];
     // Filter out heartbeats for idle calculation
     const userActivities = allUserActivities.filter(a => a.action !== 'heartbeat');
     if (!userActivities.length) return null;
 
-    const latest = userActivities[0]; // Latest non-heartbeat activity
-    const idleMs = nowTime.getTime() - new Date(latest.timestamp).getTime();
+    // Find the most recent activity (could be action or email)
+    const latest = userActivities.reduce((prev, curr) => {
+      const prevTime = new Date(prev.timestamp || prev.sent_at).getTime();
+      const currTime = new Date(curr.timestamp || curr.sent_at).getTime();
+      return currTime > prevTime ? curr : prev;
+    });
+
+    const latestTime = new Date(latest.timestamp || latest.sent_at);
+    const idleMs = nowTime.getTime() - latestTime.getTime();
     const idleMinutes = Math.floor(idleMs / 60000);
 
-    return { idleMs, idleMinutes, latestTime: new Date(latest.timestamp) };
+    return { idleMs, idleMinutes, latestTime };
   };
 
   // Get active users (activity in last 5 minutes)
@@ -226,16 +264,32 @@ function UserCard({ session, isActive }) {
 }
 
 function ActivityModal({ userEmail, onClose }) {
-  const { data: activities = [], isLoading } = useQuery({
-    queryKey: ['user-activity-detail', userEmail],
-    queryFn: async () => {
-      const all = await base44.entities.UserActivity.list('-timestamp', 100);
-      return all.filter(a => a.user_email === userEmail);
-    },
-    refetchInterval: 3000,
-  });
+   const { data: activities = [], isLoading: activitiesLoading } = useQuery({
+     queryKey: ['user-activity-detail', userEmail],
+     queryFn: async () => {
+       const all = await base44.entities.UserActivity.list('-timestamp', 100);
+       return all.filter(a => a.user_email === userEmail);
+     },
+     refetchInterval: 3000,
+   });
 
-  const userName = activities[0]?.user_name || userEmail;
+   const { data: emails = [], isLoading: emailsLoading } = useQuery({
+     queryKey: ['user-emails-detail', userEmail],
+     queryFn: async () => {
+       const all = await base44.entities.EmailMessage.list('-sent_at', 100);
+       return all.filter(e => e.sender_email === userEmail);
+     },
+     refetchInterval: 3000,
+   });
+
+   const isLoading = activitiesLoading || emailsLoading;
+   const userName = activities[0]?.user_name || userEmail;
+
+   // Merge and sort activities and emails by timestamp
+   const allItems = [
+     ...activities.map(a => ({ ...a, type: 'activity', sortTime: new Date(a.timestamp).getTime() })),
+     ...emails.map(e => ({ ...e, type: 'email', sortTime: new Date(e.sent_at).getTime() }))
+   ].sort((a, b) => b.sortTime - a.sortTime);
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -248,39 +302,48 @@ function ActivityModal({ userEmail, onClose }) {
         </DialogHeader>
 
         {isLoading ? (
-          <p className="text-center py-8 text-muted-foreground">Φόρτωση...</p>
-        ) : activities.length === 0 ? (
-          <p className="text-center py-8 text-muted-foreground">Καμία δραστηριότητα</p>
-        ) : (
-          <div className="space-y-2">
-            {activities.map((activity, idx) => (
-              <div
-                key={idx}
-                className="flex items-start gap-3 p-3 rounded-lg border bg-slate-50/50 hover:bg-slate-100/50 transition-colors"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="flex items-center gap-1.5">
-                      {activity.action === 'page_visit' && <Eye className="w-3.5 h-3.5 text-blue-600" />}
-                      {activity.action === 'button_click' && <MousePointerClick className="w-3.5 h-3.5 text-purple-600" />}
-                    </div>
-                        <Badge variant="outline" className="text-[10px] font-bold">
-                          {activity.action === 'page_visit' ? `📄 ${activity.page_name}` : 
-                           activity.action === 'button_click' ? '🖱️ Action' :
-                           '💚 Online'}
-                        </Badge>
-                        {activity.details && (
-                          <span className="text-xs text-slate-600 truncate">{activity.details}</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        {format(new Date(activity.timestamp), 'HH:mm:ss', { locale: el })}
-                      </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+           <p className="text-center py-8 text-muted-foreground">Φόρτωση...</p>
+         ) : allItems.length === 0 ? (
+           <p className="text-center py-8 text-muted-foreground">Καμία δραστηριότητα</p>
+         ) : (
+           <div className="space-y-2">
+             {allItems.map((item, idx) => {
+               const isActivity = item.type === 'activity';
+               return (
+                 <div
+                   key={idx}
+                   className="flex items-start gap-3 p-3 rounded-lg border bg-slate-50/50 hover:bg-slate-100/50 transition-colors"
+                 >
+                   <div className="flex-1">
+                     <div className="flex items-center gap-2 mb-1">
+                       <div className="flex items-center gap-1.5">
+                         {isActivity && item.action === 'page_visit' && <Eye className="w-3.5 h-3.5 text-blue-600" />}
+                         {isActivity && item.action === 'button_click' && <MousePointerClick className="w-3.5 h-3.5 text-purple-600" />}
+                         {!isActivity && <span className="text-base">📧</span>}
+                       </div>
+                       <Badge variant="outline" className="text-[10px] font-bold">
+                         {isActivity ? (
+                           item.action === 'page_visit' ? `📄 ${item.page_name}` : '🖱️ Action'
+                         ) : (
+                           '📧 Email'
+                         )}
+                       </Badge>
+                       {isActivity && item.details && (
+                         <span className="text-xs text-slate-600 truncate">{item.details}</span>
+                       )}
+                       {!isActivity && (
+                         <span className="text-xs text-slate-600 truncate">{item.subject}</span>
+                       )}
+                     </div>
+                     <p className="text-xs text-slate-500">
+                       {format(new Date(isActivity ? item.timestamp : item.sent_at), 'HH:mm:ss', { locale: el })}
+                     </p>
+                   </div>
+                 </div>
+               );
+             })}
+           </div>
+         )}
       </DialogContent>
     </Dialog>
   );
