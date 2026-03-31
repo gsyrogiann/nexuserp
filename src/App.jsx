@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { LanguageProvider } from '@/lib/LanguageContext';
@@ -25,7 +26,7 @@ import PurchaseOrders from './pages/PurchaseOrders';
 import PurchaseInvoices from './pages/PurchaseInvoices';
 import Payments from './pages/Payments';
 import Reports from './pages/Reports';
-import AIAssistant from './pages/AIAssistant';
+const AIAssistant = lazy(() => import('./pages/AIAssistant'));
 import EmailSettings from './pages/EmailSettings';
 import UnmatchedEmails from './pages/UnmatchedEmails';
 import Tickets from './pages/Tickets';
@@ -112,7 +113,7 @@ const AuthenticatedApp = () => {
         <Route path="/Reports"          element={<ProtectedRoute featureKey="reports"><Reports /></ProtectedRoute>} />
         <Route path="/EmailSettings"    element={<ProtectedRoute featureKey="email_settings"><EmailSettings /></ProtectedRoute>} />
         <Route path="/UnmatchedEmails"  element={<ProtectedRoute featureKey="unmatched_emails"><UnmatchedEmails /></ProtectedRoute>} />
-        <Route path="/AIAssistant"      element={<ProtectedRoute featureKey="ai_assistant"><AIAssistant /></ProtectedRoute>} />
+        <Route path="/AIAssistant"      element={<ProtectedRoute featureKey="ai_assistant"><Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-slate-500">Φόρτωση...</div></div>}><AIAssistant /></Suspense></ProtectedRoute>} />
         <Route path="/Settings"         element={<ProtectedRoute featureKey="settings"><Settings /></ProtectedRoute>} />
         <Route path="/MyEmailSettings"  element={<MyEmailSettings />} />
         <Route path="/LiveUsers"        element={<LiveUsers />} />
