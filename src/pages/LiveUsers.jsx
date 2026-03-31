@@ -6,7 +6,8 @@ import PageHeader from '@/components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Eye, Search, Activity, Clock, User } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Eye, Search, Activity, Clock, User, X } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -15,6 +16,7 @@ export default function LiveUsers() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [nowTime, setNowTime] = useState(new Date());
+  const [selectedUserEmail, setSelectedUserEmail] = useState(null);
 
   // Refresh time every second
   useEffect(() => {
@@ -134,7 +136,13 @@ export default function LiveUsers() {
         ) : (
           <div className="grid gap-3">
             {filteredActive.map(session => (
-              <UserCard key={session.email} session={session} isActive={true} />
+              <div
+                key={session.email}
+                onClick={() => setSelectedUserEmail(session.email)}
+                className="cursor-pointer hover:shadow-md transition-shadow"
+              >
+                <UserCard session={session} isActive={true} />
+              </div>
             ))}
           </div>
         )}
@@ -149,10 +157,24 @@ export default function LiveUsers() {
           </h2>
           <div className="grid gap-3">
             {filteredIdle.map(session => (
-              <UserCard key={session.email} session={session} isActive={false} />
+              <div
+                key={session.email}
+                onClick={() => setSelectedUserEmail(session.email)}
+                className="cursor-pointer hover:shadow-md transition-shadow"
+              >
+                <UserCard session={session} isActive={false} />
+              </div>
             ))}
           </div>
         </div>
+      )}
+
+      {/* Activity Modal */}
+      {selectedUserEmail && (
+        <ActivityModal
+          userEmail={selectedUserEmail}
+          onClose={() => setSelectedUserEmail(null)}
+        />
       )}
     </div>
   );
@@ -193,5 +215,60 @@ function UserCard({ session, isActive }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ActivityModal({ userEmail, onClose }) {
+  const { data: activities = [], isLoading } = useQuery({
+    queryKey: ['user-activity-detail', userEmail],
+    queryFn: async () => {
+      const all = await base44.entities.UserActivity.list('-timestamp', 100);
+      return all.filter(a => a.user_email === userEmail);
+    },
+    refetchInterval: 3000,
+  });
+
+  const userName = activities[0]?.user_name || userEmail;
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto rounded-xl">
+        <DialogHeader className="flex items-center justify-between">
+          <DialogTitle>Δραστηριότητα: {userName}</DialogTitle>
+          <button onClick={onClose} className="ml-auto">
+            <X className="w-4 h-4" />
+          </button>
+        </DialogHeader>
+
+        {isLoading ? (
+          <p className="text-center py-8 text-muted-foreground">Φόρτωση...</p>
+        ) : activities.length === 0 ? (
+          <p className="text-center py-8 text-muted-foreground">Καμία δραστηριότητα</p>
+        ) : (
+          <div className="space-y-2">
+            {activities.map((activity, idx) => (
+              <div
+                key={idx}
+                className="flex items-start gap-3 p-3 rounded-lg border bg-slate-50/50 hover:bg-slate-100/50 transition-colors"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="outline" className="text-[10px] font-bold">
+                      {activity.page_name || activity.action}
+                    </Badge>
+                    {activity.details && (
+                      <span className="text-xs text-slate-600">{activity.details}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {format(new Date(activity.timestamp), 'HH:mm:ss', { locale: el })}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
