@@ -28,7 +28,7 @@ import UnmatchedEmails from './pages/UnmatchedEmails';
 import Tickets from './pages/Tickets';
 import Calendar from './pages/Calendar';
 import SalesPipeline from './pages/SalesPipeline';
-import Settings from './pages/Settings'; // <--- ΝΕΟ IMPORT
+import Settings from './pages/Settings.jsx'; // <--- ΝΕΟ IMPORT
 
 /**
  * AccessDenied View
