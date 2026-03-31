@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Eye, Search, Activity, Clock, User, X, MousePointerClick, Zap } from 'lucide-react';
+import { Eye, Search, Activity, Clock, User, X, MousePointerClick, AlertCircle } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -34,15 +34,18 @@ export default function LiveUsers() {
     );
   }
 
-  // Get all activities from last 24 hours
+  // Get all activities from last 24 hours (excluding heartbeats)
   const { data: activities = [], isLoading } = useQuery({
     queryKey: ['user-activities'],
     queryFn: async () => {
       const all = await base44.entities.UserActivity.list('-timestamp', 1000);
-      // Filter last 24 hours
+      // Filter last 24 hours and exclude heartbeats
       const now = Date.now();
       const dayAgo = now - 24 * 60 * 60 * 1000;
-      return all.filter(a => new Date(a.timestamp).getTime() > dayAgo);
+      return all.filter(a => 
+        new Date(a.timestamp).getTime() > dayAgo && 
+        a.action !== 'heartbeat'
+      );
     },
     refetchInterval: 5000, // Refresh every 5 seconds
   });
@@ -64,12 +67,14 @@ export default function LiveUsers() {
     }
   });
 
-  // Calculate idle time
+  // Calculate idle time (from last non-heartbeat activity)
   const getUserIdleTime = (userEmail) => {
-    const userActivities = userSessions[userEmail]?.allActivities || [];
+    const allUserActivities = userSessions[userEmail]?.allActivities || [];
+    // Filter out heartbeats for idle calculation
+    const userActivities = allUserActivities.filter(a => a.action !== 'heartbeat');
     if (!userActivities.length) return null;
 
-    const latest = userActivities[0]; // Already sorted by recency
+    const latest = userActivities[0]; // Latest non-heartbeat activity
     const idleMs = nowTime.getTime() - new Date(latest.timestamp).getTime();
     const idleMinutes = Math.floor(idleMs / 60000);
 
@@ -181,16 +186,17 @@ export default function LiveUsers() {
 }
 
 function UserCard({ session, isActive }) {
-  const idleMinutes = session.idleTime?.idleMinutes || 0;
-  const latestActivity = session.latestActivity;
+   const idleMinutes = session.idleTime?.idleMinutes || 0;
+   const latestActivity = session.latestActivity;
+   const isInactive = idleMinutes > 5;
 
-  return (
-    <Card className={cn('rounded-xl border transition-all', isActive ? 'bg-emerald-50/50 border-emerald-200' : 'bg-amber-50/50 border-amber-200')}>
+   return (
+     <Card className={cn('rounded-xl border transition-all', isInactive ? 'bg-red-50/50 border-red-200' : isActive ? 'bg-emerald-50/50 border-emerald-200' : 'bg-amber-50/50 border-amber-200')}>
       <CardContent className="pt-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center shrink-0', isActive ? 'bg-emerald-200' : 'bg-amber-200')}>
-            <User className="w-5 h-5 text-slate-700" />
-          </div>
+            <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center shrink-0', isInactive ? 'bg-red-200' : isActive ? 'bg-emerald-200' : 'bg-amber-200')}>
+              {isInactive ? <AlertCircle className="w-5 h-5 text-red-700" /> : <User className="w-5 h-5 text-slate-700" />}
+            </div>
 
           <div className="flex-1 min-w-0">
             <p className="font-bold text-sm text-slate-900">{session.name}</p>
@@ -207,12 +213,13 @@ function UserCard({ session, isActive }) {
         </div>
 
         <div className="text-right shrink-0">
-          <p className="text-2xl font-black text-slate-900">{idleMinutes}</p>
-          <p className="text-[10px] text-slate-600 font-bold uppercase tracking-wide">λεπτά</p>
-          <p className="text-xs text-slate-500 mt-1">
-            {latestActivity?.timestamp ? format(new Date(latestActivity.timestamp), 'HH:mm', { locale: el }) : '—'}
-          </p>
-        </div>
+           <p className={cn('text-2xl font-black', isInactive ? 'text-red-900' : 'text-slate-900')}>{idleMinutes}</p>
+           <p className={cn('text-[10px] font-bold uppercase tracking-wide', isInactive ? 'text-red-600' : 'text-slate-600')}>λεπτά</p>
+           {isInactive && <p className="text-[10px] text-red-600 font-bold mt-1">⚠️ Ανενεργός</p>}
+           <p className="text-xs text-slate-500 mt-1">
+             {latestActivity?.timestamp ? format(new Date(latestActivity.timestamp), 'HH:mm', { locale: el }) : '—'}
+           </p>
+         </div>
       </CardContent>
     </Card>
   );
@@ -253,11 +260,10 @@ function ActivityModal({ userEmail, onClose }) {
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                        <div className="flex items-center gap-1.5">
-                          {activity.action === 'page_visit' && <Eye className="w-3.5 h-3.5 text-blue-600" />}
-                          {activity.action === 'button_click' && <MousePointerClick className="w-3.5 h-3.5 text-purple-600" />}
-                          {activity.action === 'heartbeat' && <Zap className="w-3.5 h-3.5 text-emerald-600" />}
-                        </div>
+                    <div className="flex items-center gap-1.5">
+                      {activity.action === 'page_visit' && <Eye className="w-3.5 h-3.5 text-blue-600" />}
+                      {activity.action === 'button_click' && <MousePointerClick className="w-3.5 h-3.5 text-purple-600" />}
+                    </div>
                         <Badge variant="outline" className="text-[10px] font-bold">
                           {activity.action === 'page_visit' ? `📄 ${activity.page_name}` : 
                            activity.action === 'button_click' ? '🖱️ Action' :
