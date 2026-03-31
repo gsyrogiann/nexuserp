@@ -38,11 +38,15 @@ function useSetting(key) {
   const qc = useQueryClient();
   const { data: list = [] } = useQuery({
     queryKey: ['app-settings', key],
-    queryFn: () => base44.entities.AppSettings.filter({ key }),
+    queryFn: async () => {
+      const all = await base44.entities.AppSettings.list();
+      return all.filter(s => s.key === key);
+    },
   });
   const existing = list[0] || null;
 
   const save = async (data) => {
+    console.log('useSetting.save called', { key, existing, data });
     if (existing?.id) {
       await base44.entities.AppSettings.update(existing.id, { ...data, key });
     } else {
