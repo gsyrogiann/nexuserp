@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
+import { fetchAllEntities } from '../_shared/fetchAll.ts';
 
 // This function is triggered by the Gmail connector automation (Pub/Sub webhook)
 // It decodes the notification and calls gmailSync to process new messages
@@ -66,7 +67,7 @@ Deno.serve(async (req) => {
     const profile = await profileRes.json();
     const myEmail = profile.emailAddress?.toLowerCase();
 
-    const customers = await base44.asServiceRole.entities.Customer.list();
+    const customers = await fetchAllEntities(base44.asServiceRole.entities.Customer, { sort: 'name' });
 
     function parseEmails(str) {
       if (!str) return [];

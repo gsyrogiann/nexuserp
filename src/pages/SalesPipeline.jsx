@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { listCustomers } from '@/lib/directoryQueries';
 import PageHeader from '../components/shared/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Reorder, motion, AnimatePresence } from 'framer-motion';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileText, Send, CheckCircle2, Clock, UserPlus, 
-  Search, Mail, Phone, FileCheck, X, Loader2, TrendingUp, Euro, Calendar as CalendarIcon
+  Search, Mail, Phone, FileCheck, Loader2, Euro, Calendar as CalendarIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -34,7 +35,7 @@ export default function SalesPipeline() {
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => base44.entities.Customer.list(),
+    queryFn: () => listCustomers(),
   });
 
   useEffect(() => {

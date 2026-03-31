@@ -1,32 +1,95 @@
-const botToken = "8261327279:AAGnbxi0dkskgMG2YCmZf7tEo19n_Y1K_4w";
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
+import { detectIntent, generateAssistantReply } from './assistant.ts';
+import { buildIntentContext } from './systemQueries.ts';
 
-export default async function handler(req, res) {
-  // Το Telegram στέλνει POST. Αν έρθει GET (π.χ. από browser), απαντάμε απλά για τεστ.
+const TELEGRAM_API_BASE = 'https://api.telegram.org';
+
+function getTelegramBotToken() {
+  return Deno.env.get('TELEGRAM_BOT_TOKEN')?.trim() || '';
+}
+
+function getAllowedChatIds() {
+  const raw = Deno.env.get('TELEGRAM_ALLOWED_CHAT_IDS') || '';
+  return raw
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+async function sendTelegramMessage(botToken: string, chatId: string | number, text: string) {
+  const response = await fetch(`${TELEGRAM_API_BASE}/bot${botToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Telegram API error (${response.status}): ${body}`);
+  }
+}
+
+Deno.serve(async (req) => {
+  const botToken = getTelegramBotToken();
+
+  if (req.method === 'GET') {
+    return Response.json({
+      ok: true,
+      configured: Boolean(botToken),
+      message: botToken
+        ? 'Το Telegram webhook είναι διαθέσιμο και περιμένει POST από το Telegram.'
+        : 'Λείπει το TELEGRAM_BOT_TOKEN από το environment.',
+    });
+  }
+
   if (req.method !== 'POST') {
-    return res.status(200).send("Το Webhook είναι Online! Περιμένω POST από το Telegram.");
+    return Response.json({ error: 'Method not allowed' }, { status: 405 });
+  }
+
+  if (!botToken) {
+    return Response.json({ error: 'Telegram bot is not configured.' }, { status: 503 });
   }
 
   try {
-    const { message } = req.body;
+    const base44 = createClientFromRequest(req);
+    const body = await req.json();
+    const message = body?.message;
 
-    if (message && message.text) {
-      const chatId = message.chat.id;
-      const userText = message.text;
-
-      // Κλήση στο Telegram API για απάντηση
-      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: `🤖 Nexus ERP AI: Σε ακούω George! Έλαβες το μήνυμα: "${userText}". Είμαι online!`
-        })
-      });
+    if (!message?.text || !message?.chat?.id) {
+      return Response.json({ ok: true, ignored: true });
     }
 
-    return res.status(200).json({ ok: true });
+    const chatId = String(message.chat.id);
+    const allowedChatIds = getAllowedChatIds();
+    if (allowedChatIds.length > 0 && !allowedChatIds.includes(chatId)) {
+      return Response.json({ error: 'Forbidden chat id.' }, { status: 403 });
+    }
+
+    const userText = String(message.text).trim();
+    if (!userText) {
+      return Response.json({ ok: true, ignored: true });
+    }
+
+    const intent = detectIntent(userText);
+    const context = await buildIntentContext(base44, intent);
+    const replyText = await generateAssistantReply({
+      message: userText,
+      intent,
+      context,
+    });
+
+    await sendTelegramMessage(
+      botToken,
+      chatId,
+      replyText
+    );
+
+    return Response.json({ ok: true });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: error.message });
+    console.error('Telegram webhook error:', error);
+    return Response.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
-}
+});

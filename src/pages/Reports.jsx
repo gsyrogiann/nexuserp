@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { listCustomers } from '@/lib/directoryQueries';
 import PageHeader from '../components/shared/PageHeader';
 import StatsCard from '../components/shared/StatsCard';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -9,7 +10,7 @@ import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend
 } from 'recharts';
-import { TrendingUp, FileText, CreditCard, Users } from 'lucide-react';
+import { TrendingUp, FileText, CreditCard } from 'lucide-react';
 import { subMonths, isAfter, parseISO, format } from 'date-fns';
 
 const COLORS = [
@@ -24,7 +25,7 @@ export default function Reports() {
 
   const { data: salesInvoices } = useQuery({ queryKey: ['salesInvoices'], queryFn: () => base44.entities.SalesInvoice.list(), initialData: [] });
   const { data: purchaseInvoices } = useQuery({ queryKey: ['purchaseInvoices'], queryFn: () => base44.entities.PurchaseInvoice.list(), initialData: [] });
-  const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => base44.entities.Customer.list(), initialData: [] });
+  const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => listCustomers(), initialData: [] });
   const { data: payments } = useQuery({ queryKey: ['payments'], queryFn: () => base44.entities.Payment.list(), initialData: [] });
 
   const cutoff = useMemo(() => subMonths(new Date(), parseInt(period)), [period]);

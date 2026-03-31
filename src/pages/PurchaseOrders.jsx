@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { fetchList } from '@/lib/apiHelpers'; 
+import { listSuppliers } from '@/lib/directoryQueries';
 import PageHeader from '../components/shared/PageHeader';
 import DataTable from '../components/shared/DataTable';
 import DocumentFormDialog from '../components/shared/DocumentFormDialog';
 import StatsCard from '../components/shared/StatsCard';
-import { ShoppingCart, Truck, Clock, CheckCircle } from 'lucide-react';
+import { ShoppingCart, Clock, CheckCircle } from 'lucide-react';
 
 const columns = [
   { key: 'number', label: 'Order #' },
@@ -31,7 +32,7 @@ export default function PurchaseOrders() {
   // Fetch Suppliers (για παραγγελίες αγοράς χρειαζόμαστε προμηθευτές)
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers'],
-    queryFn: () => fetchList(base44.entities.Supplier),
+    queryFn: () => listSuppliers(),
   });
 
   // Fetch Products

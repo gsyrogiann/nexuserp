@@ -1,91 +1,109 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import PageHeader from '../components/shared/PageHeader';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Send, Save, Loader2, MessageSquare } from 'lucide-react';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { AlertTriangle, ExternalLink, RefreshCw, ShieldCheck } from 'lucide-react';
+import { runtimeConfig } from '@/lib/runtime-config';
 
 export default function Settings() {
-  const [token, setToken] = useState('');
-  const [status, setStatus] = useState('Offline');
+  const [health, setHealth] = useState({ status: 'idle', message: 'Δεν έχει γίνει ακόμη έλεγχος.' });
 
-  useEffect(() => {
-    const savedToken = localStorage.getItem('nexus_telegram_token');
-    if (savedToken) setToken(savedToken);
-  }, []);
+  const webhookUrl = runtimeConfig.telegramWebhookUrl;
 
-  // Ο "ΚΑΤΑΣΚΟΠΟΣ": Ελέγχει για νέα μηνύματα κάθε 3 δευτερόλεπτα
-  useEffect(() => {
-    if (!token) return;
-    
-    const checkMessages = async () => {
-      try {
-        const res = await fetch(`https://api.telegram.org/bot${token}/getUpdates?offset=-1`);
-        const data = await res.json();
-        
-        if (data.ok && data.result.length > 0) {
-          const lastMsg = data.result[0].message;
-          // Αν το μήνυμα είναι νέο (μέσα στα τελευταία 5 δευτερόλεπτα)
-          const now = Math.floor(Date.now() / 1000);
-          if (now - lastMsg.date < 5 && lastMsg.text !== "/start") {
-            setStatus(`Λήψη: ${lastMsg.text}`);
-            
-            // Απάντηση αμέσως!
-            await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                chat_id: lastMsg.chat.id,
-                text: `🤖 Nexus Live Mode: George, σε άκουσα! Έγραψες "${lastMsg.text}". Το ERP είναι συνδεδεμένο!`
-              })
-            });
-          }
-        }
-      } catch (e) { console.error("Polling error", e); }
-    };
+  const canCheckHealth = Boolean(webhookUrl);
+  const statusTone = useMemo(() => {
+    if (health.status === 'ok') return 'emerald';
+    if (health.status === 'error') return 'red';
+    return 'amber';
+  }, [health.status]);
 
-    const interval = setInterval(checkMessages, 3000);
-    return () => clearInterval(interval);
-  }, [token]);
+  const checkHealth = async () => {
+    if (!webhookUrl) {
+      setHealth({
+        status: 'error',
+        message: 'Δεν βρέθηκε webhook URL. Ρύθμισε το VITE_BASE44_FUNCTIONS_BASE_URL ή το Base44 app URL.',
+      });
+      return;
+    }
 
-  const handleSave = () => {
-    localStorage.setItem('nexus_telegram_token', token);
-    alert("✅ Το Token σώθηκε! Κράτα αυτή τη σελίδα ανοιχτή.");
+    setHealth({ status: 'loading', message: 'Έλεγχος webhook...' });
+    try {
+      const response = await fetch(webhookUrl, { method: 'GET' });
+      const data = await response.json();
+      setHealth({
+        status: response.ok && data.configured ? 'ok' : 'error',
+        message: data.message || 'Το webhook απάντησε χωρίς διαγνωστικό μήνυμα.',
+      });
+    } catch (error) {
+      setHealth({
+        status: 'error',
+        message: error.message || 'Αποτυχία σύνδεσης με το Telegram webhook.',
+      });
+    }
   };
 
   return (
     <div className="space-y-6 pb-20">
-      <PageHeader title="Nexus AI Terminal" subtitle="Live Connection Mode" />
-      
-      <Card className="p-6 border-2 border-emerald-500 bg-emerald-50">
-        <div className="flex items-center gap-3 text-emerald-700 font-bold">
-          <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
-          Status: {status === 'Offline' ? 'Αναμονή για μήνυμα...' : status}
+      <PageHeader title="Telegram Integration" subtitle="Ασφαλής διαχείριση webhook και token rotation" />
+
+      <Card className={`p-6 border-2 ${statusTone === 'emerald' ? 'border-emerald-500 bg-emerald-50' : statusTone === 'red' ? 'border-red-500 bg-red-50' : 'border-amber-400 bg-amber-50'}`}>
+        <div className={`flex items-center gap-3 font-bold ${statusTone === 'emerald' ? 'text-emerald-700' : statusTone === 'red' ? 'text-red-700' : 'text-amber-700'}`}>
+          <div className={`w-3 h-3 rounded-full ${statusTone === 'emerald' ? 'bg-emerald-500' : statusTone === 'red' ? 'bg-red-500' : 'bg-amber-500'} ${health.status === 'loading' ? 'animate-pulse' : ''}`} />
+          {health.message}
         </div>
       </Card>
 
       <Tabs defaultValue="telegram">
         <TabsContent value="telegram">
-          <Card className="rounded-[2.5rem] shadow-2xl p-10 space-y-6">
-            <Label className="font-bold">Telegram Bot Token</Label>
-            <Input 
-              value={token} 
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="Βάλε το token εδώ..." 
-              className="h-14 rounded-2xl" 
-            />
-            <Button onClick={handleSave} className="w-full h-14 bg-slate-900 text-white rounded-2xl font-bold">
-              <Save className="mr-2" /> ΕΝΕΡΓΟΠΟΙΗΣΗ LIVE CONNECTION
-            </Button>
+          <Card className="rounded-[2.5rem] shadow-2xl">
+            <CardHeader className="space-y-3 p-8 border-b bg-slate-50">
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="w-6 h-6 text-emerald-600" />
+                <CardTitle className="text-xl font-black tracking-tight">Secure Telegram Configuration</CardTitle>
+              </div>
+              <p className="text-sm text-slate-600">
+                Το bot token δεν αποθηκεύεται πλέον στον browser ή στο `localStorage`. Η εφαρμογή περιμένει το token μόνο από server-side environment variable.
+              </p>
+            </CardHeader>
+            <CardContent className="p-8 space-y-6">
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Webhook URL</p>
+                    <code className="block mt-2 text-xs break-all text-slate-700">{webhookUrl || 'Δεν βρέθηκε functions base URL'}</code>
+                  </div>
+                  <Badge variant="outline">{canCheckHealth ? 'Configured path' : 'Needs config'}</Badge>
+                </div>
+                <Button onClick={checkHealth} disabled={!canCheckHealth || health.status === 'loading'} className="gap-2">
+                  <RefreshCw className={`w-4 h-4 ${health.status === 'loading' ? 'animate-spin' : ''}`} />
+                  Έλεγχος Webhook
+                </Button>
+              </div>
+
+              <div className="rounded-3xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900 space-y-2">
+                <p className="font-black uppercase tracking-widest text-[11px]">Rotation Checklist</p>
+                <p>1. Κάνε revoke το παλιό Telegram token από το BotFather.</p>
+                <p>2. Όρισε νέο `TELEGRAM_BOT_TOKEN` στο environment του backend function.</p>
+                <p>3. Προαιρετικά όρισε `TELEGRAM_ALLOWED_CHAT_IDS` για allowlist.</p>
+                <p>4. Ξανακάνε set το webhook στο παραπάνω URL χωρίς αλλαγή στον business logic κώδικα.</p>
+              </div>
+
+              <div className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm text-red-900 flex gap-3">
+                <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
+                <p>
+                  Αν έχει εκτεθεί το παλιό token, θεωρείται compromised. Η ασφαλής αποκατάσταση είναι revoke + νέο token και όχι επαναχρησιμοποίηση του ίδιου.
+                </p>
+              </div>
+
+              <a href="https://core.telegram.org/bots/api#setwebhook" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900">
+                Telegram webhook docs <ExternalLink className="w-4 h-4" />
+              </a>
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-      
-      <div className="p-6 bg-blue-50 rounded-2xl border border-blue-200 text-blue-800 text-sm">
-        <strong>Οδηγίες:</strong> Όσο έχεις αυτή τη σελίδα ανοιχτή στο browser σου, το Bot θα σου απαντάει στο Telegram. Δοκίμασε να του στείλεις κάτι τώρα!
-      </div>
     </div>
   );
 }

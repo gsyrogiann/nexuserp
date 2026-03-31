@@ -1,0 +1,50 @@
+import { toast } from '@/components/ui/use-toast';
+
+export function getErrorMessage(error, fallback = 'Η ενέργεια απέτυχε.') {
+  if (!error) {
+    return fallback;
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  if (typeof error.message === 'string' && error.message.trim()) {
+    return error.message;
+  }
+
+  if (typeof error.error === 'string' && error.error.trim()) {
+    return error.error;
+  }
+
+  return fallback;
+}
+
+export function showErrorToast(title, error, fallback) {
+  toast({
+    variant: 'destructive',
+    title,
+    description: getErrorMessage(error, fallback),
+  });
+}
+
+export function validateRequiredFields(data, fields) {
+  for (const [key, label] of Object.entries(fields)) {
+    const value = data?.[key];
+    if (value === undefined || value === null || String(value).trim() === '') {
+      throw new Error(`Το πεδίο "${label}" είναι υποχρεωτικό.`);
+    }
+  }
+}
+
+export async function executeMutation(operation, { actionLabel, fallbackMessage, validate } = {}) {
+  try {
+    if (typeof validate === 'function') {
+      validate();
+    }
+
+    return await operation();
+  } catch (error) {
+    throw new Error(getErrorMessage(error, fallbackMessage || `Αποτυχία στο ${actionLabel || 'mutation'}.`));
+  }
+}

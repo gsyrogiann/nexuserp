@@ -15,16 +15,27 @@ Any change pushed to the repo will also be reflected in the Base44 Builder.
 1. Clone the repository using the project's Git URL 
 2. Navigate to the project directory
 3. Install dependencies: `npm install`
-4. Create an `.env.local` file and set the right environment variables
+4. Create an `.env.local` file and set the client-side environment variables
 
 ```
 VITE_BASE44_APP_ID=your_app_id
 VITE_BASE44_APP_BASE_URL=your_backend_url
+VITE_BASE44_FUNCTIONS_BASE_URL=https://your-functions-host
 
 e.g.
 VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
 VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
 ```
+
+Set Telegram secrets only in your backend/deployment environment:
+
+```
+TELEGRAM_BOT_TOKEN=your_new_bot_token
+TELEGRAM_ALLOWED_CHAT_IDS=123456789,987654321
+OPENAI_API_KEY=your_openai_api_key
+```
+
+Do not store Telegram bot tokens in the browser or `localStorage`. Revoke any exposed token and rotate it through secure server-side environment configuration only.
 
 Run the app: `npm run dev`
 

@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { showErrorToast } from '@/lib/mutationHelpers';
 
 function getBaseProductPrice(product, entityType) {
   return entityType === 'customer'
@@ -179,9 +180,11 @@ export default function DocumentFormDialog({
 
       // Validate required fields
       if (!form[entityIdKey]) {
-        alert(`Please select a ${entityType === 'customer' ? 'customer' : 'supplier'}.`);
-        setSaving(false);
-        return;
+        throw new Error(`Παρακαλώ επίλεξε ${entityType === 'customer' ? 'πελάτη' : 'προμηθευτή'}.`);
+      }
+
+      if (items.length === 0) {
+        throw new Error('Πρόσθεσε τουλάχιστον ένα είδος πριν την αποθήκευση.');
       }
 
       // Auto-generate a number if not already set (required field)
@@ -197,6 +200,8 @@ export default function DocumentFormDialog({
         vat_total: vatTotal,
         total,
       });
+    } catch (error) {
+      showErrorToast('Αποτυχία αποθήκευσης', error, 'Δεν ήταν δυνατή η αποθήκευση του παραστατικού.');
     } finally {
       setSaving(false);
     }

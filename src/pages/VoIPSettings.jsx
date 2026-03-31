@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PhoneCall, Save, Copy, CheckCircle2, Loader2, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { runtimeConfig } from '@/lib/runtime-config';
+import { executeMutation, validateRequiredFields } from '@/lib/mutationHelpers';
 
 export default function VoIPSettings() {
   const qc = useQueryClient();
@@ -36,20 +38,34 @@ export default function VoIPSettings() {
   }, [existingSettings]);
 
   const saveMutation = useMutation({
-    mutationFn: async (data) => {
-      if (existingSettings?.id) {
-        return base44.entities.AppSettings.update(existingSettings.id, data);
-      }
-      return base44.entities.AppSettings.create(data);
+    mutationFn: async () => {
+      const data = form;
+      return executeMutation(
+        async () => {
+          validateRequiredFields(data, { key: 'Key', voip_host: '3CX Host URL', voip_api_key: 'API Key' });
+          if (existingSettings?.id) {
+            return base44.entities.AppSettings.update(existingSettings.id, data);
+          }
+          return base44.entities.AppSettings.create(data);
+        },
+        {
+          actionLabel: 'save VoIP settings',
+          fallbackMessage: 'Δεν ήταν δυνατή η αποθήκευση των VoIP ρυθμίσεων.',
+        }
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['appSettings'] });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     },
+    meta: {
+      title: 'Αποτυχία αποθήκευσης VoIP',
+      fallbackMessage: 'Δεν ήταν δυνατή η αποθήκευση των VoIP ρυθμίσεων.',
+    },
   });
 
-  const webhookUrl = `${window.location.origin.replace('app.base44.com', 'functions.base44.com')}/voipWebhook`;
+  const webhookUrl = runtimeConfig.voipWebhookUrl || 'Ρύθμισε το VITE_BASE44_FUNCTIONS_BASE_URL ή το app base URL';
 
   const copyWebhook = () => {
     // The actual function URL format
@@ -108,7 +124,7 @@ export default function VoIPSettings() {
 
           <Button
             className="w-full h-11 rounded-xl font-black uppercase tracking-widest gap-2 mt-2"
-            onClick={() => saveMutation.mutate(form)}
+            onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending}
           >
             {saveMutation.isPending ? (

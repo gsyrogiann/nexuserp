@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { fetchList } from '@/lib/apiHelpers'; 
+import { listSuppliers } from '@/lib/directoryQueries';
 import PageHeader from '../components/shared/PageHeader';
 import DataTable from '../components/shared/DataTable';
 import EntityFormDialog from '../components/shared/EntityFormDialog';
@@ -48,7 +48,7 @@ export default function Suppliers() {
   // Fetch Suppliers list
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers'],
-    queryFn: () => fetchList(base44.entities.Supplier),
+    queryFn: () => listSuppliers(),
   });
 
   const createMutation = useMutation({
