@@ -31,7 +31,8 @@ import UnmatchedEmails from './pages/UnmatchedEmails';
 import Tickets from './pages/Tickets';
 import Calendar from './pages/Calendar';
 import SalesPipeline from './pages/SalesPipeline';
-import Settings from './pages/Settings.jsx'; // <--- ΝΕΟ IMPORT
+import Settings from './pages/Settings.jsx';
+import MyEmailSettings from './pages/MyEmailSettings';
 
 /**
  * AccessDenied View
@@ -111,6 +112,7 @@ const AuthenticatedApp = () => {
         <Route path="/UnmatchedEmails"  element={<ProtectedRoute featureKey="unmatched_emails"><UnmatchedEmails /></ProtectedRoute>} />
         <Route path="/AIAssistant"      element={<ProtectedRoute featureKey="ai_assistant"><AIAssistant /></ProtectedRoute>} />
         <Route path="/Settings"         element={<ProtectedRoute featureKey="settings"><Settings /></ProtectedRoute>} />
+        <Route path="/MyEmailSettings"  element={<MyEmailSettings />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

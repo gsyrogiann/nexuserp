@@ -66,6 +66,7 @@ const navGroups = [
   {
     label: 'Email',
     items: [
+      { label: 'My Email Settings', path: '/MyEmailSettings', icon: Mail },
       { label: 'Email Settings', path: '/EmailSettings', icon: Mail },
       { label: 'Unmatched Emails', path: '/UnmatchedEmails', icon: AlertCircle },
     ]
