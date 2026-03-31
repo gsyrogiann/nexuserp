@@ -1,0 +1,34 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "description": "User role",
+      "enum": [
+        "super_admin",
+        "admin",
+        "manager",
+        "employee",
+        "user"
+      ],
+      "default": "employee"
+    },
+    "is_super_admin": {
+      "type": "boolean",
+      "default": false,
+      "description": "Overrides all role restrictions"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "permissions_override": {
+      "type": "object",
+      "description": "Per-user permission overrides (optional)"
+    }
+  },
+  "required": [
+    "role"
+  ]
+}

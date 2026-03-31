@@ -6,9 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, Loader2, Bot, CheckCircle2, XCircle, Globe, Eye, EyeOff, FileText } from 'lucide-react';
+import { Save, Loader2, Bot, CheckCircle2, XCircle, Globe, Eye, EyeOff, FileText, Shield, Users, ToggleLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import QuoteTemplateSettings from '@/components/settings/QuoteTemplateSettings';
+import UserManagement from '@/components/settings/UserManagement';
+import FeatureAccessSettings from '@/components/settings/FeatureAccessSettings';
+import RolesPermissionsMatrix from '@/components/settings/RolesPermissionsMatrix';
 
 async function loadSetting(key) {
   const all = await base44.entities.AppSettings.list();
@@ -28,8 +31,17 @@ export default function Settings() {
   return (
     <div className="space-y-6 pb-10 animate-in fade-in duration-500">
       <PageHeader title="Ρυθμίσεις" subtitle="Διαχείριση συνδέσεων και υπηρεσιών" />
-      <Tabs defaultValue="telegram">
-        <TabsList className="bg-slate-100 rounded-xl h-10 flex-wrap gap-1">
+      <Tabs defaultValue="users">
+        <TabsList className="bg-slate-100 rounded-xl h-auto p-1 flex-wrap gap-1">
+          <TabsTrigger value="users" className="rounded-lg text-xs font-bold uppercase tracking-wide">
+            <Users className="w-3.5 h-3.5 mr-2" /> Χρήστες
+          </TabsTrigger>
+          <TabsTrigger value="features" className="rounded-lg text-xs font-bold uppercase tracking-wide">
+            <ToggleLeft className="w-3.5 h-3.5 mr-2" /> Feature Access
+          </TabsTrigger>
+          <TabsTrigger value="matrix" className="rounded-lg text-xs font-bold uppercase tracking-wide">
+            <Shield className="w-3.5 h-3.5 mr-2" /> Roles Matrix
+          </TabsTrigger>
           <TabsTrigger value="telegram" className="rounded-lg text-xs font-bold uppercase tracking-wide">
             <Bot className="w-3.5 h-3.5 mr-2" /> Telegram Bot
           </TabsTrigger>
@@ -43,6 +55,9 @@ export default function Settings() {
             <FileText className="w-3.5 h-3.5 mr-2" /> Template Προσφοράς
           </TabsTrigger>
         </TabsList>
+        <TabsContent value="users" className="mt-6"><UserManagement /></TabsContent>
+        <TabsContent value="features" className="mt-6"><FeatureAccessSettings /></TabsContent>
+        <TabsContent value="matrix" className="mt-6"><RolesPermissionsMatrix /></TabsContent>
         <TabsContent value="telegram" className="mt-6"><TelegramSettings /></TabsContent>
         <TabsContent value="voip" className="mt-6"><VoIPSettings /></TabsContent>
         <TabsContent value="ai" className="mt-6"><AISettings /></TabsContent>

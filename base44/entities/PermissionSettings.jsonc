@@ -1,0 +1,36 @@
+{
+  "name": "PermissionSettings",
+  "type": "object",
+  "properties": {
+    "feature_key": {
+      "type": "string",
+      "description": "Unique key e.g. dashboard, customers, invoices"
+    },
+    "feature_name": {
+      "type": "string"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Global ON/OFF for this feature"
+    },
+    "allowed_roles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Roles that can access this feature"
+    },
+    "permissions_by_role": {
+      "type": "object",
+      "description": "Per-role permissions: {admin: 'edit', manager: 'view', employee: 'none'}"
+    },
+    "updated_by": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "feature_key",
+    "feature_name"
+  ]
+}

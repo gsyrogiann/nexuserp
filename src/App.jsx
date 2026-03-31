@@ -5,6 +5,8 @@ import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-d
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { LanguageProvider } from '@/lib/LanguageContext';
+import { PermissionsProvider, usePermissions } from '@/lib/usePermissions.jsx';
+import { getFeatureKeyFromPath } from '@/lib/rbac';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import AppLayout from './components/layout/AppLayout';
 import { Lock } from 'lucide-react';
@@ -42,8 +44,7 @@ const AccessDenied = () => (
     </div>
     <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Πρόσβαση Περιορισμένη</h2>
     <p className="text-slate-500 max-w-sm mt-2 text-sm font-medium">
-      Αυτή η ενότητα του Nexus ERP είναι κλειδωμένη. 
-      Μόνο ο διαχειριστής (georgesyro1925) έχει δικαιώματα πρόσβασης εδώ.
+      Δεν έχεις τα απαραίτητα δικαιώματα για αυτή την ενότητα.
     </p>
     <Button 
       variant="outline" 
@@ -55,13 +56,22 @@ const AccessDenied = () => (
   </div>
 );
 
+// Permission-aware route guard
+const ProtectedRoute = ({ featureKey, children }) => {
+  const { canAccess, loading } = usePermissions();
+  if (loading) return null;
+  if (!canAccess(featureKey)) return <AccessDenied />;
+  return children;
+};
+
 const AuthenticatedApp = () => {
   const { user, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { loading: permLoading } = usePermissions();
 
-  // Υπολογισμός αν ο χρήστης είναι Admin
-  const isAdmin = user?.role === 'admin' || user?.email === 'georgesyro1925@gmail.com';
+  // Legacy admin check (kept for compatibility)
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.is_super_admin || user?.email === 'georgesyro1925@gmail.com';
 
-  if (isLoadingPublicSettings || isLoadingAuth) {
+  if (isLoadingPublicSettings || isLoadingAuth || permLoading) {
     return (
       <div className="fixed inset-0 flex flex-col items-center justify-center bg-white z-50">
         <div className="w-10 h-10 border-4 border-slate-100 border-t-slate-900 rounded-full animate-spin mb-4"></div>
@@ -81,28 +91,26 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route path="/" element={<Navigate to="/Dashboard" replace />} />
       <Route element={<AppLayout />}>
-        {/* ΕΛΕΥΘΕΡΕΣ ΔΙΑΔΡΟΜΕΣ */}
-        <Route path="/Dashboard" element={<Dashboard />} />
-        <Route path="/Customers" element={<Customers />} />
-        <Route path="/Suppliers" element={<Suppliers />} />
-        <Route path="/Products" element={<Products />} />
-        <Route path="/Inventory" element={<Inventory />} />
-        <Route path="/Tickets" element={<Tickets />} />
-        <Route path="/Calendar" element={<Calendar />} />
-        <Route path="/SalesPipeline" element={<SalesPipeline />} />
-        <Route path="/Quotes" element={<Quotes />} />
-        <Route path="/SalesOrders" element={<SalesOrders />} />
-        <Route path="/PurchaseOrders" element={<PurchaseOrders />} />
-        <Route path="/UnmatchedEmails" element={<UnmatchedEmails />} />
-
-        {/* ΠΡΟΣΤΑΤΕΥΜΕΝΕΣ ΔΙΑΔΡΟΜΕΣ */}
-        <Route path="/SalesInvoices" element={isAdmin ? <SalesInvoices /> : <AccessDenied />} />
-        <Route path="/PurchaseInvoices" element={isAdmin ? <PurchaseInvoices /> : <AccessDenied />} />
-        <Route path="/Payments" element={isAdmin ? <Payments /> : <AccessDenied />} />
-        <Route path="/Reports" element={isAdmin ? <Reports /> : <AccessDenied />} />
-        <Route path="/AIAssistant" element={isAdmin ? <AIAssistant /> : <AccessDenied />} />
-        <Route path="/EmailSettings" element={isAdmin ? <EmailSettings /> : <AccessDenied />} />
-        <Route path="/Settings" element={isAdmin ? <Settings /> : <AccessDenied />} /> {/* <--- ΑΝΤΙΚΑΤΑΣΤΑΣΗ VOIP SETTINGS */}
+        {/* RBAC-protected routes */}
+        <Route path="/Dashboard"        element={<ProtectedRoute featureKey="dashboard"><Dashboard /></ProtectedRoute>} />
+        <Route path="/Calendar"         element={<ProtectedRoute featureKey="calendar"><Calendar /></ProtectedRoute>} />
+        <Route path="/Customers"        element={<ProtectedRoute featureKey="customers"><Customers /></ProtectedRoute>} />
+        <Route path="/Suppliers"        element={<ProtectedRoute featureKey="suppliers"><Suppliers /></ProtectedRoute>} />
+        <Route path="/SalesPipeline"    element={<ProtectedRoute featureKey="sales_pipeline"><SalesPipeline /></ProtectedRoute>} />
+        <Route path="/Products"         element={<ProtectedRoute featureKey="products"><Products /></ProtectedRoute>} />
+        <Route path="/Inventory"        element={<ProtectedRoute featureKey="inventory"><Inventory /></ProtectedRoute>} />
+        <Route path="/Tickets"          element={<ProtectedRoute featureKey="tickets"><Tickets /></ProtectedRoute>} />
+        <Route path="/Quotes"           element={<ProtectedRoute featureKey="quotes"><Quotes /></ProtectedRoute>} />
+        <Route path="/SalesOrders"      element={<ProtectedRoute featureKey="sales_orders"><SalesOrders /></ProtectedRoute>} />
+        <Route path="/SalesInvoices"    element={<ProtectedRoute featureKey="sales_invoices"><SalesInvoices /></ProtectedRoute>} />
+        <Route path="/PurchaseOrders"   element={<ProtectedRoute featureKey="purchase_orders"><PurchaseOrders /></ProtectedRoute>} />
+        <Route path="/PurchaseInvoices" element={<ProtectedRoute featureKey="purchase_invoices"><PurchaseInvoices /></ProtectedRoute>} />
+        <Route path="/Payments"         element={<ProtectedRoute featureKey="payments"><Payments /></ProtectedRoute>} />
+        <Route path="/Reports"          element={<ProtectedRoute featureKey="reports"><Reports /></ProtectedRoute>} />
+        <Route path="/EmailSettings"    element={<ProtectedRoute featureKey="email_settings"><EmailSettings /></ProtectedRoute>} />
+        <Route path="/UnmatchedEmails"  element={<ProtectedRoute featureKey="unmatched_emails"><UnmatchedEmails /></ProtectedRoute>} />
+        <Route path="/AIAssistant"      element={<ProtectedRoute featureKey="ai_assistant"><AIAssistant /></ProtectedRoute>} />
+        <Route path="/Settings"         element={<ProtectedRoute featureKey="settings"><Settings /></ProtectedRoute>} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
@@ -114,10 +122,12 @@ function App() {
     <LanguageProvider>
       <AuthProvider>
         <QueryClientProvider client={queryClientInstance}>
-          <Router>
-            <AuthenticatedApp />
-          </Router>
-          <Toaster />
+          <PermissionsProvider>
+            <Router>
+              <AuthenticatedApp />
+            </Router>
+            <Toaster />
+          </PermissionsProvider>
         </QueryClientProvider>
       </AuthProvider>
     </LanguageProvider>

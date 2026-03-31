@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useLang } from '@/lib/LanguageContext';
+import { usePermissions } from '@/lib/usePermissions.jsx';
+import { getFeatureKeyFromPath } from '@/lib/rbac';
 import {
   LayoutDashboard, Users, Truck, Package, Warehouse as WarehouseIcon,
   ShoppingCart, ShoppingBag, FileText, CreditCard, BarChart3,
@@ -80,6 +82,7 @@ const navGroups = [
 export default function Sidebar() {
   const { t } = useLang();
   const location = useLocation();
+  const { canAccess, loading: permLoading } = usePermissions();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(
@@ -132,7 +135,12 @@ export default function Sidebar() {
             )}
             {(collapsed || expandedGroups[group.label]) && (
               <div className="space-y-1 mt-1">
-                {group.items.map((item) => (
+                {group.items.filter(item => {
+                  if (permLoading) return true;
+                  const key = getFeatureKeyFromPath(item.path);
+                  if (!key) return true;
+                  return canAccess(key);
+                }).map((item) => (
                   <Link
                     key={item.path}
                     to={item.path}
