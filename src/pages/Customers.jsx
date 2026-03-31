@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { fetchList } from '@/lib/apiHelpers';
+import { listCustomers } from '@/lib/directoryQueries';
 import PageHeader from '../components/shared/PageHeader';
 import EntityFormDialog from '../components/shared/EntityFormDialog';
 import CustomerEmailsTab from '../components/email/CustomerEmailsTab';
@@ -98,7 +99,7 @@ export default function Customers() {
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => fetchList(base44.entities.Customer),
+    queryFn: () => listCustomers(),
   });
 
   // VoIP Call Logs Query

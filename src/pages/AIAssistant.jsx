@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { listCustomers } from '@/lib/directoryQueries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
+import { executeMutation, getErrorMessage } from '@/lib/mutationHelpers';
 
 // --- UTILS ---
 function parseCSV(text) {
@@ -72,7 +74,7 @@ function ImportPanel({ type, onImportDone }) {
   const handleFile = (e) => { const file = e.target.files[0]; if (!file) return; setFileName(file.name); setResults(null); const reader = new FileReader(); reader.onload = (ev) => setRows(parseCSV(ev.target.result)); reader.readAsText(file, 'UTF-8'); };
   const handleImport = async () => {
     if (!rows.length) return; setImporting(true); let ok = 0, fail = 0;
-    for (const row of rows) { try { const mapped = type === 'customers' ? mapToCustomer(row) : mapToProduct(row); if (!mapped.name && !mapped.sku) { fail++; continue; } if (type === 'customers') await base44.entities.Customer.create(mapped); else await base44.entities.Product.create(mapped); ok++; } catch { fail++; } }
+    for (const row of rows) { try { const mapped = type === 'customers' ? mapToCustomer(row) : mapToProduct(row); if (!mapped.name && !mapped.sku) { fail++; continue; } if (type === 'customers') await executeMutation(() => base44.entities.Customer.create(mapped), { actionLabel: 'import customer', fallbackMessage: 'Αποτυχία εισαγωγής πελάτη.' }); else await executeMutation(() => base44.entities.Product.create(mapped), { actionLabel: 'import product', fallbackMessage: 'Αποτυχία εισαγωγής προϊόντος.' }); ok++; } catch { fail++; } }
     await qc.invalidateQueries({ queryKey: [type === 'customers' ? 'customers' : 'products'] });
     setResults({ ok, fail }); setImporting(false);
     if (ok > 0) onImportDone?.(`Εισήχθησαν ${ok} ${type === 'customers' ? 'πελάτες' : 'προϊόντα'} επιτυχώς!`);
@@ -132,7 +134,7 @@ export default function AIAssistant() {
   }, [conversations]);
 
   // Data fetching
-  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: () => base44.entities.Customer.list() });
+  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: () => listCustomers() });
   const { data: tickets = [] } = useQuery({ queryKey: ['tickets'], queryFn: () => base44.entities.ServiceTicket.list('-created_date') });
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
@@ -175,7 +177,18 @@ export default function AIAssistant() {
   const executeAction = async (action) => {
     try {
       if (action.action === 'create_ticket') {
-        await base44.entities.ServiceTicket.create(action.ticket_data);
+        await executeMutation(
+          () => base44.entities.ServiceTicket.create(action.ticket_data),
+          {
+            actionLabel: 'create AI ticket',
+            fallbackMessage: 'Δεν ήταν δυνατή η δημιουργία ticket από το AI action.',
+            validate: () => {
+              if (!action.ticket_data?.ticket_number || !action.ticket_data?.title) {
+                throw new Error('Το AI action δεν περιέχει έγκυρα στοιχεία ticket.');
+              }
+            },
+          }
+        );
         await qc.invalidateQueries({ queryKey: ['tickets'] });
         const successMsg = { role: 'assistant', type: 'ticket', content: `✅ **Ticket ${action.ticket_data.ticket_number} δημιουργήθηκε!**` };
         const updatedMessages = [...messages, successMsg];
@@ -183,7 +196,7 @@ export default function AIAssistant() {
         updateHistory(updatedMessages);
       }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: `❌ Σφάλμα: ${err.message}` }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: `❌ Σφάλμα: ${getErrorMessage(err, 'Αποτυχία εκτέλεσης action.')}` }]);
     }
     setPendingAction(null);
   };

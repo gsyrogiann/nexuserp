@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { fetchAllEntities } from '../_shared/fetchAll.ts';
 
 /**
  * 3CX VoIP Webhook Handler
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
     let matchedCustomer = null;
 
     if (normalizedCaller) {
-      const allCustomers = await base44.asServiceRole.entities.Customer.list();
+      const allCustomers = await fetchAllEntities(base44.asServiceRole.entities.Customer, { sort: 'name' });
       matchedCustomer = allCustomers.find((c) =>
         phonesMatch(c.phone, normalizedCaller) ||
         phonesMatch(c.mobile, normalizedCaller) ||

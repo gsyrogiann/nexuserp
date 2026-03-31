@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { listCustomers } from '@/lib/directoryQueries';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,7 @@ import { Mail, Link2, Search, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { executeMutation, getErrorMessage } from '@/lib/mutationHelpers';
 
 export default function UnmatchedEmails() {
   const queryClient = useQueryClient();
@@ -27,7 +29,7 @@ export default function UnmatchedEmails() {
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers-list'],
-    queryFn: () => base44.entities.Customer.list('-name'),
+    queryFn: () => listCustomers(),
   });
 
   const filtered = emails.filter(e =>
@@ -56,9 +58,24 @@ export default function UnmatchedEmails() {
   };
 
   const handleIgnore = async (email) => {
-    await base44.entities.UnmatchedEmail.update(email.id, { review_status: 'ignored' });
-    queryClient.invalidateQueries();
-    toast.success('Email σημειώθηκε ως αγνοημένο');
+    try {
+      await executeMutation(
+        () => base44.entities.UnmatchedEmail.update(email.id, { review_status: 'ignored' }),
+        {
+          actionLabel: 'ignore unmatched email',
+          fallbackMessage: 'Δεν ήταν δυνατή η ενημέρωση του email.',
+          validate: () => {
+            if (!email?.id) {
+              throw new Error('Το email δεν έχει έγκυρο id.');
+            }
+          },
+        }
+      );
+      queryClient.invalidateQueries();
+      toast.success('Email σημειώθηκε ως αγνοημένο');
+    } catch (error) {
+      toast.error(`Σφάλμα: ${getErrorMessage(error, 'Δεν ήταν δυνατή η ενημέρωση του email.')}`);
+    }
   };
 
   return (

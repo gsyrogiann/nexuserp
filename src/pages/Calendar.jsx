@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -6,11 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   ChevronLeft, ChevronRight, Calendar as CalendarIcon, 
-  FileText, ShoppingCart, CreditCard, Ticket, Mail, 
-  Bell, GripVertical, Clock
+  FileText, CreditCard, Ticket, Mail
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { executeMutation } from '@/lib/mutationHelpers';
 
 const DAYS = ['Κυρ', 'Δευ', 'Τρί', 'Τετ', 'Πέμ', 'Παρ', 'Σάβ'];
 const MONTHS = ['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
@@ -48,11 +48,26 @@ export default function CalendarPage() {
 
   // Mutation για το Drag & Drop (Ενημέρωση ημερομηνίας στα Tickets)
   const updateTicketMutation = useMutation({
-    mutationFn: ({ id, date }) => base44.entities.ServiceTicket.update(id, { due_date: date }),
+    mutationFn: ({ id, date }) => executeMutation(
+      () => base44.entities.ServiceTicket.update(id, { due_date: date }),
+      {
+        actionLabel: 'update ticket due date',
+        fallbackMessage: 'Δεν ήταν δυνατή η ενημέρωση της ημερομηνίας του ticket.',
+        validate: () => {
+          if (!id || !date) {
+            throw new Error('Λείπει ticket ή ημερομηνία για το drag & drop.');
+          }
+        },
+      }
+    ),
     onSuccess: () => {
       queryClient.invalidateQueries(['tickets']);
       toast.success("Η ημερομηνία του Ticket ενημερώθηκε");
-    }
+    },
+    meta: {
+      title: 'Αποτυχία ενημέρωσης ticket',
+      fallbackMessage: 'Δεν ήταν δυνατή η ενημέρωση της ημερομηνίας του ticket.',
+    },
   });
 
   // Επεξεργασία και ενοποίηση όλων των events
