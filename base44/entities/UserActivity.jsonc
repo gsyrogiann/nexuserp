@@ -1,0 +1,43 @@
+{
+  "name": "UserActivity",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string"
+    },
+    "user_name": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "page_visit",
+        "form_submit",
+        "button_click",
+        "heartbeat"
+      ],
+      "description": "Type of activity"
+    },
+    "page_path": {
+      "type": "string",
+      "description": "e.g. /Customers, /Dashboard"
+    },
+    "page_name": {
+      "type": "string",
+      "description": "Human-readable page name"
+    },
+    "details": {
+      "type": "string",
+      "description": "Additional info (button name, form name, etc)"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "user_email",
+    "action",
+    "timestamp"
+  ]
+}

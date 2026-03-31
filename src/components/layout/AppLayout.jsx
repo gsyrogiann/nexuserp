@@ -1,9 +1,12 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
+import { useActivityTracking } from '@/hooks/useActivityTracking';
 import Sidebar from './Sidebar';
 import LanguageSwitcher from './LanguageSwitcher';
 
 export default function AppLayout() {
+  useActivityTracking();
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />

@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, Truck, Package, Warehouse as WarehouseIcon,
   ShoppingCart, ShoppingBag, FileText, CreditCard, BarChart3,
   Bot, ChevronDown, ChevronRight, Menu, X, Settings, Mail, AlertCircle, Ticket, 
-  Calendar as CalendarIcon, TrendingUp, Sparkles, ShieldCheck
+  Calendar as CalendarIcon, TrendingUp, Sparkles, ShieldCheck, Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -72,10 +72,11 @@ const navGroups = [
     ]
   },
   {
-    label: 'Administration', // Νέο Group για τον Διαχειριστή
+    label: 'Administration',
     items: [
+      { label: 'Live Users', path: '/LiveUsers', icon: Eye },
       { label: 'Nexus AI Admin', path: '/AIAssistant', icon: Sparkles },
-      { label: 'Ρυθμίσεις', path: '/Settings', icon: Settings } // Η νέα μας σελίδα
+      { label: 'Ρυθμίσεις', path: '/Settings', icon: Settings }
     ]
   }
 ];
