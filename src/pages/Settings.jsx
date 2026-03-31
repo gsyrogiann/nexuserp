@@ -63,6 +63,7 @@ function TelegramSettings() {
   const { existing, save } = useSetting('telegram');
   const [token, setToken] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [testChatId, setTestChatId] = useState('');
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [botInfo, setBotInfo] = useState(null);
@@ -73,6 +74,7 @@ function TelegramSettings() {
     if (existing && !loaded) {
       setToken(existing.telegram_bot_token || '');
       setWebhookUrl(existing.telegram_webhook_url || '');
+      setTestChatId(existing.telegram_test_chat_id || '');
       setLoaded(true);
     }
   }, [existing, loaded]);
@@ -108,7 +110,20 @@ function TelegramSettings() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await save({ telegram_bot_token: token, telegram_webhook_url: webhookUrl });
+      await save({ telegram_bot_token: token, telegram_webhook_url: webhookUrl, telegram_test_chat_id: testChatId });
+      // Αν υπάρχει chat_id, στείλε μήνυμα "σε λειτουργία"
+      if (token && testChatId) {
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: testChatId,
+            text: '✅ *Nexus ERP Bot ενεργοποιήθηκε!*\n\nΤο bot είναι σε λειτουργία και έτοιμο να δεχτεί εντολές.',
+            parse_mode: 'Markdown',
+          }),
+        });
+        toast.success('Μήνυμα εκκίνησης εστάλη στο Telegram!');
+      }
     } catch (e) {
       toast.error('Σφάλμα: ' + e.message);
     } finally {
@@ -155,6 +170,12 @@ function TelegramSettings() {
             </div>
             {webhookStatus === 'ok' && <p className="text-xs text-emerald-600 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Webhook ενεργό</p>}
             {webhookStatus === 'error' && <p className="text-xs text-red-600 flex items-center gap-1.5"><XCircle className="w-3.5 h-3.5" /> Σφάλμα ορισμού webhook</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase text-slate-500">Το Chat ID σου (για test μήνυμα)</Label>
+            <Input value={testChatId} onChange={(e) => setTestChatId(e.target.value)} placeholder="π.χ. 123456789" className="font-mono text-sm rounded-xl" />
+            <p className="text-xs text-slate-400">Στείλε /start στο bot σου και δες το chat_id σου στο <strong>@userinfobot</strong></p>
           </div>
 
           <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-600 space-y-1">
