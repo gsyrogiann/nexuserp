@@ -422,7 +422,7 @@ export default function Customers() {
                   </TabsContent>
 
                   <TabsContent value="emails" className="py-4">
-                    <CustomerEmailsTab customerId={selectedCustomer.id} />
+                    <CustomerEmailsTab customerId={selectedCustomer.id} customer={selectedCustomer} />
                   </TabsContent>
 
                   <TabsContent value="timeline" className="py-4">

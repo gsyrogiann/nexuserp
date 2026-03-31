@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, Loader2, Bot, CheckCircle2, XCircle, Globe, Eye, EyeOff } from 'lucide-react';
+import { Save, Loader2, Bot, CheckCircle2, XCircle, Globe, Eye, EyeOff, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import QuoteTemplateSettings from '@/components/settings/QuoteTemplateSettings';
 
 async function loadSetting(key) {
   const all = await base44.entities.AppSettings.list();
@@ -28,7 +29,7 @@ export default function Settings() {
     <div className="space-y-6 pb-10 animate-in fade-in duration-500">
       <PageHeader title="Ρυθμίσεις" subtitle="Διαχείριση συνδέσεων και υπηρεσιών" />
       <Tabs defaultValue="telegram">
-        <TabsList className="bg-slate-100 rounded-xl h-10">
+        <TabsList className="bg-slate-100 rounded-xl h-10 flex-wrap gap-1">
           <TabsTrigger value="telegram" className="rounded-lg text-xs font-bold uppercase tracking-wide">
             <Bot className="w-3.5 h-3.5 mr-2" /> Telegram Bot
           </TabsTrigger>
@@ -38,10 +39,14 @@ export default function Settings() {
           <TabsTrigger value="ai" className="rounded-lg text-xs font-bold uppercase tracking-wide">
             AI Engine
           </TabsTrigger>
+          <TabsTrigger value="quotes" className="rounded-lg text-xs font-bold uppercase tracking-wide">
+            <FileText className="w-3.5 h-3.5 mr-2" /> Template Προσφοράς
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="telegram" className="mt-6"><TelegramSettings /></TabsContent>
         <TabsContent value="voip" className="mt-6"><VoIPSettings /></TabsContent>
         <TabsContent value="ai" className="mt-6"><AISettings /></TabsContent>
+        <TabsContent value="quotes" className="mt-6"><QuoteTemplateSettings /></TabsContent>
       </Tabs>
     </div>
   );

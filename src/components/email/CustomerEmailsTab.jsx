@@ -6,16 +6,18 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import EmailMessageModal from './EmailMessageModal';
-import { ArrowDownLeft, ArrowUpRight, Paperclip, Search, ChevronDown, ChevronRight, Bot } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Paperclip, Search, ChevronDown, ChevronRight, Bot, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import SendEmailDialog from './SendEmailDialog';
 
-export default function CustomerEmailsTab({ customerId }) {
+export default function CustomerEmailsTab({ customerId, customer }) {
   const [search, setSearch] = useState('');
   const [expandedThreads, setExpandedThreads] = useState({});
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [dirFilter, setDirFilter] = useState('all');
+  const [sendOpen, setSendOpen] = useState(false);
 
   const { data: threads = [], isLoading: loadingThreads } = useQuery({
     queryKey: ['email-threads', customerId],
@@ -58,6 +60,13 @@ export default function CustomerEmailsTab({ customerId }) {
 
   return (
     <div className="space-y-3">
+      {/* Send button */}
+      <div className="flex justify-end">
+        <Button size="sm" className="gap-2 rounded-xl font-bold" onClick={() => setSendOpen(true)}>
+          <Send className="w-3.5 h-3.5" /> Νέο Email
+        </Button>
+      </div>
+
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
@@ -150,6 +159,7 @@ export default function CustomerEmailsTab({ customerId }) {
       </div>
 
       <EmailMessageModal message={selectedMessage} open={!!selectedMessage} onClose={() => setSelectedMessage(null)} />
+      <SendEmailDialog open={sendOpen} onClose={() => setSendOpen(false)} customer={customer} />
     </div>
   );
 }
