@@ -88,13 +88,15 @@ function TelegramSettings({ existing, onSave, saving }) {
   const [testing, setTesting] = useState(false);
   const [botInfo, setBotInfo] = useState(null);
   const [webhookStatus, setWebhookStatus] = useState(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (existing) {
+    if (existing && !loaded) {
       setToken(existing.telegram_bot_token || '');
       setWebhookUrl(existing.telegram_webhook_url || '');
+      setLoaded(true);
     }
-  }, [existing]);
+  }, [existing, loaded]);
 
   const testBot = async () => {
     if (!token) return;
@@ -157,8 +159,8 @@ function TelegramSettings({ existing, onSave, saving }) {
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 placeholder="1234567890:ABCdef..."
-                type="password"
                 className="font-mono text-sm rounded-xl"
+                style={{ WebkitTextSecurity: 'disc' }}
               />
               <Button variant="outline" onClick={testBot} disabled={!token || testing} className="rounded-xl shrink-0">
                 {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Test'}
@@ -205,7 +207,15 @@ function TelegramSettings({ existing, onSave, saving }) {
             <p>4. Βάλε το URL στο Webhook URL και πάτα <strong>Set</strong></p>
           </div>
 
-          <Button onClick={() => onSave({ telegram_bot_token: token, telegram_webhook_url: webhookUrl })} disabled={saving} className="w-full h-11 rounded-xl font-bold">
+          <Button
+            type="button"
+            onClick={() => {
+              console.log('Saving telegram:', { token, webhookUrl });
+              onSave({ telegram_bot_token: token, telegram_webhook_url: webhookUrl });
+            }}
+            disabled={saving}
+            className="w-full h-11 rounded-xl font-bold"
+          >
             {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
             Αποθήκευση
           </Button>
