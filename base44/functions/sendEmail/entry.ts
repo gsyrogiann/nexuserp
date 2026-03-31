@@ -47,15 +47,60 @@ Deno.serve(async (req) => {
 
     const sent = await gmailRes.json();
 
-    // Log activity if customer_id provided
+    const now = new Date().toISOString();
+
+    // Log to EmailThread + EmailMessage + CustomerActivity if customer_id provided
     if (customer_id) {
+      // Find or create thread for this subject
+      const existingThreads = await base44.asServiceRole.entities.EmailThread.filter({ customer_id, subject });
+      let thread;
+      if (existingThreads.length > 0) {
+        thread = existingThreads[0];
+        await base44.asServiceRole.entities.EmailThread.update(thread.id, {
+          last_message_at: now,
+          message_count: (thread.message_count || 0) + 1,
+          snippet: body.substring(0, 150),
+        });
+      } else {
+        thread = await base44.asServiceRole.entities.EmailThread.create({
+          external_thread_id: sent.threadId || sent.id,
+          customer_id,
+          customer_name: customer_name || '',
+          subject,
+          last_message_at: now,
+          message_count: 1,
+          snippet: body.substring(0, 150),
+          sync_source: 'gmail',
+        });
+      }
+
+      // Save the outgoing message
+      await base44.asServiceRole.entities.EmailMessage.create({
+        external_message_id: sent.id,
+        thread_id: thread.id,
+        external_thread_id: sent.threadId || sent.id,
+        customer_id,
+        customer_name: customer_name || '',
+        direction: 'outgoing',
+        subject,
+        body_text: body,
+        snippet: body.substring(0, 150),
+        sender_email: user.email,
+        sender_name: user.full_name || user.email,
+        recipient_emails: [to],
+        sent_at: now,
+        sync_source: 'gmail',
+        sync_status: 'synced',
+      });
+
+      // Log CustomerActivity
       await base44.asServiceRole.entities.CustomerActivity.create({
         customer_id,
         customer_name: customer_name || '',
         activity_type: 'email_sent',
         title: `Email: ${subject}`,
         description: body.substring(0, 300),
-        occurred_at: new Date().toISOString(),
+        occurred_at: now,
         user_email: user.email,
       });
     }
