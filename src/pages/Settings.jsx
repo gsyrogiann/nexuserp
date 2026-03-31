@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import PageHeader from '../components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +8,20 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Save, Loader2, Bot, CheckCircle2, XCircle, Globe, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+
+async function loadSetting(key) {
+  const all = await base44.entities.AppSettings.list();
+  return all.find(s => s.key === key) || null;
+}
+
+async function saveSetting(key, data) {
+  const existing = await loadSetting(key);
+  if (existing?.id) {
+    await base44.entities.AppSettings.update(existing.id, { ...data, key });
+  } else {
+    await base44.entities.AppSettings.create({ ...data, key });
+  }
+}
 
 export default function Settings() {
   return (
@@ -34,35 +47,7 @@ export default function Settings() {
   );
 }
 
-function useSetting(key) {
-  const qc = useQueryClient();
-  const { data: list = [] } = useQuery({
-    queryKey: ['app-settings', key],
-    queryFn: async () => {
-      const all = await base44.entities.AppSettings.list();
-      return all.filter(s => s.key === key);
-    },
-  });
-  const existing = list[0] || null;
-
-  const save = async (data) => {
-    // Fresh fetch για να αποφύγουμε stale closure
-    const all = await base44.entities.AppSettings.list();
-    const fresh = all.find(s => s.key === key);
-    if (fresh?.id) {
-      await base44.entities.AppSettings.update(fresh.id, { ...data, key });
-    } else {
-      await base44.entities.AppSettings.create({ ...data, key });
-    }
-    qc.invalidateQueries({ queryKey: ['app-settings', key] });
-    toast.success('Ρυθμίσεις αποθηκεύτηκαν!');
-  };
-
-  return { existing, save };
-}
-
 function TelegramSettings() {
-  const { existing, save } = useSetting('telegram');
   const [token, setToken] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [testChatId, setTestChatId] = useState('');
@@ -70,17 +55,17 @@ function TelegramSettings() {
   const [testing, setTesting] = useState(false);
   const [botInfo, setBotInfo] = useState(null);
   const [webhookStatus, setWebhookStatus] = useState(null);
-  const [loaded, setLoaded] = useState(false);
   const [showToken, setShowToken] = useState(false);
 
   useEffect(() => {
-    if (existing && !loaded) {
-      setToken(existing.telegram_bot_token || '');
-      setWebhookUrl(existing.telegram_webhook_url || '');
-      setTestChatId(existing.telegram_test_chat_id || '');
-      setLoaded(true);
-    }
-  }, [existing, loaded]);
+    loadSetting('telegram').then(rec => {
+      if (rec) {
+        setToken(rec.telegram_bot_token || '');
+        setWebhookUrl(rec.telegram_webhook_url || '');
+        setTestChatId(rec.telegram_test_chat_id || '');
+      }
+    });
+  }, []);
 
   const testBot = async () => {
     if (!token) return;
@@ -105,7 +90,7 @@ function TelegramSettings() {
       });
       const data = await res.json();
       if (data.ok) { setWebhookStatus('ok'); toast.success('Webhook ορίστηκε επιτυχώς!'); }
-      else { setWebhookStatus('error'); toast.error(data.description || 'Σφάλμα ορισμού webhook'); }
+      else { setWebhookStatus('error'); toast.error(data.description || 'Σφάλμα webhook'); }
     } catch { toast.error('Σφάλμα σύνδεσης'); setWebhookStatus('error'); }
     finally { setTesting(false); }
   };
@@ -113,8 +98,12 @@ function TelegramSettings() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await save({ telegram_bot_token: token, telegram_webhook_url: webhookUrl, telegram_test_chat_id: testChatId });
-      // Αν υπάρχει chat_id, στείλε μήνυμα "σε λειτουργία"
+      await saveSetting('telegram', {
+        telegram_bot_token: token,
+        telegram_webhook_url: webhookUrl,
+        telegram_test_chat_id: testChatId,
+      });
+      toast.success('Ρυθμίσεις αποθηκεύτηκαν!');
       if (token && testChatId) {
         await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: 'POST',
@@ -179,7 +168,7 @@ function TelegramSettings() {
           )}
 
           <div className="space-y-2">
-            <Label className="text-xs font-bold uppercase text-slate-500">Webhook URL (το function URL σου)</Label>
+            <Label className="text-xs font-bold uppercase text-slate-500">Webhook URL</Label>
             <div className="flex gap-2">
               <Input value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://api.base44.com/api/apps/.../functions/telegramAI" className="text-sm rounded-xl" />
               <Button variant="outline" onClick={setWebhookFn} disabled={!token || !webhookUrl || testing} className="rounded-xl shrink-0 gap-2">
@@ -187,24 +176,24 @@ function TelegramSettings() {
               </Button>
             </div>
             {webhookStatus === 'ok' && <p className="text-xs text-emerald-600 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Webhook ενεργό</p>}
-            {webhookStatus === 'error' && <p className="text-xs text-red-600 flex items-center gap-1.5"><XCircle className="w-3.5 h-3.5" /> Σφάλμα ορισμού webhook</p>}
+            {webhookStatus === 'error' && <p className="text-xs text-red-600 flex items-center gap-1.5"><XCircle className="w-3.5 h-3.5" /> Σφάλμα webhook</p>}
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-bold uppercase text-slate-500">Το Chat ID σου (για test μήνυμα)</Label>
+            <Label className="text-xs font-bold uppercase text-slate-500">Chat ID (για test μήνυμα)</Label>
             <Input value={testChatId} onChange={(e) => setTestChatId(e.target.value)} placeholder="π.χ. 123456789" className="font-mono text-sm rounded-xl" />
             <p className="text-xs text-slate-400">Στείλε /start στο bot σου και δες το chat_id σου στο <strong>@userinfobot</strong></p>
           </div>
 
           <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-600 space-y-1">
             <p className="font-black uppercase tracking-wide text-slate-400 mb-2">Οδηγίες Σύνδεσης</p>
-            <p>1. Πήγαινε στο Telegram → <strong>@BotFather</strong> → <strong>/newbot</strong></p>
-            <p>2. Βάλε το token εδώ και πάτα <strong>Test</strong></p>
-            <p>3. Dashboard → Code → Functions → telegramAI → πάρε το <strong>Function URL</strong></p>
-            <p>4. Βάλε το URL στο Webhook URL και πάτα <strong>Set</strong></p>
+            <p>1. Telegram → <strong>@BotFather</strong> → <strong>/newbot</strong></p>
+            <p>2. Βάλε το token και πάτα <strong>Test</strong></p>
+            <p>3. Dashboard → Code → Functions → telegramAI → <strong>Function URL</strong></p>
+            <p>4. Βάλε το URL και πάτα <strong>Set</strong></p>
           </div>
 
-          <Button type="button" onClick={handleSave} disabled={saving} className="w-full h-11 rounded-xl font-bold">
+          <Button onClick={handleSave} disabled={saving} className="w-full h-11 rounded-xl font-bold">
             {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
             Αποθήκευση
           </Button>
@@ -215,19 +204,25 @@ function TelegramSettings() {
 }
 
 function VoIPSettings() {
-  const { existing, save } = useSetting('voip');
   const [form, setForm] = useState({ voip_host: '', voip_api_key: '', voip_webhook_secret: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (existing) setForm({ voip_host: existing.voip_host || '', voip_api_key: existing.voip_api_key || '', voip_webhook_secret: existing.voip_webhook_secret || '' });
-  }, [existing]);
+    loadSetting('voip').then(rec => {
+      if (rec) setForm({ voip_host: rec.voip_host || '', voip_api_key: rec.voip_api_key || '', voip_webhook_secret: rec.voip_webhook_secret || '' });
+    });
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
-    try { await save(form); }
-    catch (e) { toast.error('Σφάλμα: ' + e.message); }
-    finally { setSaving(false); }
+    try {
+      await saveSetting('voip', form);
+      toast.success('Ρυθμίσεις αποθηκεύτηκαν!');
+    } catch (e) {
+      toast.error('Σφάλμα: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -245,7 +240,7 @@ function VoIPSettings() {
           <Label className="text-xs font-bold uppercase text-slate-500">Webhook Secret</Label>
           <Input value={form.voip_webhook_secret} onChange={e => setForm({...form, voip_webhook_secret: e.target.value})} type="password" className="rounded-xl font-mono" />
         </div>
-        <Button type="button" onClick={handleSave} disabled={saving} className="w-full h-11 rounded-xl font-bold">
+        <Button onClick={handleSave} disabled={saving} className="w-full h-11 rounded-xl font-bold">
           {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} Αποθήκευση
         </Button>
       </CardContent>
@@ -254,19 +249,25 @@ function VoIPSettings() {
 }
 
 function AISettings() {
-  const { existing, save } = useSetting('ai');
   const [form, setForm] = useState({ ollama_host: '', whisper_host: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (existing) setForm({ ollama_host: existing.ollama_host || '', whisper_host: existing.whisper_host || '' });
-  }, [existing]);
+    loadSetting('ai').then(rec => {
+      if (rec) setForm({ ollama_host: rec.ollama_host || '', whisper_host: rec.whisper_host || '' });
+    });
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
-    try { await save(form); }
-    catch (e) { toast.error('Σφάλμα: ' + e.message); }
-    finally { setSaving(false); }
+    try {
+      await saveSetting('ai', form);
+      toast.success('Ρυθμίσεις αποθηκεύτηκαν!');
+    } catch (e) {
+      toast.error('Σφάλμα: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -280,7 +281,7 @@ function AISettings() {
           <Label className="text-xs font-bold uppercase text-slate-500">Whisper Host (speech-to-text)</Label>
           <Input value={form.whisper_host} onChange={e => setForm({...form, whisper_host: e.target.value})} placeholder="http://localhost:9000" className="rounded-xl" />
         </div>
-        <Button type="button" onClick={handleSave} disabled={saving} className="w-full h-11 rounded-xl font-bold">
+        <Button onClick={handleSave} disabled={saving} className="w-full h-11 rounded-xl font-bold">
           {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} Αποθήκευση
         </Button>
       </CardContent>
