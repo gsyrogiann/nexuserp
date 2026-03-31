@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, Loader2, Bot, CheckCircle2, XCircle, Globe } from 'lucide-react';
+import { Save, Loader2, Bot, CheckCircle2, XCircle, Globe, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Settings() {
@@ -71,6 +71,7 @@ function TelegramSettings() {
   const [botInfo, setBotInfo] = useState(null);
   const [webhookStatus, setWebhookStatus] = useState(null);
   const [loaded, setLoaded] = useState(false);
+  const [showToken, setShowToken] = useState(false);
 
   useEffect(() => {
     if (existing && !loaded) {
@@ -145,7 +146,22 @@ function TelegramSettings() {
           <div className="space-y-2">
             <Label className="text-xs font-bold uppercase text-slate-500">Bot Token (από BotFather)</Label>
             <div className="flex gap-2">
-              <Input value={token} onChange={(e) => setToken(e.target.value)} placeholder="1234567890:ABCdef..." className="font-mono text-sm rounded-xl" style={{ WebkitTextSecurity: 'disc' }} />
+              <div className="relative flex-1">
+                <Input
+                  type={showToken ? 'text' : 'password'}
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  placeholder="1234567890:ABCdef..."
+                  className="font-mono text-sm rounded-xl pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowToken(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
               <Button variant="outline" onClick={testBot} disabled={!token || testing} className="rounded-xl shrink-0">
                 {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Test'}
               </Button>
