@@ -12,7 +12,15 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Missing required fields: to, subject, body' }, { status: 400 });
     }
 
-    const { accessToken } = await base44.asServiceRole.connectors.getConnection('gmail');
+    let accessToken;
+    try {
+      // Try to get shared connector first (if available)
+      const conn = await base44.asServiceRole.connectors.getConnection('gmail');
+      accessToken = conn.accessToken;
+    } catch {
+      // Fall back to current user's app user connector
+      accessToken = await base44.asServiceRole.connectors.getCurrentAppUserAccessToken('gmail');
+    }
 
     // RFC 2047 encode subject for non-ASCII characters (e.g. Greek)
     const encodedSubject = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
