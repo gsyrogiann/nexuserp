@@ -2,6 +2,16 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
+/**
+ * @param {{
+ *   label: React.ReactNode,
+ *   value: React.ReactNode,
+ *   change?: React.ReactNode,
+ *   icon?: React.ComponentType<{ className?: string }>,
+ *   trend?: 'up' | 'down' | 'neutral',
+ *   className?: string
+ * }} props
+ */
 export default function StatsCard({ label, value, change, icon: Icon, trend, className }) {
   return (
     <Card className={cn('p-5 relative overflow-hidden', className)}>

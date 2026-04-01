@@ -62,7 +62,11 @@ export default function EmailMessageModal({ message, open, onClose }) {
                 title="email-body"
                 onLoad={e => {
                   try {
-                    e.target.style.height = e.target.contentDocument.body.scrollHeight + 20 + 'px';
+                    const iframe = /** @type {HTMLIFrameElement | null} */ (e.currentTarget);
+                    const body = iframe?.contentDocument?.body;
+                    if (iframe && body) {
+                      iframe.style.height = body.scrollHeight + 20 + 'px';
+                    }
                   } catch {}
                 }}
               />

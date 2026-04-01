@@ -84,7 +84,9 @@ export default function CustomerEmailsTab({ customerId }) {
       {/* Thread list */}
       <div className="space-y-2">
         {filteredThreads.map(thread => {
-          const threadMsgs = messages.filter(m => m.thread_id === thread.id).sort((a, b) => new Date(a.sent_at) - new Date(b.sent_at));
+          const threadMsgs = messages
+            .filter(m => m.thread_id === thread.id)
+            .sort((a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime());
           const isExpanded = expandedThreads[thread.id];
           const latestMsg = threadMsgs[threadMsgs.length - 1];
           const hasIncoming = threadMsgs.some(m => m.direction === 'incoming');

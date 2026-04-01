@@ -2,6 +2,16 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
+/**
+ * @param {{
+ *   title: string,
+ *   subtitle?: string,
+ *   actionLabel?: string,
+ *   onAction?: () => void,
+ *   icon?: React.ComponentType<{ className?: string }>,
+ *   children?: React.ReactNode
+ * }} props
+ */
 export default function PageHeader({ title, subtitle, actionLabel, onAction, icon: Icon, children }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">

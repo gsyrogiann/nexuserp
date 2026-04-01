@@ -37,6 +37,12 @@ export function validateRequiredFields(data, fields) {
   }
 }
 
+/**
+ * @template T
+ * @param {() => Promise<T>} operation
+ * @param {{ actionLabel?: string, fallbackMessage?: string, validate?: () => void }} [options]
+ * @returns {Promise<T>}
+ */
 export async function executeMutation(operation, { actionLabel, fallbackMessage, validate } = {}) {
   try {
     if (typeof validate === 'function') {

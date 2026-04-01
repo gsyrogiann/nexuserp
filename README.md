@@ -46,6 +46,11 @@ Run the app: `npm run dev`
 
 Release verification: `npm run release:check`
 
+Typecheck commands:
+
+* `npm run typecheck`
+* `npm run typecheck:strict`
+
 **Publish your changes**
 
 Open [Base44.com](http://Base44.com) and click on Publish.
@@ -66,5 +71,7 @@ Repository release docs:
 * `docs/pilot-readiness-checklist.md`
 * `docs/incident-runbook.md`
 * `docs/release-baseline-audit.md`
+* `docs/typecheck-roadmap.md`
+* `docs/known-issues.md`
 * `SECURITY.md`
 * `NOTICE.md`

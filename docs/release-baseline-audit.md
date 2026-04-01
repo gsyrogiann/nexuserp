@@ -20,7 +20,8 @@
 * `npm run build`: passing
 * `npm audit`: passing with `0 vulnerabilities`
 * `npm run release:check`: passing
-* `npm run typecheck`: failing with substantial pre-existing type issues
+* `npm run typecheck`: baseline pass expected after staged config split
+* `npm run typecheck:strict`: still failing with substantial pre-existing type issues
 
 ## Open Release Gaps
 
@@ -39,6 +40,7 @@ finding remains in the local audit baseline.
 * Signed and reproducible release artifact workflow is not yet implemented
 * Centralized production error tracking is not yet wired
 * Pilot validation evidence does not yet exist
+* Strict JavaScript type coverage is not yet ready to be a release gate
 
 ## Recommended Next Implementation Order
 
