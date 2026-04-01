@@ -20,8 +20,8 @@
 * `npm run build`: passing
 * `npm audit`: passing with `0 vulnerabilities`
 * `npm run release:check`: passing
-* `npm run typecheck`: baseline pass expected after staged config split
-* `npm run typecheck:strict`: still failing with substantial pre-existing type issues
+* `npm run typecheck`: passing
+* `npm run typecheck:strict`: passing
 
 ## Open Release Gaps
 
@@ -36,19 +36,18 @@ finding remains in the local audit baseline.
 * `EULA` is not finalized
 * SBOM generation is not yet automated
 * Dependency license review is not yet documented
-* Typecheck debt remains high
 * Signed and reproducible release artifact workflow is not yet implemented
 * Centralized production error tracking is not yet wired
 * Pilot validation evidence does not yet exist
-* Strict JavaScript type coverage is not yet ready to be a release gate
+* Strict type coverage is now available, but should remain monitored as new code lands
 
 ## Recommended Next Implementation Order
 
 1. Add minimum legal and ownership decision placeholders for `LICENSE` and `EULA`
 2. Add release workflow and versioning discipline for tagged candidates
-3. Decide how typecheck participates in release readiness without blocking all work
-4. Add production error tracking and logging ownership
-5. Prepare pilot onboarding and feedback execution
+3. Add production error tracking and logging ownership
+4. Prepare pilot onboarding and feedback execution
+5. Finalize legal and commercial launch decisions
 
 ## Notes
 

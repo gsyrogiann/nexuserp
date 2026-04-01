@@ -7,10 +7,6 @@ release-hardening pass.
 
 ## Open Technical Issues
 
-* `npm run typecheck:strict` still fails on a reduced set of page-level and
-  domain-level JavaScript typing issues.
-* Some shared page flows still rely on weak JavaScript inference around
-  mutation results and rich form state.
 * Production error tracking is not yet wired to an external monitoring system.
 
 ## Open Release Gaps

@@ -69,7 +69,7 @@ function ImportPanel({ type, onImportDone }) {
   const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState(null);
-  const fileRef = useRef();
+  const fileRef = useRef(/** @type {HTMLInputElement | null} */ (null));
   const qc = useQueryClient();
   const handleFile = (e) => { const file = e.target.files[0]; if (!file) return; setFileName(file.name); setResults(null); const reader = new FileReader(); reader.onload = (ev) => setRows(parseCSV(ev.target.result)); reader.readAsText(file, 'UTF-8'); };
   const handleImport = async () => {
@@ -79,7 +79,7 @@ function ImportPanel({ type, onImportDone }) {
     setResults({ ok, fail }); setImporting(false);
     if (ok > 0) onImportDone?.(`Εισήχθησαν ${ok} ${type === 'customers' ? 'πελάτες' : 'προϊόντα'} επιτυχώς!`);
   };
-  const reset = () => { setRows([]); setFileName(''); setResults(null); fileRef.current.value = ''; };
+  const reset = () => { setRows([]); setFileName(''); setResults(null); if (fileRef.current) fileRef.current.value = ''; };
   const isCustomer = type === 'customers';
   return (
     <div className="space-y-4">
@@ -88,7 +88,7 @@ function ImportPanel({ type, onImportDone }) {
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">{isCustomer ? <Users className="w-6 h-6 text-primary" /> : <Package className="w-6 h-6 text-primary" />}</div>
           <div><p className="font-medium text-sm">{isCustomer ? 'Εισαγωγή Πελατών' : 'Εισαγωγή Προϊόντων'} από CSV</p><p className="text-xs text-muted-foreground mt-1">{isCustomer ? 'Στήλες: name, tax_id, phone, email, address, city' : 'Στήλες: sku, name, category, sell_price, buy_price, vat_rate, unit'}</p></div>
           <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleFile} className="hidden" />
-          <Button variant="outline" size="sm" onClick={() => fileRef.current.click()}><Upload className="w-4 h-4 mr-2" />Επιλογή αρχείου CSV</Button>
+          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload className="w-4 h-4 mr-2" />Επιλογή αρχείου CSV</Button>
         </div>
       </div>
       {fileName && (<div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg"><FileSpreadsheet className="w-4 h-4 text-blue-600" /><span className="text-sm text-blue-700 flex-1">{fileName}</span><Badge variant="outline">{rows.length} εγγραφές</Badge><button onClick={reset}><X className="w-4 h-4 text-slate-400 hover:text-slate-600" /></button></div>)}

@@ -19,6 +19,7 @@ export default function Products() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [form, setForm] = useState({
+    id: '',
     sku: '', name: '', description: '', category: '',
     unit: 'piece', buy_price: 0, sell_price: 0, vat_rate: 24,
     status: 'active', enable_price_tiers: false, price_tiers: [],
@@ -51,11 +52,12 @@ export default function Products() {
       key: 'margin', 
       label: 'Margin %',
       render: (_, row) => {
-        const margin = row.sell_price > 0 
-          ? ((row.sell_price - row.buy_price) / row.sell_price * 100).toFixed(1)
-          : 0;
+        const sellPrice = Number(row.sell_price || 0);
+        const buyPrice = Number(row.buy_price || 0);
+        const marginValue = sellPrice > 0 ? ((sellPrice - buyPrice) / sellPrice * 100) : 0;
+        const margin = marginValue.toFixed(1);
         return (
-          <span className={cn("font-bold", margin > 20 ? "text-emerald-600" : "text-amber-600")}>
+          <span className={cn("font-bold", marginValue > 20 ? "text-emerald-600" : "text-amber-600")}>
             {margin}%
           </span>
         );
@@ -89,6 +91,7 @@ export default function Products() {
 
   const openNew = () => {
     setForm({
+      id: '',
       sku: '', name: '', description: '', category: '',
       unit: 'piece', buy_price: 0, sell_price: 0, vat_rate: 24,
       status: 'active', enable_price_tiers: false, price_tiers: [],
@@ -128,8 +131,10 @@ export default function Products() {
 
   // Live Margin Calculation for the form
   const currentMargin = useMemo(() => {
-    if (!form.sell_price || form.sell_price <= 0) return 0;
-    return (((form.sell_price - form.buy_price) / form.sell_price) * 100).toFixed(1);
+    const sellPrice = Number(form.sell_price || 0);
+    const buyPrice = Number(form.buy_price || 0);
+    if (!sellPrice || sellPrice <= 0) return 0;
+    return (((sellPrice - buyPrice) / sellPrice) * 100).toFixed(1);
   }, [form.buy_price, form.sell_price]);
 
   return (
@@ -210,7 +215,7 @@ export default function Products() {
                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Margin (%)</Label>
                 <div className={cn(
                   "h-10 flex items-center px-3 rounded-lg font-black text-sm border",
-                  currentMargin > 20 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-amber-50 text-amber-700 border-amber-100"
+                  Number(currentMargin) > 20 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-amber-50 text-amber-700 border-amber-100"
                 )}>
                   {currentMargin}%
                 </div>

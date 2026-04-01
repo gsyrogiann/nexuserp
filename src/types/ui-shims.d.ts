@@ -135,6 +135,7 @@ declare module '@/components/ui/tabs' {
     value?: string;
     defaultValue?: string;
     onValueChange?: (value: string) => void;
+    className?: string;
     children?: React.ReactNode;
   }>;
   export const TabsList: React.ForwardRefExoticComponent<DivProps & React.RefAttributes<HTMLDivElement>>;
@@ -148,6 +149,34 @@ declare module '@/components/ui/skeleton' {
   import * as React from 'react';
 
   export const Skeleton: React.FC<React.HTMLAttributes<HTMLDivElement>>;
+}
+
+declare module '@/components/ui/context-menu' {
+  import * as React from 'react';
+
+  type DivProps = React.HTMLAttributes<HTMLDivElement>;
+  type ItemProps = React.HTMLAttributes<HTMLDivElement> & {
+    inset?: boolean;
+    checked?: boolean;
+    value?: string;
+    children?: React.ReactNode;
+  };
+
+  export const ContextMenu: React.FC<{ children?: React.ReactNode }>;
+  export const ContextMenuTrigger: React.FC<React.HTMLAttributes<HTMLElement> & { children?: React.ReactNode }>;
+  export const ContextMenuContent: React.ForwardRefExoticComponent<DivProps & React.RefAttributes<HTMLDivElement>>;
+  export const ContextMenuItem: React.ForwardRefExoticComponent<ItemProps & React.RefAttributes<HTMLDivElement>>;
+  export const ContextMenuCheckboxItem: React.ForwardRefExoticComponent<ItemProps & React.RefAttributes<HTMLDivElement>>;
+  export const ContextMenuRadioItem: React.ForwardRefExoticComponent<ItemProps & React.RefAttributes<HTMLDivElement>>;
+  export const ContextMenuLabel: React.ForwardRefExoticComponent<ItemProps & React.RefAttributes<HTMLDivElement>>;
+  export const ContextMenuSeparator: React.ForwardRefExoticComponent<DivProps & React.RefAttributes<HTMLDivElement>>;
+  export const ContextMenuShortcut: React.FC<React.HTMLAttributes<HTMLSpanElement>>;
+  export const ContextMenuGroup: React.FC<{ children?: React.ReactNode }>;
+  export const ContextMenuPortal: React.FC<{ children?: React.ReactNode }>;
+  export const ContextMenuSub: React.FC<{ children?: React.ReactNode }>;
+  export const ContextMenuSubContent: React.ForwardRefExoticComponent<DivProps & React.RefAttributes<HTMLDivElement>>;
+  export const ContextMenuSubTrigger: React.ForwardRefExoticComponent<ItemProps & React.RefAttributes<HTMLDivElement>>;
+  export const ContextMenuRadioGroup: React.FC<{ value?: string; onValueChange?: (value: string) => void; children?: React.ReactNode }>;
 }
 
 declare module '@/components/ui/scroll-area' {

@@ -7,12 +7,13 @@ import { cn } from '@/lib/utils';
  *   label: React.ReactNode,
  *   value: React.ReactNode,
  *   change?: React.ReactNode,
+ *   description?: React.ReactNode,
  *   icon?: React.ComponentType<{ className?: string }>,
  *   trend?: 'up' | 'down' | 'neutral',
  *   className?: string
  * }} props
  */
-export default function StatsCard({ label, value, change, icon: Icon, trend, className }) {
+export default function StatsCard({ label, value, change, description, icon: Icon, trend, className }) {
   return (
     <Card className={cn('p-5 relative overflow-hidden', className)}>
       <div className="flex items-start justify-between">
@@ -24,6 +25,7 @@ export default function StatsCard({ label, value, change, icon: Icon, trend, cla
               {change}
             </p>
           )}
+          {!change && description && <p className="text-xs text-muted-foreground">{description}</p>}
         </div>
         {Icon && (
           <div className="p-2.5 rounded-xl bg-primary/10">

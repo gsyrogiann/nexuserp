@@ -180,7 +180,10 @@ export default function SalesInvoices() {
     try {
       const prompt = `Ανάλυσε τα οικονομικά: Τιμολογημένα: €${totalInvoiced}, Εισπράξεις: €${totalPaid}, Ανεξόφλητα: €${outstanding}. Δώσε 2 προτάσεις για βελτίωση ρευστότητας.`;
       const result = await base44.integrations.Core.InvokeLLM({ prompt });
-      setAiAnalysis(result);
+      const reply = result && typeof result === 'object' && 'reply' in result && typeof result.reply === 'string'
+        ? result.reply
+        : null;
+      setAiAnalysis(typeof result === 'string' ? result : reply || 'Η ανάλυση ολοκληρώθηκε χωρίς κείμενο απάντησης.');
     } catch (e) {
       setAiAnalysis("Σφάλμα ανάλυσης.");
     } finally {

@@ -61,7 +61,7 @@ export default function CalendarPage() {
       }
     ),
     onSuccess: () => {
-      queryClient.invalidateQueries(['tickets']);
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
       toast.success("Η ημερομηνία του Ticket ενημερώθηκε");
     },
     meta: {
@@ -71,6 +71,7 @@ export default function CalendarPage() {
   });
 
   // Επεξεργασία και ενοποίηση όλων των events
+  /** @type {any[]} */
   const allEvents = [
     ...quotes.map(e => ({ ...e, _type: 'quote', _date: e.date || e.created_date, _label: e.quote_number || 'Προσφορά', _color: 'bg-blue-500' })),
     ...tickets.map(e => ({ ...e, _type: 'ticket', _date: e.due_date || e.created_date, _label: e.title || 'Ticket', _color: 'bg-yellow-500' })),

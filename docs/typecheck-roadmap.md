@@ -10,35 +10,35 @@ issues to block every delivery.
 ## Current Policy
 
 * `npm run typecheck` is the baseline verification command for release hygiene.
-* `npm run typecheck:strict` preserves visibility into the broader legacy
-  JavaScript typing debt.
-* Failing `typecheck:strict` should not be ignored forever, but it is not yet a
-  release gate until the shared component and page typing surface is reduced.
+* `npm run typecheck:strict` now passes and can be used as a stronger quality
+  signal for future changes.
+* New work should avoid reintroducing broad ambient typing debt into shared
+  components or page-level workflows.
 
-## Why This Split Exists
+## Why This Split Was Added
 
-The current strict pass is dominated by:
+The strict split was introduced because the codebase previously had:
 
 * weak prop inference from shared JavaScript UI components
 * legacy page-level JSX components without explicit prop contracts
 * pre-existing custom component mismatches unrelated to recent release fixes
 
-Without a staged approach, the repository gets a noisy failure that is hard to
-act on and easy to ignore.
+That staged approach made it possible to restore a trustworthy strict pass
+without blocking the release-hardening work.
 
 ## Near-Term Plan
 
 1. Keep `typecheck` green for reliable baseline automation.
-2. Use `typecheck:strict` as the backlog signal for incremental cleanup.
-3. Prioritize shared primitives and shared components first, because they remove
-   many downstream errors at once.
-4. Promote stricter checks into release gates only after the noisy baseline is
-   materially reduced.
+2. Keep `typecheck:strict` green as part of ongoing quality control.
+3. Prioritize shared primitives and shared components first when new typing
+   regressions appear, because they remove many downstream errors at once.
+4. Treat new strict failures as actionable regressions instead of background
+   noise.
 
 ## Practical Next Targets
 
-* Add explicit prop typing to frequently used shared UI wrappers
-* Normalize shared dashboard and shared form component prop contracts
-* Reduce page-level strict errors in high-value flows first
-* Revisit whether `typecheck:strict` can become CI-gated after the error volume
-  drops to an actionable level
+* Keep shared UI shims and shared component contracts aligned with actual usage
+* Prevent regressions in core flows like customers, invoices, inventory, and AI
+  assistant tooling
+* Consider adding `typecheck:strict` to CI once the team is comfortable making
+  it an enforced gate

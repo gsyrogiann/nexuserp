@@ -166,7 +166,10 @@ export default function Customers() {
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Ανάλυσε τον πελάτη: ${selectedCustomer.name}. Υπόλοιπο: €${selectedCustomer.balance || 0}. Max 2 προτάσεις.`,
       });
-      setAiSummary(result);
+      const reply = result && typeof result === 'object' && 'reply' in result && typeof result.reply === 'string'
+        ? result.reply
+        : null;
+      setAiSummary(typeof result === 'string' ? result : reply || 'Η ανάλυση ολοκληρώθηκε χωρίς κείμενο απάντησης.');
     } finally {
       setAiLoading(false);
     }

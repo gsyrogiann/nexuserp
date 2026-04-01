@@ -91,7 +91,7 @@ export default function Inventory() {
         title="Inventory Control" 
         subtitle="Διαχείριση αποθηκών και παρακολούθηση ροής αποθεμάτων" 
         actionLabel="Προσθήκη Αποθήκης" 
-        onAction={() => { setEditing({}); setDialogOpen(true); }} 
+        onAction={() => { setEditing({ id: '', status: 'active' }); setDialogOpen(true); }} 
       />
 
       {/* Stats Cards με χρωματική σήμανση */}
