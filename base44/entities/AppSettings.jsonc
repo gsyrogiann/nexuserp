@@ -12,11 +12,11 @@
     },
     "voip_api_key": {
       "type": "string",
-      "description": "API key / shared secret for webhook auth"
+      "description": "Deprecated. Do not store VoIP secrets here; use VOIP_API_KEY environment variable."
     },
     "voip_webhook_secret": {
       "type": "string",
-      "description": "Webhook HMAC secret"
+      "description": "Deprecated. Do not store webhook secrets here; use VOIP_WEBHOOK_SECRET environment variable."
     },
     "ollama_host": {
       "type": "string",

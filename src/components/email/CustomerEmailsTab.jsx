@@ -9,7 +9,6 @@ import EmailMessageModal from './EmailMessageModal';
 import { ArrowDownLeft, ArrowUpRight, Paperclip, Search, ChevronDown, ChevronRight, Bot } from 'lucide-react';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
 
 export default function CustomerEmailsTab({ customerId }) {
   const [search, setSearch] = useState('');

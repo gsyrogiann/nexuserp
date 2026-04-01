@@ -7,7 +7,7 @@ import DataTable from '../components/shared/DataTable';
 import EntityFormDialog from '../components/shared/EntityFormDialog';
 import StatsCard from '../components/shared/StatsCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Warehouse, Package, ArrowDownUp, AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
+import { Warehouse, AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
 
 const warehouseColumns = [
   { key: 'code', label: 'Code' },

@@ -5,14 +5,14 @@ import { fetchList } from '@/lib/apiHelpers';
 import PageHeader from '../components/shared/PageHeader';
 import DataTable from '../components/shared/DataTable';
 import PriceTiersEditor from '../components/products/PriceTiersEditor';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Layers, Search, TrendingUp, Package, Percent } from 'lucide-react';
+import { Layers, Search, TrendingUp, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function Products() {

@@ -6,6 +6,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import AppLayout from './components/layout/AppLayout';
+import { canUserAccess, isAdminUser } from '@/lib/permissions';
 import { Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -41,8 +42,7 @@ const AccessDenied = () => (
     </div>
     <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Πρόσβαση Περιορισμένη</h2>
     <p className="text-slate-500 max-w-sm mt-2 text-sm font-medium">
-      Αυτή η ενότητα του Nexus ERP είναι κλειδωμένη. 
-      Μόνο ο διαχειριστής (georgesyro1925) έχει δικαιώματα πρόσβασης εδώ.
+      Αυτή η ενότητα του Nexus ERP είναι διαθέσιμη μόνο σε λογαριασμούς με δικαιώματα διαχειριστή.
     </p>
     <Button 
       variant="outline" 
@@ -57,8 +57,7 @@ const AccessDenied = () => (
 const AuthenticatedApp = () => {
   const { user, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
-  // Υπολογισμός αν ο χρήστης είναι Admin
-  const isAdmin = user?.role === 'admin' || user?.email === 'georgesyro1925@gmail.com';
+  const isAdmin = isAdminUser(user);
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
@@ -95,13 +94,13 @@ const AuthenticatedApp = () => {
         <Route path="/UnmatchedEmails" element={<UnmatchedEmails />} />
 
         {/* ΠΡΟΣΤΑΤΕΥΜΕΝΕΣ ΔΙΑΔΡΟΜΕΣ */}
-        <Route path="/SalesInvoices" element={isAdmin ? <SalesInvoices /> : <AccessDenied />} />
-        <Route path="/PurchaseInvoices" element={isAdmin ? <PurchaseInvoices /> : <AccessDenied />} />
-        <Route path="/Payments" element={isAdmin ? <Payments /> : <AccessDenied />} />
-        <Route path="/Reports" element={isAdmin ? <Reports /> : <AccessDenied />} />
-        <Route path="/AIAssistant" element={isAdmin ? <AIAssistant /> : <AccessDenied />} />
-        <Route path="/EmailSettings" element={isAdmin ? <EmailSettings /> : <AccessDenied />} />
-        <Route path="/Settings" element={isAdmin ? <Settings /> : <AccessDenied />} /> {/* <--- ΑΝΤΙΚΑΤΑΣΤΑΣΗ VOIP SETTINGS */}
+        <Route path="/SalesInvoices" element={canUserAccess(user, '/SalesInvoices') ? <SalesInvoices /> : <AccessDenied />} />
+        <Route path="/PurchaseInvoices" element={canUserAccess(user, '/PurchaseInvoices') ? <PurchaseInvoices /> : <AccessDenied />} />
+        <Route path="/Payments" element={canUserAccess(user, '/Payments') ? <Payments /> : <AccessDenied />} />
+        <Route path="/Reports" element={canUserAccess(user, '/Reports') ? <Reports /> : <AccessDenied />} />
+        <Route path="/AIAssistant" element={canUserAccess(user, '/AIAssistant') ? <AIAssistant /> : <AccessDenied />} />
+        <Route path="/EmailSettings" element={canUserAccess(user, '/EmailSettings') ? <EmailSettings /> : <AccessDenied />} />
+        <Route path="/Settings" element={canUserAccess(user, '/Settings') ? <Settings /> : <AccessDenied />} /> {/* <--- ΑΝΤΙΚΑΤΑΣΤΑΣΗ VOIP SETTINGS */}
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

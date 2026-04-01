@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/AuthContext';
+import { getVisibleNavigationGroups } from '@/lib/permissions';
 import {
   LayoutDashboard, Users, Truck, Package, Warehouse as WarehouseIcon,
   ShoppingCart, ShoppingBag, FileText, CreditCard, BarChart3,
-  Bot, ChevronDown, ChevronRight, Menu, X, Settings, Mail, AlertCircle, Ticket, 
+  ChevronDown, ChevronRight, Menu, X, Settings, Mail, AlertCircle, Ticket, 
   Calendar as CalendarIcon, TrendingUp, Sparkles, ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -77,6 +79,7 @@ const navGroups = [
 ];
 
 export default function Sidebar() {
+  const { user } = useAuth();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -89,6 +92,7 @@ export default function Sidebar() {
   };
 
   const isActive = (path) => location.pathname === path;
+  const visibleGroups = getVisibleNavigationGroups(navGroups, user);
 
   const navContent = (
     <div className="flex flex-col h-full bg-sidebar">
@@ -117,7 +121,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2">
-        {navGroups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.label} className="mb-4">
             {!collapsed && (
               <button

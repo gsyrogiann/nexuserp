@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { AlertTriangle, Clock, Package, CreditCard } from 'lucide-react';
+import { AlertTriangle, Clock, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function AlertsPanel({ salesInvoices, products, stockMovements }) {

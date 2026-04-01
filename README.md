@@ -34,11 +34,17 @@ TELEGRAM_BOT_TOKEN=your_new_bot_token
 TELEGRAM_ALLOWED_CHAT_IDS=123456789,987654321
 TELEGRAM_WEBHOOK_SECRET=your_webhook_secret
 OPENAI_API_KEY=your_openai_api_key
+VOIP_API_KEY=your_voip_api_key
+VOIP_WEBHOOK_SECRET=your_voip_webhook_secret
+VOIP_OLLAMA_HOST=http://localhost:11434
+VOIP_WHISPER_HOST=http://localhost:9000
 ```
 
 Do not store Telegram bot tokens in the browser or `localStorage`. Revoke any exposed token and rotate it through secure server-side environment configuration only.
 
 Run the app: `npm run dev`
+
+Release verification: `npm run release:check`
 
 **Publish your changes**
 
@@ -49,3 +55,16 @@ Open [Base44.com](http://Base44.com) and click on Publish.
 Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
 
 Support: [https://app.base44.com/support](https://app.base44.com/support)
+
+Repository release docs:
+
+* `docs/nexuserp-ga-plan.md`
+* `docs/15-day-execution-plan.md`
+* `docs/commercialization-roadmap.md`
+* `docs/release-checklist.md`
+* `docs/release-process.md`
+* `docs/pilot-readiness-checklist.md`
+* `docs/incident-runbook.md`
+* `docs/release-baseline-audit.md`
+* `SECURITY.md`
+* `NOTICE.md`
