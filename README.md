@@ -20,11 +20,12 @@ Any change pushed to the repo will also be reflected in the Base44 Builder.
 ```
 VITE_BASE44_APP_ID=your_app_id
 VITE_BASE44_APP_BASE_URL=your_backend_url
-VITE_BASE44_FUNCTIONS_BASE_URL=https://your-functions-host
+VITE_BASE44_FUNCTIONS_BASE_URL=https://your-app.base44.app/functions
 
 e.g.
 VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
 VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
+VITE_BASE44_FUNCTIONS_BASE_URL=https://my-to-do-list-81bfaad7.base44.app/functions
 ```
 
 Set Telegram secrets only in your backend/deployment environment:
@@ -38,6 +39,7 @@ VOIP_API_KEY=your_voip_api_key
 VOIP_WEBHOOK_SECRET=your_voip_webhook_secret
 VOIP_OLLAMA_HOST=http://localhost:11434
 VOIP_WHISPER_HOST=http://localhost:9000
+OBSERVABILITY_ALLOWED_ORIGINS=http://localhost:5173,https://your-app.base44.app
 ```
 
 Do not store Telegram bot tokens in the browser or `localStorage`. Revoke any exposed token and rotate it through secure server-side environment configuration only.
@@ -46,6 +48,11 @@ Run the app: `npm run dev`
 
 Release verification: `npm run release:check`
 Dependency inventory export: `npm run sbom:generate`
+
+Observability defaults:
+
+* If `VITE_OBSERVABILITY_ENDPOINT` is empty, the frontend now defaults to the built-in `observabilityIngest` function.
+* Set `OBSERVABILITY_ALLOWED_ORIGINS` in the backend environment so only your app origins can submit telemetry.
 
 Typecheck commands:
 

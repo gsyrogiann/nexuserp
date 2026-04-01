@@ -39,8 +39,8 @@ finding remains in the local audit baseline.
 * Formal SPDX or CycloneDX SBOM export is not yet implemented
 * Dependency license review still requires human sign-off
 * Signed and reproducible release artifact workflow is not yet implemented
-* Centralized production error tracking is only partially wired and still needs a durable sink
-* Audit logging is now present for selected client-side critical writes, but not yet backed by a durable server-side store
+* Centralized production error tracking is wired to a durable baseline sink, but alert routing and dashboards are still missing
+* Audit logging is now present for selected client-side critical writes and is persisted through the observability collector, but not yet reviewed in an operational dashboard
 * Pilot validation evidence does not yet exist
 * Strict type coverage is now available, but should remain monitored as new code lands
 
@@ -49,7 +49,7 @@ finding remains in the local audit baseline.
 1. Finalize legal/commercial approval for `LICENSE`, `EULA.md`, and deployment model
 2. Add formal SPDX or CycloneDX SBOM export and complete dependency license sign-off
 3. Add release workflow and versioning discipline for tagged candidates
-4. Connect observability to a durable monitored backend sink
+4. Add alert routing and operational dashboards for persisted observability data
 5. Prepare pilot onboarding and feedback execution
 
 ## Notes

@@ -29,6 +29,31 @@ const safeSerialize = (value) => {
   }
 };
 
+const redactTransportValue = (value, depth = 0) => {
+  if (depth > 5 || value === null || value === undefined) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.slice(0, 20).map((entry) => redactTransportValue(entry, depth + 1));
+  }
+
+  if (typeof value !== 'object') {
+    return safeSerialize(value);
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .slice(0, 50)
+      .map(([key, entryValue]) => [
+        key,
+        REDACTED_AUDIT_KEYS.test(key)
+          ? '[REDACTED]'
+          : redactTransportValue(entryValue, depth + 1),
+      ])
+  );
+};
+
 const getStoredEvents = () => {
   if (typeof window === 'undefined') {
     return [];
@@ -64,7 +89,7 @@ const postEvent = async (event) => {
     await fetch(runtimeConfig.observabilityEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(event),
+      body: JSON.stringify(redactTransportValue(event)),
       keepalive: true,
     });
   } catch {
@@ -183,5 +208,6 @@ export function initializeObservability() {
 
   reportOperationalEvent('observability_initialized', {
     endpointConfigured: Boolean(runtimeConfig.observabilityEndpoint),
+    ingestUrl: runtimeConfig.observabilityIngestUrl || '',
   });
 }
