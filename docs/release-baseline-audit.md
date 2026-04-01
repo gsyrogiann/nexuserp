@@ -16,6 +16,7 @@
 * Restored cleaner release and operational documentation in the repository
 * Added baseline proprietary licensing, draft EULA, ownership review notes, and dependency inventory generation
 * Added baseline audit-event reporting for selected critical write paths
+* Added pilot/commercial execution artifacts and GitHub issue intake templates
 
 ## Current Verification Status
 
@@ -42,6 +43,7 @@ finding remains in the local audit baseline.
 * Centralized production error tracking is wired to a durable baseline sink, but alert routing and dashboards are still missing
 * Audit logging is now present for selected client-side critical writes and is persisted through the observability collector, but not yet reviewed in an operational dashboard
 * Pilot validation evidence does not yet exist
+* Commercial packaging, ICP, and pilot execution now have baseline documentation, but not yet validated market evidence
 * Strict type coverage is now available, but should remain monitored as new code lands
 
 ## Recommended Next Implementation Order
@@ -50,7 +52,7 @@ finding remains in the local audit baseline.
 2. Add formal SPDX or CycloneDX SBOM export and complete dependency license sign-off
 3. Add release workflow and versioning discipline for tagged candidates
 4. Add alert routing and operational dashboards for persisted observability data
-5. Prepare pilot onboarding and feedback execution
+5. Start real pilot execution and collect structured customer evidence
 
 ## Notes
 

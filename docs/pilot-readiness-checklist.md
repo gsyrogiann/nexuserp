@@ -30,6 +30,7 @@ adopter onto the NexusERP release candidate.
 ## Feedback and Monitoring
 
 * A feedback collection channel exists
+* The GitHub pilot feedback template is ready to use
 * Blocking issues are triaged within an agreed time window
 * Incidents are logged against the pilot account or rollout wave
 * Pilot learnings are fed back into release prioritization

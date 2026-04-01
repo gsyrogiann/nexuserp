@@ -74,7 +74,11 @@ Repository release docs:
 * `docs/nexuserp-ga-plan.md`
 * `docs/15-day-execution-plan.md`
 * `docs/commercialization-roadmap.md`
+* `docs/icp-and-positioning.md`
+* `docs/pilot-execution-pack.md`
+* `docs/pricing-and-packaging-baseline.md`
 * `docs/release-checklist.md`
+* `docs/release-notes-template.md`
 * `docs/release-process.md`
 * `docs/pilot-readiness-checklist.md`
 * `docs/incident-runbook.md`

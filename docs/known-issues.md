@@ -7,16 +7,18 @@ release-hardening pass.
 
 ## Open Technical Issues
 
-* The frontend observability baseline exists, but a durable monitored backend
-  sink is not yet configured.
+* The persistent observability sink exists, but dashboards and alert routing are
+  not yet in place.
 
 ## Open Release Gaps
 
-* `LICENSE` is not finalized
-* `EULA` is not finalized
+* `LICENSE` still needs final legal/commercial approval
+* `EULA.md` still needs final legal/commercial approval
 * Signed release artifacts are not yet implemented
-* SBOM generation and dependency license review are not yet automated
+* Formal SPDX or CycloneDX SBOM export is not yet implemented
+* Dependency license review still needs human sign-off
 * Pilot validation evidence is not yet available
+* ICP, pricing, and pilot execution baselines exist, but no real pilot outcomes are recorded yet
 
 ## Guidance
 
