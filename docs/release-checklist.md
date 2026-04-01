@@ -42,9 +42,10 @@ toward NexusERP `v1.0.0` release readiness.
 
 * `SECURITY.md` is present and current
 * `NOTICE.md` is present and current
-* `LICENSE` decision is finalized
-* `EULA` decision is finalized
-* SBOM and dependency license review are available for the candidate
+* `LICENSE` is present and approved for the intended commercial model
+* `EULA.md` is present and approved for the intended commercial model
+* `artifacts/sbom-baseline.json` has been refreshed for the candidate
+* Formal SBOM and dependency license review are available for the candidate
 
 ## Pilot and Launch Readiness
 

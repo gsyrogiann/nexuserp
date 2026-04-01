@@ -1,5 +1,5 @@
 import { toast } from '@/components/ui/use-toast';
-import { reportError, reportOperationalEvent } from '@/lib/observability';
+import { reportAuditEvent, reportError, reportOperationalEvent } from '@/lib/observability';
 
 export function getErrorMessage(error, fallback = 'Η ενέργεια απέτυχε.') {
   if (!error) {
@@ -41,10 +41,21 @@ export function validateRequiredFields(data, fields) {
 /**
  * @template T
  * @param {() => Promise<T>} operation
- * @param {{ actionLabel?: string, fallbackMessage?: string, validate?: () => void }} [options]
+ * @param {{
+ *   actionLabel?: string,
+ *   fallbackMessage?: string,
+ *   validate?: () => void,
+ *   audit?: {
+ *     action: string,
+ *     target: string,
+ *     targetId?: string,
+ *     summary?: string,
+ *     metadata?: Record<string, any>,
+ *   }
+ * }} [options]
  * @returns {Promise<T>}
  */
-export async function executeMutation(operation, { actionLabel, fallbackMessage, validate } = {}) {
+export async function executeMutation(operation, { actionLabel, fallbackMessage, validate, audit } = {}) {
   try {
     if (typeof validate === 'function') {
       validate();
@@ -54,8 +65,25 @@ export async function executeMutation(operation, { actionLabel, fallbackMessage,
     if (actionLabel) {
       reportOperationalEvent('execute_mutation_success', { actionLabel });
     }
+    if (audit?.action && audit?.target) {
+      reportAuditEvent({
+        ...audit,
+        status: 'success',
+        targetId: audit.targetId || result?.id,
+      });
+    }
     return result;
   } catch (error) {
+    if (audit?.action && audit?.target) {
+      reportAuditEvent({
+        ...audit,
+        status: 'failed',
+        metadata: {
+          ...audit.metadata,
+          error: getErrorMessage(error, fallbackMessage || `Αποτυχία στο ${actionLabel || 'mutation'}.`),
+        },
+      });
+    }
     reportError(error, {
       source: 'executeMutation',
       actionLabel,

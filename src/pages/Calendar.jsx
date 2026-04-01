@@ -53,6 +53,15 @@ export default function CalendarPage() {
       {
         actionLabel: 'update ticket due date',
         fallbackMessage: 'Δεν ήταν δυνατή η ενημέρωση της ημερομηνίας του ticket.',
+        audit: {
+          action: 'update_due_date',
+          target: 'service_ticket',
+          targetId: id,
+          summary: 'Updated service ticket due date from calendar',
+          metadata: {
+            dueDate: date,
+          },
+        },
         validate: () => {
           if (!id || !date) {
             throw new Error('Λείπει ticket ή ημερομηνία για το drag & drop.');

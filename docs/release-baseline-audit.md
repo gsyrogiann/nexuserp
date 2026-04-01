@@ -14,6 +14,8 @@
 * Reduced dependency risk to `0 vulnerabilities` in `npm audit`
 * Added frontend observability baseline and support-process documentation
 * Restored cleaner release and operational documentation in the repository
+* Added baseline proprietary licensing, draft EULA, ownership review notes, and dependency inventory generation
+* Added baseline audit-event reporting for selected critical write paths
 
 ## Current Verification Status
 
@@ -33,22 +35,22 @@ finding remains in the local audit baseline.
 
 ### Important Open Gaps
 
-* `LICENSE` is not finalized
-* `EULA` is not finalized
-* SBOM generation is not yet automated
-* Dependency license review is not yet documented
+* `LICENSE` and `EULA.md` still require legal/commercial approval
+* Formal SPDX or CycloneDX SBOM export is not yet implemented
+* Dependency license review still requires human sign-off
 * Signed and reproducible release artifact workflow is not yet implemented
 * Centralized production error tracking is only partially wired and still needs a durable sink
+* Audit logging is now present for selected client-side critical writes, but not yet backed by a durable server-side store
 * Pilot validation evidence does not yet exist
 * Strict type coverage is now available, but should remain monitored as new code lands
 
 ## Recommended Next Implementation Order
 
-1. Add minimum legal and ownership decision placeholders for `LICENSE` and `EULA`
-2. Add release workflow and versioning discipline for tagged candidates
-3. Connect observability to a durable monitored backend sink
-4. Prepare pilot onboarding and feedback execution
-5. Finalize legal and commercial launch decisions
+1. Finalize legal/commercial approval for `LICENSE`, `EULA.md`, and deployment model
+2. Add formal SPDX or CycloneDX SBOM export and complete dependency license sign-off
+3. Add release workflow and versioning discipline for tagged candidates
+4. Connect observability to a durable monitored backend sink
+5. Prepare pilot onboarding and feedback execution
 
 ## Notes
 

@@ -2,6 +2,7 @@ import { runtimeConfig } from '@/lib/runtime-config';
 
 const STORAGE_KEY = 'nexuserp_observability_events';
 const MAX_STORED_EVENTS = 100;
+const REDACTED_AUDIT_KEYS = /token|secret|password|authorization|cookie|api[-_]?key/i;
 
 let initialized = false;
 let sessionId = '';
@@ -82,6 +83,27 @@ const buildEvent = (kind, payload = {}, level = 'info') => ({
   payload: safeSerialize(payload),
 });
 
+const sanitizeAuditPayload = (value) => {
+  if (value === undefined || value === null) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.slice(0, 20).map(sanitizeAuditPayload);
+  }
+
+  if (typeof value !== 'object') {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entryValue]) => [
+      key,
+      REDACTED_AUDIT_KEYS.test(key) ? '[REDACTED]' : safeSerialize(entryValue),
+    ])
+  );
+};
+
 export function reportOperationalEvent(name, payload = {}, level = 'info') {
   const event = buildEvent('operational', { name, ...payload }, level);
   persistEvent(event);
@@ -96,6 +118,28 @@ export function reportOperationalEvent(name, payload = {}, level = 'info') {
 
   void postEvent(event);
   return event;
+}
+
+export function reportAuditEvent({
+  action,
+  target,
+  targetId,
+  status = 'success',
+  summary,
+  metadata = {},
+}) {
+  return reportOperationalEvent(
+    'audit_event',
+    sanitizeAuditPayload({
+      action,
+      target,
+      targetId,
+      status,
+      summary,
+      metadata,
+    }),
+    status === 'failed' ? 'warn' : 'info'
+  );
 }
 
 export function reportError(error, context = {}) {

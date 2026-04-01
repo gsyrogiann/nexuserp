@@ -62,6 +62,17 @@ export default function VoIPSettings() {
         {
           actionLabel: 'save VoIP settings',
           fallbackMessage: 'Δεν ήταν δυνατή η αποθήκευση των VoIP ρυθμίσεων.',
+          audit: {
+            action: existingSettings?.id ? 'update' : 'create',
+            target: 'app_settings.voip',
+            targetId: existingSettings?.id,
+            summary: 'Saved non-sensitive VoIP settings',
+            metadata: {
+              voipHost: data?.voip_host,
+              ollamaHost: data?.ollama_host,
+              whisperHost: data?.whisper_host,
+            },
+          },
         }
       );
     },

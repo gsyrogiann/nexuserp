@@ -84,6 +84,15 @@ export default function SalesInvoices() {
       {
         actionLabel: 'create sales invoice',
         fallbackMessage: 'Δεν ήταν δυνατή η δημιουργία του τιμολογίου.',
+        audit: {
+          action: 'create',
+          target: 'sales_invoice',
+          summary: 'Created sales invoice',
+          metadata: {
+            number: data?.number,
+            customerId: data?.customer_id,
+          },
+        },
       }
     ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['salesInvoices'] }),
@@ -99,6 +108,16 @@ export default function SalesInvoices() {
       {
         actionLabel: 'update sales invoice',
         fallbackMessage: 'Δεν ήταν δυνατή η ενημέρωση του τιμολογίου.',
+        audit: {
+          action: 'update',
+          target: 'sales_invoice',
+          targetId: id,
+          summary: 'Updated sales invoice',
+          metadata: {
+            number: data?.number,
+            customerId: data?.customer_id,
+          },
+        },
       }
     ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['salesInvoices'] }),
@@ -133,6 +152,17 @@ export default function SalesInvoices() {
           {
             actionLabel: 'update product stock',
             fallbackMessage: `Αποτυχία ενημέρωσης αποθέματος για το προϊόν ${product.name || product.id}.`,
+            audit: {
+              action: 'update_stock',
+              target: 'product',
+              targetId: product.id,
+              summary: 'Updated stock quantity after sales invoice',
+              metadata: {
+                invoiceNumber: invoiceData?.number,
+                quantityDelta: -(Number(item.quantity) || 0),
+                newStockQuantity: newQty,
+              },
+            },
           }
         );
       }

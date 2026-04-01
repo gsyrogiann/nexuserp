@@ -42,10 +42,31 @@ export default function UnmatchedEmails() {
     if (!selectedCustomer || !linkDialog) return;
     setLinking(true);
     try {
-      await base44.functions.invoke('linkEmailToCustomer', {
-        unmatched_email_id: linkDialog.id,
-        customer_id: selectedCustomer,
-      });
+      await executeMutation(
+        () => base44.functions.invoke('linkEmailToCustomer', {
+          unmatched_email_id: linkDialog.id,
+          customer_id: selectedCustomer,
+        }),
+        {
+          actionLabel: 'link unmatched email',
+          fallbackMessage: 'Δεν ήταν δυνατή η σύνδεση του email με πελάτη.',
+          validate: () => {
+            if (!linkDialog?.id || !selectedCustomer) {
+              throw new Error('Λείπουν στοιχεία για τη σύνδεση του email.');
+            }
+          },
+          audit: {
+            action: 'link',
+            target: 'unmatched_email',
+            targetId: linkDialog.id,
+            summary: 'Linked unmatched email to customer',
+            metadata: {
+              customerId: selectedCustomer,
+              senderEmail: linkDialog.sender_email,
+            },
+          },
+        }
+      );
       toast.success('Email συνδέθηκε με τον πελάτη!');
       queryClient.invalidateQueries();
       setLinkDialog(null);
@@ -64,6 +85,15 @@ export default function UnmatchedEmails() {
         {
           actionLabel: 'ignore unmatched email',
           fallbackMessage: 'Δεν ήταν δυνατή η ενημέρωση του email.',
+          audit: {
+            action: 'ignore',
+            target: 'unmatched_email',
+            targetId: email.id,
+            summary: 'Marked unmatched email as ignored',
+            metadata: {
+              senderEmail: email.sender_email,
+            },
+          },
           validate: () => {
             if (!email?.id) {
               throw new Error('Το email δεν έχει έγκυρο id.');

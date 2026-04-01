@@ -8,9 +8,13 @@ integration logic.
 NexusERP depends on third-party open source packages that remain subject to
 their respective licenses, copyright notices, and attribution requirements.
 
-The repository currently tracks these dependencies through `package.json` and
-`package-lock.json`. A formal SBOM and final license review should be generated
-before General Availability.
+The repository currently tracks these dependencies through `package.json`,
+`package-lock.json`, and the generated baseline inventory artifact at
+`artifacts/sbom-baseline.json`.
+
+This baseline inventory supports internal release review, but a formal SPDX or
+CycloneDX SBOM and final license review should still be completed before
+General Availability.
 
 ## Generated and Platform-Integrated Code
 
@@ -23,8 +27,8 @@ confirmed as part of the GA legal review before commercial launch.
 The following items remain part of the GA legal/compliance checklist and should
 be finalized before commercial release:
 
-* `LICENSE`
-* `EULA`
-* SBOM export
-* Dependency license review
+* final commercial approval of `LICENSE`
+* final legal approval of `EULA.md`
+* formal SPDX or CycloneDX SBOM export
+* signed dependency license review
 * Privacy/compliance release notes where applicable

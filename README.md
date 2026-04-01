@@ -45,6 +45,7 @@ Do not store Telegram bot tokens in the browser or `localStorage`. Revoke any ex
 Run the app: `npm run dev`
 
 Release verification: `npm run release:check`
+Dependency inventory export: `npm run sbom:generate`
 
 Typecheck commands:
 
@@ -75,5 +76,9 @@ Repository release docs:
 * `docs/known-issues.md`
 * `docs/observability-baseline.md`
 * `docs/support-process.md`
+* `docs/ownership-and-commercial-review.md`
+* `docs/dependency-license-review.md`
+* `LICENSE`
+* `EULA.md`
 * `SECURITY.md`
 * `NOTICE.md`

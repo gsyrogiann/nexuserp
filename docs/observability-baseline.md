@@ -15,6 +15,7 @@ The repository now includes:
 * React error boundary capture
 * React Query query and mutation error reporting
 * structured operational event reporting for key mutation flows
+* baseline audit event reporting for selected create, update, link, and import actions
 * optional forwarding to an external endpoint through environment config
 * local in-browser rolling event buffer for recent diagnostics
 
@@ -37,6 +38,7 @@ structured console output and the local rolling buffer.
 * React Query query failures
 * React Query mutation failures
 * selected mutation success events for operational tracing
+* selected audit events for critical write flows with basic redaction of secret-like fields
 
 ## What Still Needs Improvement
 

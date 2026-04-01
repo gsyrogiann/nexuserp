@@ -74,7 +74,7 @@ function ImportPanel({ type, onImportDone }) {
   const handleFile = (e) => { const file = e.target.files[0]; if (!file) return; setFileName(file.name); setResults(null); const reader = new FileReader(); reader.onload = (ev) => setRows(parseCSV(ev.target.result)); reader.readAsText(file, 'UTF-8'); };
   const handleImport = async () => {
     if (!rows.length) return; setImporting(true); let ok = 0, fail = 0;
-    for (const row of rows) { try { const mapped = type === 'customers' ? mapToCustomer(row) : mapToProduct(row); if (!mapped.name && !mapped.sku) { fail++; continue; } if (type === 'customers') await executeMutation(() => base44.entities.Customer.create(mapped), { actionLabel: 'import customer', fallbackMessage: 'Αποτυχία εισαγωγής πελάτη.' }); else await executeMutation(() => base44.entities.Product.create(mapped), { actionLabel: 'import product', fallbackMessage: 'Αποτυχία εισαγωγής προϊόντος.' }); ok++; } catch { fail++; } }
+    for (const row of rows) { try { const mapped = type === 'customers' ? mapToCustomer(row) : mapToProduct(row); if (!mapped.name && !mapped.sku) { fail++; continue; } if (type === 'customers') await executeMutation(() => base44.entities.Customer.create(mapped), { actionLabel: 'import customer', fallbackMessage: 'Αποτυχία εισαγωγής πελάτη.', audit: { action: 'import', target: 'customer', summary: 'Imported customer from CSV', metadata: { name: mapped.name, taxId: mapped.tax_id } } }); else await executeMutation(() => base44.entities.Product.create(mapped), { actionLabel: 'import product', fallbackMessage: 'Αποτυχία εισαγωγής προϊόντος.', audit: { action: 'import', target: 'product', summary: 'Imported product from CSV', metadata: { name: mapped.name, sku: mapped.sku } } }); ok++; } catch { fail++; } }
     await qc.invalidateQueries({ queryKey: [type === 'customers' ? 'customers' : 'products'] });
     setResults({ ok, fail }); setImporting(false);
     if (ok > 0) onImportDone?.(`Εισήχθησαν ${ok} ${type === 'customers' ? 'πελάτες' : 'προϊόντα'} επιτυχώς!`);
@@ -182,6 +182,15 @@ export default function AIAssistant() {
           {
             actionLabel: 'create AI ticket',
             fallbackMessage: 'Δεν ήταν δυνατή η δημιουργία ticket από το AI action.',
+            audit: {
+              action: 'create',
+              target: 'service_ticket',
+              summary: 'Created service ticket from AI action',
+              metadata: {
+                ticketNumber: action.ticket_data?.ticket_number,
+                customerId: action.ticket_data?.customer_id,
+              },
+            },
             validate: () => {
               if (!action.ticket_data?.ticket_number || !action.ticket_data?.title) {
                 throw new Error('Το AI action δεν περιέχει έγκυρα στοιχεία ticket.');
