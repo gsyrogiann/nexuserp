@@ -9,6 +9,7 @@ import AppLayout from './components/layout/AppLayout';
 import { canUserAccess, isAdminUser } from '@/lib/permissions';
 import { Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import AppErrorBoundary from '@/components/AppErrorBoundary';
 
 // Page imports
 import Dashboard from './pages/Dashboard';
@@ -109,14 +110,16 @@ const AuthenticatedApp = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClientInstance}>
-        <Router>
-          <AuthenticatedApp />
-        </Router>
-        <Toaster />
-      </QueryClientProvider>
-    </AuthProvider>
+    <AppErrorBoundary>
+      <AuthProvider>
+        <QueryClientProvider client={queryClientInstance}>
+          <Router>
+            <AuthenticatedApp />
+          </Router>
+          <Toaster />
+        </QueryClientProvider>
+      </AuthProvider>
+    </AppErrorBoundary>
   );
 }
 

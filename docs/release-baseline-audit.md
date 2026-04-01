@@ -12,6 +12,7 @@
 * Added Dependabot and CodeQL security automation
 * Added a tag-based release workflow with packaged `dist` artifacts
 * Reduced dependency risk to `0 vulnerabilities` in `npm audit`
+* Added frontend observability baseline and support-process documentation
 * Restored cleaner release and operational documentation in the repository
 
 ## Current Verification Status
@@ -37,7 +38,7 @@ finding remains in the local audit baseline.
 * SBOM generation is not yet automated
 * Dependency license review is not yet documented
 * Signed and reproducible release artifact workflow is not yet implemented
-* Centralized production error tracking is not yet wired
+* Centralized production error tracking is only partially wired and still needs a durable sink
 * Pilot validation evidence does not yet exist
 * Strict type coverage is now available, but should remain monitored as new code lands
 
@@ -45,7 +46,7 @@ finding remains in the local audit baseline.
 
 1. Add minimum legal and ownership decision placeholders for `LICENSE` and `EULA`
 2. Add release workflow and versioning discipline for tagged candidates
-3. Add production error tracking and logging ownership
+3. Connect observability to a durable monitored backend sink
 4. Prepare pilot onboarding and feedback execution
 5. Finalize legal and commercial launch decisions
 

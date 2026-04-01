@@ -73,5 +73,7 @@ Repository release docs:
 * `docs/release-baseline-audit.md`
 * `docs/typecheck-roadmap.md`
 * `docs/known-issues.md`
+* `docs/observability-baseline.md`
+* `docs/support-process.md`
 * `SECURITY.md`
 * `NOTICE.md`

@@ -60,6 +60,13 @@ features without material business impact.
 * Attempt reproduction from a clean checkout
 * Decide whether rollback is lower risk than forward-fix
 
+### Frontend Runtime Error Surge
+
+* Check whether the React error boundary is being hit
+* Review recent browser observability events
+* Verify the configured `VITE_OBSERVABILITY_ENDPOINT`
+* Confirm whether the issue is isolated to one route or global
+
 ## Escalation Path
 
 Minimum incident roles for release-candidate operation:

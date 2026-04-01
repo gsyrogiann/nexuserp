@@ -41,6 +41,9 @@ const buildFunctionUrl = (name) => {
 export const runtimeConfig = {
   appBaseUrl: trimTrailingSlash(appParams.appBaseUrl || getBrowserOrigin()),
   functionsBaseUrl: getFunctionsBaseUrl(),
+  appEnvironment: import.meta.env.VITE_APP_ENVIRONMENT || import.meta.env.MODE || 'development',
+  appRelease: import.meta.env.VITE_APP_RELEASE || '',
+  observabilityEndpoint: trimTrailingSlash(import.meta.env.VITE_OBSERVABILITY_ENDPOINT || ''),
   telegramWebhookUrl: buildFunctionUrl('telegramAI'),
   voipWebhookUrl: buildFunctionUrl('voipWebhook'),
 };

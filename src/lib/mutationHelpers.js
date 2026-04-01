@@ -1,4 +1,5 @@
 import { toast } from '@/components/ui/use-toast';
+import { reportError, reportOperationalEvent } from '@/lib/observability';
 
 export function getErrorMessage(error, fallback = 'Η ενέργεια απέτυχε.') {
   if (!error) {
@@ -49,8 +50,16 @@ export async function executeMutation(operation, { actionLabel, fallbackMessage,
       validate();
     }
 
-    return await operation();
+    const result = await operation();
+    if (actionLabel) {
+      reportOperationalEvent('execute_mutation_success', { actionLabel });
+    }
+    return result;
   } catch (error) {
+    reportError(error, {
+      source: 'executeMutation',
+      actionLabel,
+    });
     throw new Error(getErrorMessage(error, fallbackMessage || `Αποτυχία στο ${actionLabel || 'mutation'}.`));
   }
 }

@@ -7,7 +7,8 @@ release-hardening pass.
 
 ## Open Technical Issues
 
-* Production error tracking is not yet wired to an external monitoring system.
+* The frontend observability baseline exists, but a durable monitored backend
+  sink is not yet configured.
 
 ## Open Release Gaps
 

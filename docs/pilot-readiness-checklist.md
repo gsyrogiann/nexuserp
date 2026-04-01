@@ -18,6 +18,7 @@ adopter onto the NexusERP release candidate.
 * Webhook endpoints are reachable and authenticated
 * Support owner and technical owner are assigned
 * Recent CI status is green
+* Observability baseline is enabled and tested
 
 ## Customer Readiness
 
@@ -32,6 +33,7 @@ adopter onto the NexusERP release candidate.
 * Blocking issues are triaged within an agreed time window
 * Incidents are logged against the pilot account or rollout wave
 * Pilot learnings are fed back into release prioritization
+* A support/escalation process is agreed and available
 
 ## Exit Criteria
 
