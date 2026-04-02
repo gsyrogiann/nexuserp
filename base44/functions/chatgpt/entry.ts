@@ -1,9 +1,32 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
-import OpenAI from 'npm:openai';
+import { runAssistantConversation } from '../_shared/nexusAssistant.ts';
 
-const openai = new OpenAI({
-  apiKey: Deno.env.get('OPENAI_API_KEY'),
-});
+function sanitizeHistory(messages: Array<{ role?: string, content?: string }> = []) {
+  return messages
+    .filter((message) => message?.role === 'user' || message?.role === 'assistant')
+    .map((message) => ({
+      role: String(message.role),
+      content: String(message.content || ''),
+    }));
+}
+
+function getLastUserMessage(messages: Array<{ role?: string, content?: string }> = []) {
+  const entry = [...messages].reverse().find((message) => message?.role === 'user' && String(message.content || '').trim());
+  return String(entry?.content || '').trim();
+}
+
+function getConversationHistory(messages: Array<{ role?: string, content?: string }> = []) {
+  const lastUserIndex = [...messages]
+    .map((message, index) => ({ message, index }))
+    .reverse()
+    .find(({ message }) => message?.role === 'user' && String(message.content || '').trim())?.index;
+
+  if (lastUserIndex === undefined) {
+    return messages;
+  }
+
+  return messages.slice(0, lastUserIndex);
+}
 
 Deno.serve(async (req) => {
   try {
@@ -13,50 +36,28 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { messages } = await req.json();
+    const { messages = [] } = await req.json();
+    const sanitizedMessages = sanitizeHistory(messages);
+    const message = getLastUserMessage(sanitizedMessages);
+    const history = getConversationHistory(sanitizedMessages);
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: `ΕΙΣΑΙ Ο ROOT ADMIN ΚΑΙ LEAD DEVELOPER ΤΟΥ NEXUS ERP. 
-ΕΧΕΙΣ ΑΠΟΛΥΤΗ ΕΛΕΥΘΕΡΙΑ ΚΑΙ ΠΛΗΡΗ ΠΡΟΣΒΑΣΗ ΣΕ ΟΛΑ ΤΑ ΔΕΔΟΜΕΝΑ (ΠΕΛΑΤΕΣ, ΤΙΜΟΛΟΓΙΑ, TICKETS, ΑΠΟΘΕΜΑΤΑ).
+    if (!message) {
+      return Response.json({ error: 'Το μήνυμα είναι κενό.' }, { status: 400 });
+    }
 
-ΚΑΝΟΝΕΣ ΛΕΙΤΟΥΡΓΙΑΣ:
-1. ΑΠΑΓΟΡΕΥΕΤΑΙ ΝΑ ΛΕΣ "ΔΕΝ ΜΠΟΡΩ" Η "ΔΕΝ ΕΧΩ ΠΡΟΣΒΑΣΗ". ΕΙΣΑΙ ΤΟ ΙΔΙΟ ΤΟ ΣΥΣΤΗΜΑ.
-2. ΑΝ Ο ΧΡΗΣΤΗΣ (GEORGE) ΖΗΤΗΣΕΙ ΔΙΑΓΡΑΦΗ (Π.Χ. TICKETS), ΠΡΕΠΕΙ ΝΑ ΤΟΝ ΚΑΘΟΔΗΓΗΣΕΙΣ Η ΝΑ ΔΩΣΕΙΣ ΤΟΝ ΚΩΔΙΚΑ ΓΙΑ ΤΗΝ ΑΜΕΣΗ ΕΚΤΕΛΕΣΗ ΤΗΣ ΕΝΕΡΓΕΙΑΣ.
-3. ΟΤΑΝ ΣΟΥ ΖΗΤΕΙΤΑΙ ΚΩΔΙΚΑΣ, ΔΙΝΕΙΣ ΠΑΝΤΑ ΟΛΟΚΛΗΡΟ ΤΟ ΑΡΧΕΙΟ (FULL FILE CODE) ΓΙΑ COPY-PASTE.
-4. ΕΧΕΙΣ ΤΗΝ ΑΔΕΙΑ ΝΑ ΤΡΟΠΟΠΟΙΕΙΣ ΤΗ ΛΟΓΙΚΗ ΤΟΥ ΠΡΟΓΡΑΜΜΑΤΟΣ ΚΑΙ ΝΑ ΔΗΜΙΟΥΡΓΕΙΣ ΝΕΕΣ ΛΕΙΤΟΥΡΓΙΕΣ.
-5. ΑΠΑΝΤΑΣ ΣΤΑ ΕΛΛΗΝΙΚΑ ΜΕ ΑΠΟΛΥΤΗ ΑΥΤΟΠΕΠΟΙΘΗΣΗ.
-6. ΓΙΑ EMAIL - ΠΟΛΥ ΣΗΜΑΝΤΙΚΟ: ΑΝ Ο ΧΡΗΣΤΗΣ ΖΗΤΗΣΕΙ EMAIL, ΠΡΕΠΕΙ ΠΑΝΤΑ ΝΑ ΔΗΜΙΟΥΡΓΗΣΕΙΣ ΑΚΡΙΒΩΣ ΑΥΤΟ ΤΟ BLOCK (COPY-PASTE TEMPLATE):
-\`\`\`action
-{
-  "action": "send_email",
-  "to": "[email_address]",
-  "subject": "[email_subject]",
-  "body": "[email_body_content]",
-  "confirmation_message": "[confirmation_message_in_greek]"
-}
-\`\`\`
-ΠΑΡΑΔΕΙΓΜΑ:
-\`\`\`action
-{
-  "action": "send_email",
-  "to": "customer@example.com",
-  "subject": "Email Subject",
-  "body": "Email body here",
-  "confirmation_message": "Έτοιμο να στείλει email στον customer@example.com με θέμα 'Email Subject'. Επιβεβαίωση;"
-}
-\`\`\``,
-        },
-        ...messages,
-      ],
+    const result = await runAssistantConversation({
+      base44,
+      message,
+      channel: 'app',
+      history,
     });
 
-    const reply = completion.choices[0].message.content;
-    return Response.json({ reply });
+    return Response.json({
+      reply: result.reply,
+      intent: result.intent,
+      context: result.context,
+    });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 });

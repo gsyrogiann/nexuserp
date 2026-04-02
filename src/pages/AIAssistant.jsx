@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useRef, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { listCustomers } from '@/lib/directoryQueries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -133,10 +132,6 @@ export default function AIAssistant() {
     }
   }, [conversations]);
 
-  // Data fetching
-  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: () => listCustomers() });
-  const { data: tickets = [] } = useQuery({ queryKey: ['tickets'], queryFn: () => base44.entities.ServiceTicket.list('-created_date') });
-
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
 
   const startNewChat = () => {
@@ -158,14 +153,6 @@ export default function AIAssistant() {
     localStorage.setItem('nexus_assistant_history', JSON.stringify(updated));
     if (currentChatId === id) startNewChat();
   };
-
-  const buildContext = useCallback(() => {
-    const nextTicketNum = `TKT-${String(tickets.length + 1).padStart(4, '0')}`;
-    return `Είσαι ο Nexus AI Admin. Έχεις πρόσβαση στα Entities: Customer, ServiceTicket.
-    ΠΕΛΑΤΕΣ: ${JSON.stringify(customers.map(c => ({ id: c.id, name: c.name })))}
-    TICKETS: ${tickets.length} σύνολο. Επόμενος κωδικός: ${nextTicketNum}
-    Χρησιμοποίησε block \`\`\`action για αλλαγές. Απάντα ΠΑΝΤΑ στα Ελληνικά.`;
-  }, [customers, tickets]);
 
   const parseAction = (text) => {
     const match = text.match(/```action\s*([\s\S]*?)```/);
@@ -247,8 +234,8 @@ export default function AIAssistant() {
     
     const startTime = Date.now();
     try {
-      const response = await base44.functions.invoke('chatgpt', { 
-        messages: [{ role: 'system', content: buildContext() }, ...updatedWithUser.map(m => ({ role: m.role, content: m.content }))] 
+      const response = await base44.functions.invoke('chatgpt', {
+        messages: updatedWithUser.map(m => ({ role: m.role, content: m.content }))
       });
       
       const replyText = response.data?.reply || 'Σφάλμα απόκρισης.';
@@ -289,7 +276,7 @@ export default function AIAssistant() {
       setMessages(prev => [...prev, { role: 'assistant', content: `❌ Σφάλμα σύνδεσης.` }]);
     }
     setLoading(false); inputRef.current?.focus();
-  }, [input, loading, messages, buildContext, currentChatId]);
+  }, [input, loading, messages, currentChatId]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)]">
@@ -355,6 +342,14 @@ export default function AIAssistant() {
                   <div className="text-center">
                     <h3 className="text-xl font-black text-slate-900 tracking-tighter">NEXUS AI CONSOLE</h3>
                     <p className="text-xs text-slate-500 mt-2 max-w-xs font-medium uppercase tracking-widest">Awaiting Command...</p>
+                    <div className="mt-5 text-left text-xs text-slate-500 space-y-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                      <p className="font-bold text-slate-700 uppercase tracking-wide text-[10px]">Παραδείγματα</p>
+                      <p>Δείξε πελάτες</p>
+                      <p>Βρες πελάτη Παπαδόπουλος</p>
+                      <p>Δείξε απλήρωτα τιμολόγια</p>
+                      <p>Δείξε ανοιχτά tickets</p>
+                      <p>Φτιάξε ticket για βλάβη εκτυπωτή στον Παπαδόπουλο</p>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -395,7 +390,7 @@ export default function AIAssistant() {
                   value={input} 
                   onChange={e => setInput(e.target.value)} 
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())} 
-                  placeholder='π.χ. "Φτιάξε ticket για βλάβη εκτυπωτή στον Παπαδόπουλο"' 
+                  placeholder='π.χ. "Δείξε απλήρωτα τιμολόγια" ή "Φτιάξε ticket για βλάβη εκτυπωτή στον Παπαδόπουλο"' 
                   disabled={loading} 
                   className="flex-1 border-none bg-transparent shadow-none focus-visible:ring-0 text-sm h-11" 
                 />
