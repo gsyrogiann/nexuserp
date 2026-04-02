@@ -15,6 +15,19 @@ export const HELP_TEXT = `Μπορώ να βοηθήσω με:
 const MAX_LIST_ITEMS = 10;
 const MAX_GENERAL_ITEMS = 5;
 const INVOICE_ACTIVE_STATUSES = new Set(['unpaid', 'overdue', 'partial']);
+const DETERMINISTIC_INTENTS = new Set([
+  'list_customers',
+  'search_customers',
+  'list_suppliers',
+  'search_suppliers',
+  'list_invoices',
+  'list_unpaid_invoices',
+  'list_open_tickets',
+  'list_unmatched_emails',
+  'create_ticket',
+  'draft_email',
+  'system_status',
+]);
 
 type SearchDescriptor = {
   raw: string,
@@ -180,6 +193,8 @@ export function detectIntent(message: string) {
   const hasCustomerKeyword = /πελατ|customer/.test(text);
   const hasSupplierKeyword = /προμηθευτ|supplier/.test(text);
   const hasIdentifierHint = /αφμ|afm|vat|tax id|tax_id/.test(text) || Boolean(detectEmailAddress(text)) || Boolean(detectTaxId(text));
+  const hasSendVerb = /(στειλε|στείλε|γραψε|γράψε|συνταξε|σύνταξε|draft|send|compose)/.test(text);
+  const hasMailIndicator = /email|mail|@|\bto\b|στον|στην|προς/.test(text);
 
   if (!text) return 'help';
 
@@ -190,10 +205,7 @@ export function detectIntent(message: string) {
     return 'create_ticket';
   }
 
-  if (
-    (/(στειλε|στείλε|γραψε|γράψε|draft|send)/.test(text) && /email|mail/.test(text)) ||
-    (/email|mail/.test(text) && /(στειλε|στείλε|γραψε|γράψε|draft|send)/.test(text))
-  ) {
+  if ((hasSendVerb && hasMailIndicator) || (/email|mail/.test(text) && hasSendVerb)) {
     return 'draft_email';
   }
 
@@ -572,7 +584,7 @@ export async function generateAssistantReply({
   history?: Array<{ role: string, content: string }>,
 }) {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!apiKey) {
+  if (!apiKey || DETERMINISTIC_INTENTS.has(intent)) {
     return buildFallbackReply(intent, context, channel);
   }
 
