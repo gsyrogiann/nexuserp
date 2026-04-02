@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
+import { reportOperationalEvent } from '@/lib/observability';
 
 const PAGE_NAMES = {
   '/Dashboard': 'Dashboard',
@@ -26,11 +27,31 @@ const PAGE_NAMES = {
   '/Settings': 'Settings',
 };
 
+let currentTrackedUser = null;
+
+const deferTracking = (callback, delayMs = 0) => {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+
+  if (typeof window.requestIdleCallback === 'function') {
+    const idleId = window.requestIdleCallback(() => callback(), { timeout: 2000 });
+    return () => window.cancelIdleCallback(idleId);
+  }
+
+  const timeoutId = window.setTimeout(callback, delayMs);
+  return () => window.clearTimeout(timeoutId);
+};
+
 export function useActivityTracking() {
   const { user } = useAuth();
   const location = useLocation();
   const heartbeatIntervalRef = useRef(null);
   const lastActivityRef = useRef(Date.now());
+
+  useEffect(() => {
+    currentTrackedUser = user || null;
+  }, [user]);
 
   // Log page visit
   useEffect(() => {
@@ -38,16 +59,24 @@ export function useActivityTracking() {
 
     const pageName = PAGE_NAMES[location.pathname] || location.pathname;
 
-    base44.entities.UserActivity.create({
-      user_email: user.email,
-      user_name: user.full_name || user.email,
-      action: 'page_visit',
-      page_path: location.pathname,
-      page_name: pageName,
-      timestamp: new Date().toISOString(),
-    }).catch(err => console.error('Activity log failed:', err));
+    const cancelTracking = deferTracking(() => {
+      base44.entities.UserActivity.create({
+        user_email: user.email,
+        user_name: user.full_name || user.email,
+        action: 'page_visit',
+        page_path: location.pathname,
+        page_name: pageName,
+        timestamp: new Date().toISOString(),
+      }).catch((err) => {
+        reportOperationalEvent('activity_tracking_error', {
+          action: 'page_visit',
+          message: err?.message || 'Activity log failed',
+        }, 'warn');
+      });
+    }, 400);
 
     lastActivityRef.current = Date.now();
+    return cancelTracking;
   }, [location.pathname, user]);
 
   // Heartbeat every 30 seconds to track idle time
@@ -66,12 +95,12 @@ export function useActivityTracking() {
       }).catch(err => console.error('Heartbeat failed:', err));
     };
 
-    // Send first heartbeat immediately
-    sendHeartbeat();
+    const cancelInitialHeartbeat = deferTracking(sendHeartbeat, 2500);
 
     heartbeatIntervalRef.current = setInterval(sendHeartbeat, 30000); // Every 30 sec
 
     return () => {
+      cancelInitialHeartbeat();
       if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
     };
   }, [user, location.pathname]);
@@ -82,7 +111,7 @@ export async function trackAction(actionName, details) {
   if (!actionName) return;
 
   try {
-    const user = await base44.auth.me();
+    const user = currentTrackedUser;
     base44.entities.UserActivity.create({
       user_email: user?.email || 'unknown',
       user_name: user?.full_name || user?.email || 'unknown',

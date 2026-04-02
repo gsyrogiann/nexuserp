@@ -1,9 +1,14 @@
+import { reportOperationalEvent } from '@/lib/observability';
+import { REQUEST_TIMEOUT_MS, withTimeout } from '@/lib/startup';
+
 export async function fetchList(entity, options = {}) {
   const {
     filter,
     sort = '-created_date',
     limit = 100,
     max = 1000,
+    timeoutMs = REQUEST_TIMEOUT_MS,
+    entityName = 'entity',
   } = options;
 
   const normalizedFilter = Object.fromEntries(
@@ -19,32 +24,72 @@ export async function fetchList(entity, options = {}) {
   let allData = [];
   let skip = 0;
   let hasMore = true;
+  let page = 0;
+  const pageLimit = Math.max(1, Math.ceil(max / Math.max(1, limit)) + 1);
+  const seenPageSignatures = new Set();
 
-  while (hasMore) {
+  while (hasMore && page < pageLimit) {
     let batch = [];
 
     if (hasFilter && typeof entity.filter === 'function') {
       try {
-        batch = await entity.filter(normalizedFilter, sort, limit, skip);
+        batch = await withTimeout(
+          () => entity.filter(normalizedFilter, sort, limit, skip),
+          { timeoutMs, label: `${entityName}.filter` }
+        );
       } catch (error) {
         if (skip > 0) {
           throw error;
         }
 
-        const filteredData = await entity.filter(normalizedFilter, sort);
+        const filteredData = await withTimeout(
+          () => entity.filter(normalizedFilter, sort),
+          { timeoutMs, label: `${entityName}.filter_fallback` }
+        );
         batch = filteredData.slice(skip, skip + limit);
       }
     } else {
-      batch = await entity.list(sort, limit, skip);
+      batch = await withTimeout(
+        () => entity.list(sort, limit, skip),
+        { timeoutMs, label: `${entityName}.list` }
+      );
     }
 
-    allData = [...allData, ...batch];
+    if (!Array.isArray(batch)) {
+      batch = [];
+    }
 
-    if (batch.length < limit || allData.length >= max) {
+    const pageSignature = batch.map((item) => item?.id || item?.key || JSON.stringify(item)).join('|');
+    if (pageSignature && seenPageSignatures.has(pageSignature)) {
+      reportOperationalEvent('fetch_list_repeated_page', {
+        entityName,
+        skip,
+        limit,
+      }, 'warn');
+      break;
+    }
+
+    if (pageSignature) {
+      seenPageSignatures.add(pageSignature);
+    }
+
+    allData.push(...batch);
+    page += 1;
+
+    if (batch.length === 0 || batch.length < limit || allData.length >= max) {
       hasMore = false;
     } else {
       skip += limit;
     }
+  }
+
+  if (hasMore && page >= pageLimit) {
+    reportOperationalEvent('fetch_list_page_limit_reached', {
+      entityName,
+      pageLimit,
+      accumulated: allData.length,
+      max,
+    }, 'warn');
   }
 
   return allData.slice(0, max);
