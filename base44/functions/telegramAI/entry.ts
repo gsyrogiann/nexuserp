@@ -92,6 +92,7 @@ Deno.serve(async (req) => {
       message: userText,
       intent,
       context,
+      channel: 'telegram',
     });
 
     await sendTelegramMessage(botToken, chatId, replyText);
