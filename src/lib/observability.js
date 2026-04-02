@@ -7,7 +7,17 @@ const REDACTED_AUDIT_KEYS = /token|secret|password|authorization|cookie|api[-_]?
 let initialized = false;
 let sessionId = '';
 
-const createSessionId = () => `obs_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+const createRandomToken = () => {
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    const bytes = new Uint8Array(8);
+    globalThis.crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  return `${Date.now().toString(16)}_fallback`;
+};
+
+const createSessionId = () => `obs_${Date.now()}_${createRandomToken()}`;
 
 const getSessionId = () => {
   if (!sessionId) {
