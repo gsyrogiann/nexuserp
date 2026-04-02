@@ -39,6 +39,12 @@ type SearchDescriptor = {
   phone: string,
 };
 
+type EmailTransportStatus = {
+  available: boolean,
+  provider: string,
+  reason: string,
+};
+
 function normalizeText(value: string) {
   return String(value || '')
     .normalize('NFD')
@@ -196,6 +202,40 @@ function deriveEmailBody(message: string, customerName: string) {
   const main = deriveEmailMessageContent(message);
 
   return `${intro}\n\n${main}\n\nΜε εκτίμηση,\nNexusERP`;
+}
+
+async function getEmailTransportStatus(base44: any): Promise<EmailTransportStatus> {
+  try {
+    const connection = await base44.asServiceRole.connectors.getConnection('gmail');
+    if (connection?.accessToken) {
+      return {
+        available: true,
+        provider: 'gmail_shared',
+        reason: '',
+      };
+    }
+  } catch {
+    // Continue to app-user connector fallback.
+  }
+
+  try {
+    const accessToken = await base44.asServiceRole.connectors.getCurrentAppUserAccessToken('gmail');
+    if (accessToken) {
+      return {
+        available: true,
+        provider: 'gmail_user',
+        reason: '',
+      };
+    }
+  } catch {
+    // Fall through to unavailable state.
+  }
+
+  return {
+    available: false,
+    provider: 'none',
+    reason: 'Δεν υπάρχει ενεργή σύνδεση Gmail για αποστολή email. Χρειάζεται σύνδεση Gmail connector πριν σταλεί μήνυμα από το NexusERP.',
+  };
 }
 
 export function detectIntent(message: string) {
@@ -422,19 +462,31 @@ async function getCreateTicketContext(base44: any, message: string) {
 
 async function getDraftEmailContext(base44: any, message: string) {
   const explicitEmail = detectEmailAddress(message);
-  const customersContext = await getCustomersSnapshot(base44, message, { limit: 3 });
+  const [customersContext, transport] = await Promise.all([
+    getCustomersSnapshot(base44, message, { limit: 3 }),
+    getEmailTransportStatus(base44),
+  ]);
   const matchedCustomer = customersContext.items.find((customer: Record<string, unknown>) => customer.email) || null;
   const recipientEmail = explicitEmail || matchedCustomer?.email || '';
   const recipientName = matchedCustomer?.name || '';
+  const subject = deriveEmailSubject(message, recipientName);
+  const body = deriveEmailBody(message, recipientName);
 
   return {
-    canCreateAction: Boolean(recipientEmail),
+    canCreateAction: Boolean(recipientEmail) && transport.available,
     to: recipientEmail,
     customer_id: matchedCustomer?.id || null,
     customer_name: recipientName,
-    subject: deriveEmailSubject(message, recipientName),
-    body: deriveEmailBody(message, recipientName),
-    reason: recipientEmail ? '' : 'Δεν βρήκα email παραλήπτη. Δώσε email ή πελάτη με καταχωρημένο email.',
+    subject,
+    body,
+    transport_ready: transport.available,
+    transport_provider: transport.provider,
+    transport_reason: transport.reason,
+    reason: !recipientEmail
+      ? 'Δεν βρήκα email παραλήπτη. Δώσε email ή πελάτη με καταχωρημένο email.'
+      : transport.available
+        ? ''
+        : transport.reason,
   };
 }
 
@@ -581,9 +633,14 @@ function buildFallbackReply(intent: string, context: any, channel = 'app') {
         : context.reason;
     }
 
-    if (!context.canCreateAction) {
+    if (!context.to) {
       return context.reason;
     }
+
+    if (!context.transport_ready) {
+      return `Ετοίμασα draft email για ${context.to}, αλλά δεν μπορώ να το στείλω ακόμα.\n\nΘέμα: ${context.subject}\n\n${context.body}\n\n${context.transport_reason}`;
+    }
+
     return `Ετοίμασα draft email για ${context.to}. Επιβεβαίωσε για να σταλεί.`;
   }
 
