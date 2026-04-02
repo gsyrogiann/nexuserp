@@ -18,8 +18,22 @@ Deno.serve(async (req) => {
       const conn = await base44.asServiceRole.connectors.getConnection('gmail');
       accessToken = conn.accessToken;
     } catch {
-      // Fall back to current user's app user connector
-      accessToken = await base44.asServiceRole.connectors.getCurrentAppUserAccessToken('gmail');
+      try {
+        // Fall back to current user's app user connector
+        accessToken = await base44.asServiceRole.connectors.getCurrentAppUserAccessToken('gmail');
+      } catch {
+        return Response.json({
+          error: 'Δεν υπάρχει ενεργή σύνδεση Gmail για αποστολή email. Συνδέστε πρώτα Gmail connector ή λογαριασμό Gmail στην εφαρμογή.',
+          code: 'gmail_not_connected',
+        }, { status: 503 });
+      }
+    }
+
+    if (!accessToken) {
+      return Response.json({
+        error: 'Δεν βρέθηκε access token Gmail για αποστολή email.',
+        code: 'gmail_missing_token',
+      }, { status: 503 });
     }
 
     // RFC 2047 encode subject for non-ASCII characters (e.g. Greek)
@@ -52,8 +66,11 @@ Deno.serve(async (req) => {
     });
 
     if (!gmailRes.ok) {
-      const err = await gmailRes.json();
-      return Response.json({ error: err?.error?.message || 'Gmail send failed' }, { status: 500 });
+      const err = await gmailRes.json().catch(() => ({}));
+      return Response.json({
+        error: err?.error?.message || 'Η αποστολή μέσω Gmail απέτυχε.',
+        code: 'gmail_send_failed',
+      }, { status: 500 });
     }
 
     const sent = await gmailRes.json();

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Loader2, RefreshCw, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -49,13 +49,41 @@ export function StartupStateScreen({
   );
 }
 
+const ROUTE_LOADING_SLOW_MS = 7000;
+
 export function RouteLoadingFallback({ label = 'σελίδας' }) {
+  const [slow, setSlow] = useState(false);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setSlow(true);
+    }, ROUTE_LOADING_SLOW_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
   return (
     <div className="h-[60vh] flex flex-col items-center justify-center">
       <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-3" />
       <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
         Φόρτωση {label}
       </p>
+      {slow ? (
+        <div className="mt-4 text-center">
+          <p className="text-sm text-slate-500 max-w-sm">
+            Η φόρτωση της σελίδας αργεί περισσότερο από το αναμενόμενο. Μπορείς να δοκιμάσεις ανανέωση χωρίς να μείνεις σε μόνιμο spinner.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3 rounded-xl"
+            onClick={() => window.location.reload()}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Ανανέωση σελίδας
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -15,6 +15,7 @@ import AppErrorBoundary from '@/components/AppErrorBoundary';
 import { reportOperationalEvent } from '@/lib/observability';
 import { STARTUP_SLOW_UI_MS } from '@/lib/startup';
 import { RouteLoadingFallback, StartupStateScreen } from '@/components/startup/StartupStateScreen';
+import AIAssistant from './pages/AIAssistant';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Customers = lazy(() => import('./pages/Customers'));
@@ -28,7 +29,6 @@ const PurchaseOrders = lazy(() => import('./pages/PurchaseOrders'));
 const PurchaseInvoices = lazy(() => import('./pages/PurchaseInvoices'));
 const Payments = lazy(() => import('./pages/Payments'));
 const Reports = lazy(() => import('./pages/Reports'));
-const AIAssistant = lazy(() => import('./pages/AIAssistant'));
 const EmailSettings = lazy(() => import('./pages/EmailSettings'));
 const UnmatchedEmails = lazy(() => import('./pages/UnmatchedEmails'));
 const Tickets = lazy(() => import('./pages/Tickets'));
