@@ -16,6 +16,14 @@ const MAX_LIST_ITEMS = 10;
 const MAX_GENERAL_ITEMS = 5;
 const INVOICE_ACTIVE_STATUSES = new Set(['unpaid', 'overdue', 'partial']);
 
+type SearchDescriptor = {
+  raw: string,
+  normalized: string,
+  taxId: string,
+  email: string,
+  phone: string,
+};
+
 function normalizeText(value: string) {
   return String(value || '')
     .normalize('NFD')
@@ -40,7 +48,8 @@ function stripEntityKeywords(message: string, keywords: string[]) {
   }
 
   return compactWhitespace(
-    normalized.replace(/\b(τον|την|τους|τις|στον|στην|για|μου|please|παρακαλω|παρακαλώ)\b/g, '')
+    normalized
+      .replace(/\b(τον|την|τους|τις|στον|στην|για|μου|please|παρακαλω|παρακαλώ|αφμ|afm|vat|tax id|tax_id|email|mail|phone|τηλεφωνο|τηλέφωνο)\b/g, '')
   );
 }
 
@@ -63,6 +72,48 @@ function extractSearchTerm(message: string, keywords: string[]) {
 
   const fallback = stripEntityKeywords(normalized, keywords);
   return fallback.length >= 2 ? fallback : '';
+}
+
+function normalizeDigits(value: string) {
+  return String(value || '').replace(/\D+/g, '');
+}
+
+function detectTaxId(message: string) {
+  const exactMatch = String(message || '').match(/\b\d{9}\b/);
+  return exactMatch?.[0] || '';
+}
+
+function detectPhoneNumber(message: string) {
+  const digits = normalizeDigits(message);
+  return digits.length >= 10 ? digits : '';
+}
+
+function createSearchDescriptor(message: string, keywords: string[]): SearchDescriptor {
+  const raw = extractSearchTerm(message, keywords);
+  return {
+    raw,
+    normalized: normalizeText(raw),
+    taxId: detectTaxId(message),
+    email: detectEmailAddress(message),
+    phone: detectPhoneNumber(message),
+  };
+}
+
+function identifierMatches(record: Record<string, unknown>, search: SearchDescriptor) {
+  if (search.taxId) {
+    return normalizeDigits(String(record.tax_id || '')) === search.taxId;
+  }
+
+  if (search.email) {
+    return normalizeText(String(record.email || '')) === normalizeText(search.email);
+  }
+
+  if (search.phone) {
+    const recordPhone = normalizeDigits(String(record.phone || record.mobile || ''));
+    return recordPhone.includes(search.phone) || search.phone.includes(recordPhone);
+  }
+
+  return false;
 }
 
 function matchesSearch(record: Record<string, unknown>, searchTerm: string, fields: string[]) {
@@ -126,6 +177,9 @@ function deriveEmailBody(message: string, customerName: string) {
 
 export function detectIntent(message: string) {
   const text = normalizeText(message);
+  const hasCustomerKeyword = /πελατ|customer/.test(text);
+  const hasSupplierKeyword = /προμηθευτ|supplier/.test(text);
+  const hasIdentifierHint = /αφμ|afm|vat|tax id|tax_id/.test(text) || Boolean(detectEmailAddress(text)) || Boolean(detectTaxId(text));
 
   if (!text) return 'help';
 
@@ -159,12 +213,16 @@ export function detectIntent(message: string) {
     return 'list_invoices';
   }
 
-  if (/πελατ|customer/.test(text)) {
+  if (hasCustomerKeyword) {
     return extractSearchTerm(message, ['πελατ', 'customer']).length > 0 ? 'search_customers' : 'list_customers';
   }
 
-  if (/προμηθευτ|supplier/.test(text)) {
+  if (hasSupplierKeyword) {
     return extractSearchTerm(message, ['προμηθευτ', 'supplier']).length > 0 ? 'search_suppliers' : 'list_suppliers';
+  }
+
+  if (hasIdentifierHint) {
+    return 'search_customers';
   }
 
   if (/κατασταση|κατάσταση|status|health|sync|συστημα|σύστημα|system/.test(text)) {
@@ -176,17 +234,18 @@ export function detectIntent(message: string) {
 
 async function getCustomersSnapshot(base44: any, message = '', { limit = MAX_LIST_ITEMS } = {}) {
   const customers = await fetchAllEntities(base44.asServiceRole.entities.Customer, { sort: 'name' });
-  const search = extractSearchTerm(message, ['πελατ', 'customer']);
-  const filtered = search
+  const search = createSearchDescriptor(message, ['πελατ', 'customer']);
+  const filtered = search.raw || search.taxId || search.email || search.phone
     ? customers.filter((customer: Record<string, unknown>) =>
-        matchesSearch(customer, search, ['name', 'tax_id', 'email', 'phone', 'mobile', 'city'])
+        identifierMatches(customer, search) ||
+        matchesSearch(customer, search.normalized, ['name', 'tax_id', 'email', 'phone', 'mobile', 'city'])
       )
     : customers;
 
   return {
     total: customers.length,
     matched: filtered.length,
-    search,
+    search: search.taxId || search.email || search.phone || search.raw,
     items: truncateList(filtered, limit).map((customer: Record<string, unknown>) => ({
       id: customer.id,
       name: customer.name,
@@ -201,17 +260,18 @@ async function getCustomersSnapshot(base44: any, message = '', { limit = MAX_LIS
 
 async function getSuppliersSnapshot(base44: any, message = '', { limit = MAX_LIST_ITEMS } = {}) {
   const suppliers = await fetchAllEntities(base44.asServiceRole.entities.Supplier, { sort: 'name' });
-  const search = extractSearchTerm(message, ['προμηθευτ', 'supplier']);
-  const filtered = search
+  const search = createSearchDescriptor(message, ['προμηθευτ', 'supplier']);
+  const filtered = search.raw || search.taxId || search.email || search.phone
     ? suppliers.filter((supplier: Record<string, unknown>) =>
-        matchesSearch(supplier, search, ['name', 'tax_id', 'email', 'phone', 'city'])
+        identifierMatches(supplier, search) ||
+        matchesSearch(supplier, search.normalized, ['name', 'tax_id', 'email', 'phone', 'city'])
       )
     : suppliers;
 
   return {
     total: suppliers.length,
     matched: filtered.length,
-    search,
+    search: search.taxId || search.email || search.phone || search.raw,
     items: truncateList(filtered, limit).map((supplier: Record<string, unknown>) => ({
       id: supplier.id,
       name: supplier.name,
@@ -402,13 +462,13 @@ function formatCurrency(value: number) {
 function buildFallbackReply(intent: string, context: any, channel = 'app') {
   if (intent === 'list_customers' || intent === 'search_customers') {
     const label = context.search ? `για "${context.search}"` : '';
-    const lines = context.items.map((customer: Record<string, unknown>) => `- ${customer.name} (${customer.status})${customer.email ? ` • ${customer.email}` : ''}`);
+    const lines = context.items.map((customer: Record<string, unknown>) => `- ${customer.name} (${customer.status})${customer.tax_id ? ` • ΑΦΜ ${customer.tax_id}` : ''}${customer.email ? ` • ${customer.email}` : ''}`);
     return `Βρήκα ${context.matched} πελάτες ${label}.\n${lines.length > 0 ? lines.join('\n') : 'Δεν υπάρχουν πελάτες με αυτά τα κριτήρια.'}`;
   }
 
   if (intent === 'list_suppliers' || intent === 'search_suppliers') {
     const label = context.search ? `για "${context.search}"` : '';
-    const lines = context.items.map((supplier: Record<string, unknown>) => `- ${supplier.name} (${supplier.status})${supplier.email ? ` • ${supplier.email}` : ''}`);
+    const lines = context.items.map((supplier: Record<string, unknown>) => `- ${supplier.name} (${supplier.status})${supplier.tax_id ? ` • ΑΦΜ ${supplier.tax_id}` : ''}${supplier.email ? ` • ${supplier.email}` : ''}`);
     return `Βρήκα ${context.matched} προμηθευτές ${label}.\n${lines.length > 0 ? lines.join('\n') : 'Δεν υπάρχουν προμηθευτές με αυτά τα κριτήρια.'}`;
   }
 
