@@ -45,6 +45,11 @@ type EmailTransportStatus = {
   reason: string,
 };
 
+type ConversationEntry = {
+  role?: string,
+  content?: string,
+};
+
 function normalizeText(value: string) {
   return String(value || '')
     .normalize('NFD')
@@ -148,6 +153,32 @@ function matchesSearch(record: Record<string, unknown>, searchTerm: string, fiel
 function detectEmailAddress(message: string) {
   const match = String(message || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
   return match?.[0] || '';
+}
+
+function buildConversationSource(message: string, history: ConversationEntry[] = [], limit = 4) {
+  const recentUserMessages = history
+    .filter((entry) => entry?.role === 'user' && String(entry.content || '').trim())
+    .slice(-limit)
+    .map((entry) => String(entry.content || '').trim());
+
+  return [...recentUserMessages, String(message || '').trim()].filter(Boolean).join('\n');
+}
+
+function inferContextualIntent(message: string, history: ConversationEntry[] = []) {
+  const directIntent = detectIntent(message);
+
+  if (directIntent !== 'general') {
+    return directIntent;
+  }
+
+  const conversationSource = buildConversationSource(message, history);
+  const contextualIntent = detectIntent(conversationSource);
+
+  if (contextualIntent === 'draft_email' || contextualIntent === 'create_ticket') {
+    return contextualIntent;
+  }
+
+  return directIntent;
 }
 
 function deriveTicketTitle(message: string) {
@@ -442,9 +473,10 @@ async function getSystemStatusSnapshot(base44: any) {
   };
 }
 
-async function getCreateTicketContext(base44: any, message: string) {
+async function getCreateTicketContext(base44: any, message: string, history: ConversationEntry[] = []) {
+  const source = buildConversationSource(message, history);
   const [customersContext, tickets] = await Promise.all([
-    getCustomersSnapshot(base44, message, { limit: 3 }),
+    getCustomersSnapshot(base44, source, { limit: 3 }),
     fetchAllEntities(base44.asServiceRole.entities.ServiceTicket, { sort: '-created_date', max: 200 }),
   ]);
 
@@ -455,22 +487,23 @@ async function getCreateTicketContext(base44: any, message: string) {
     canCreateAction: Boolean(matchedCustomer),
     nextTicketNumber,
     matchedCustomer,
-    suggestedTitle: deriveTicketTitle(message),
+    suggestedTitle: deriveTicketTitle(source),
     reason: matchedCustomer ? '' : 'Δεν βρήκα σαφή πελάτη για να ετοιμάσω ticket. Δώσε όνομα πελάτη ή email.',
   };
 }
 
-async function getDraftEmailContext(base44: any, message: string) {
-  const explicitEmail = detectEmailAddress(message);
+async function getDraftEmailContext(base44: any, message: string, history: ConversationEntry[] = []) {
+  const source = buildConversationSource(message, history);
+  const explicitEmail = detectEmailAddress(source);
   const [customersContext, transport] = await Promise.all([
-    getCustomersSnapshot(base44, message, { limit: 3 }),
+    getCustomersSnapshot(base44, source, { limit: 3 }),
     getEmailTransportStatus(base44),
   ]);
   const matchedCustomer = customersContext.items.find((customer: Record<string, unknown>) => customer.email) || null;
   const recipientEmail = explicitEmail || matchedCustomer?.email || '';
   const recipientName = matchedCustomer?.name || '';
-  const subject = deriveEmailSubject(message, recipientName);
-  const body = deriveEmailBody(message, recipientName);
+  const subject = deriveEmailSubject(source, recipientName) || 'Σύντομη ενημέρωση από NexusERP';
+  const body = deriveEmailBody(source, recipientName) || `Καλησπέρα,\n\nΓεια!\n\nΜε εκτίμηση,\nNexusERP`;
 
   return {
     canCreateAction: Boolean(recipientEmail) && transport.available,
@@ -490,7 +523,7 @@ async function getDraftEmailContext(base44: any, message: string) {
   };
 }
 
-export async function buildIntentContext(base44: any, intent: string, message = '') {
+export async function buildIntentContext(base44: any, intent: string, message = '', history: ConversationEntry[] = []) {
   switch (intent) {
     case 'list_customers':
     case 'search_customers':
@@ -507,9 +540,9 @@ export async function buildIntentContext(base44: any, intent: string, message = 
     case 'list_unmatched_emails':
       return { kind: intent, ...(await getUnmatchedEmailsSnapshot(base44)) };
     case 'create_ticket':
-      return { kind: intent, ...(await getCreateTicketContext(base44, message)) };
+      return { kind: intent, ...(await getCreateTicketContext(base44, message, history)) };
     case 'draft_email':
-      return { kind: intent, ...(await getDraftEmailContext(base44, message)) };
+      return { kind: intent, ...(await getDraftEmailContext(base44, message, history)) };
     case 'system_status':
       return { kind: intent, ...(await getSystemStatusSnapshot(base44)) };
     default:
@@ -560,11 +593,11 @@ function buildAssistantAction(intent: string, context: any, channel = 'app'): As
     return {
       action: 'send_email',
       to: context.to,
-      subject: context.subject,
-      body: context.body,
+      subject: context.subject || 'Σύντομη ενημέρωση από NexusERP',
+      body: context.body || 'Καλησπέρα,\n\nΓεια!\n\nΜε εκτίμηση,\nNexusERP',
       customer_id: context.customer_id,
       customer_name: context.customer_name,
-      confirmation_message: `Να στείλω email στο ${context.to} με θέμα "${context.subject}";`,
+      confirmation_message: `Να στείλω email στο ${context.to} με θέμα "${context.subject || 'Σύντομη ενημέρωση από NexusERP'}";`,
     };
   }
 
@@ -727,8 +760,8 @@ export async function runAssistantConversation({
   channel?: 'app' | 'telegram',
   history?: Array<{ role: string, content: string }>,
 }) {
-  const intent = detectIntent(message);
-  const context = await buildIntentContext(base44, intent, message);
+  const intent = inferContextualIntent(message, history);
+  const context = await buildIntentContext(base44, intent, message, history);
   const action = buildAssistantAction(intent, context, channel);
   const reply = await generateAssistantReply({
     message,
