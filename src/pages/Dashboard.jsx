@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { fetchList } from '@/lib/apiHelpers';
 import { listCustomers } from '@/lib/directoryQueries';
 import { calculateDashboardStats, getDashboardAIAdvice } from '@/lib/dashboardHelpers';
+import { reportOperationalEvent } from '@/lib/observability';
 import PageHeader from '../components/shared/PageHeader';
 import KPIGrid from '../components/dashboard/KPIGrid';
 import SalesChart from '../components/dashboard/SalesChart';
@@ -21,46 +22,105 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+const DASHBOARD_STALE_TIME_MS = 60 * 1000;
+const DASHBOARD_SECONDARY_DELAY_MS = 250;
+
+async function fetchDashboardCoreData() {
+  reportOperationalEvent('dashboard_data_start', { phase: 'core' });
+
+  const [customers, products, salesInvoices] = await Promise.all([
+    listCustomers({ entityName: 'dashboard_customer' }),
+    fetchList(base44.entities.Product, { entityName: 'dashboard_product' }),
+    fetchList(base44.entities.SalesInvoice, { entityName: 'dashboard_sales_invoice' }),
+  ]);
+
+  return { customers, products, salesInvoices };
+}
+
+async function fetchDashboardSecondaryData() {
+  reportOperationalEvent('dashboard_data_start', { phase: 'secondary' });
+
+  const [purchaseInvoices, payments, salesOrders, logs] = await Promise.all([
+    fetchList(base44.entities.PurchaseInvoice, { entityName: 'dashboard_purchase_invoice' }),
+    fetchList(base44.entities.Payment, { entityName: 'dashboard_payment' }),
+    fetchList(base44.entities.SalesOrder, { entityName: 'dashboard_sales_order' }),
+    fetchList(base44.entities.ActivityLog, { limit: 20, max: 20, entityName: 'dashboard_activity_log' }),
+  ]);
+
+  return { purchaseInvoices, payments, salesOrders, logs };
+}
+
 export default function Dashboard() {
   const [aiAdvice, setAiAdvice] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [enableSecondaryData, setEnableSecondaryData] = useState(false);
+  const coreReadyLoggedRef = useRef(false);
+  const secondaryReadyLoggedRef = useRef(false);
 
-  // Φόρτωση όλων των δεδομένων με fetchList (No more 50 limit)
-  const { data: customers = [], isLoading: loadingCust } = useQuery({
-    queryKey: ['customers'],
-    queryFn: () => listCustomers(),
+  const {
+    data: coreData,
+    isLoading: isLoadingCore,
+    isError: isCoreError,
+    error: coreError,
+    refetch: refetchCore,
+    isSuccess: isCoreSuccess,
+  } = useQuery({
+    queryKey: ['dashboard', 'core'],
+    queryFn: fetchDashboardCoreData,
+    staleTime: DASHBOARD_STALE_TIME_MS,
   });
 
-  const { data: products = [], isLoading: loadingProd } = useQuery({
-    queryKey: ['products'],
-    queryFn: () => fetchList(base44.entities.Product),
+  const {
+    data: secondaryData,
+    isFetching: isFetchingSecondary,
+    refetch: refetchSecondary,
+    isSuccess: isSecondarySuccess,
+  } = useQuery({
+    queryKey: ['dashboard', 'secondary'],
+    queryFn: fetchDashboardSecondaryData,
+    staleTime: DASHBOARD_STALE_TIME_MS,
+    enabled: enableSecondaryData,
   });
 
-  const { data: salesInvoices = [], isLoading: loadingSales } = useQuery({
-    queryKey: ['salesInvoices'],
-    queryFn: () => fetchList(base44.entities.SalesInvoice),
-  });
+  useEffect(() => {
+    if (!isCoreSuccess) {
+      setEnableSecondaryData(false);
+      return;
+    }
 
-  const { data: purchaseInvoices = [] } = useQuery({
-    queryKey: ['purchaseInvoices'],
-    queryFn: () => fetchList(base44.entities.PurchaseInvoice),
-  });
+    const timeoutId = window.setTimeout(() => {
+      setEnableSecondaryData(true);
+    }, DASHBOARD_SECONDARY_DELAY_MS);
 
-  const { data: payments = [] } = useQuery({
-    queryKey: ['payments'],
-    queryFn: () => fetchList(base44.entities.Payment),
-  });
+    return () => window.clearTimeout(timeoutId);
+  }, [isCoreSuccess]);
 
-  const { data: salesOrders = [] } = useQuery({
-    queryKey: ['salesOrders'],
-    queryFn: () => fetchList(base44.entities.SalesOrder),
-  });
+  useEffect(() => {
+    if (!isCoreSuccess || coreReadyLoggedRef.current) {
+      return;
+    }
 
-  const { data: logs = [] } = useQuery({
-    queryKey: ['activityLogs'],
-    queryFn: () => fetchList(base44.entities.ActivityLog, { limit: 20 }),
-  });
+    coreReadyLoggedRef.current = true;
+    reportOperationalEvent('dashboard_data_ready', { phase: 'core' });
+  }, [isCoreSuccess]);
+
+  useEffect(() => {
+    if (!isSecondarySuccess || secondaryReadyLoggedRef.current) {
+      return;
+    }
+
+    secondaryReadyLoggedRef.current = true;
+    reportOperationalEvent('dashboard_data_ready', { phase: 'secondary' });
+  }, [isSecondarySuccess]);
+
+  const customers = coreData?.customers || [];
+  const products = coreData?.products || [];
+  const salesInvoices = coreData?.salesInvoices || [];
+  const purchaseInvoices = secondaryData?.purchaseInvoices || [];
+  const payments = secondaryData?.payments || [];
+  const salesOrders = secondaryData?.salesOrders || [];
+  const logs = secondaryData?.logs || [];
 
   // Κεντρικός υπολογισμός στατιστικών
   const stats = useMemo(() => {
@@ -85,9 +145,29 @@ export default function Dashboard() {
     }
   };
 
-  const isInitialLoading = loadingCust || loadingProd || loadingSales;
+  if (isCoreError) {
+    return (
+      <div className="h-[80vh] flex flex-col items-center justify-center text-center px-6">
+        <div className="w-16 h-16 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mb-4">
+          <X className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900">Δεν φορτώθηκαν τα βασικά δεδομένα του Dashboard</h2>
+        <p className="text-sm text-slate-500 mt-2 max-w-md">
+          {coreError?.message || 'Το αρχικό dashboard load απέτυχε. Μπορείς να ξαναδοκιμάσεις χωρίς να μείνει η εφαρμογή σε μόνιμο loading.'}
+        </p>
+        <Button className="mt-6 rounded-xl" onClick={() => {
+          coreReadyLoggedRef.current = false;
+          secondaryReadyLoggedRef.current = false;
+          void refetchCore();
+          void refetchSecondary();
+        }}>
+          Retry Dashboard Load
+        </Button>
+      </div>
+    );
+  }
 
-  if (isInitialLoading) {
+  if (isLoadingCore) {
     return (
       <div className="h-[80vh] flex flex-col items-center justify-center">
         <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
@@ -105,7 +185,9 @@ export default function Dashboard() {
         />
         <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-2xl border border-blue-100">
           <TrendingUp className="w-4 h-4 text-blue-600" />
-          <span className="text-[11px] font-black text-blue-700 uppercase italic">Live Nexus Stats</span>
+          <span className="text-[11px] font-black text-blue-700 uppercase italic">
+            {isFetchingSecondary ? 'Loading secondary data' : 'Live Nexus Stats'}
+          </span>
         </div>
       </div>
 

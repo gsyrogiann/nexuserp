@@ -4,6 +4,7 @@ import { fetchList } from '@/lib/apiHelpers';
 export function listCustomers(options = {}) {
   return fetchList(base44.entities.Customer, {
     sort: 'name',
+    entityName: 'customer',
     ...options,
   });
 }
@@ -11,6 +12,7 @@ export function listCustomers(options = {}) {
 export function listSuppliers(options = {}) {
   return fetchList(base44.entities.Supplier, {
     sort: 'name',
+    entityName: 'supplier',
     ...options,
   });
 }

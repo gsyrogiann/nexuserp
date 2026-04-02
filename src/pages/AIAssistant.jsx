@@ -15,6 +15,7 @@ import {
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { executeMutation, getErrorMessage } from '@/lib/mutationHelpers';
+import { useAuth } from '@/lib/AuthContext';
 
 // --- UTILS ---
 function parseCSV(text) {
@@ -99,6 +100,7 @@ function ImportPanel({ type, onImportDone }) {
 
 // --- MAIN PAGE ---
 export default function AIAssistant() {
+  const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [currentChatId, setCurrentChatId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -267,8 +269,6 @@ export default function AIAssistant() {
       const finalMessages = [...updatedWithUser, assistantMsg];
       
       const responseTime = Date.now() - startTime;
-      const user = await base44.auth.me();
-      
       // Log interaction
       base44.entities.AIInteraction.create({
         source: 'app',
@@ -284,7 +284,6 @@ export default function AIAssistant() {
       if (action) setPendingAction(action);
     } catch (err) {
       const responseTime = Date.now() - startTime;
-      const user = await base44.auth.me();
       
       // Log failed interaction
       base44.entities.AIInteraction.create({

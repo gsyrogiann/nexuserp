@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,15 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { Search, Activity } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function AIInteractionsHistory() {
-  const [user, setUser] = useState(null);
+  const { user, isLoadingAuth } = useAuth();
   const [searchUser, setSearchUser] = useState('');
   const [filterSource, setFilterSource] = useState('all');
-
-  useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => {});
-  }, []);
 
   // Check if super admin
   const isSuperAdmin = user?.role === 'super_admin' || user?.is_super_admin;
@@ -55,7 +52,7 @@ export default function AIInteractionsHistory() {
     api: 'bg-green-100 text-green-800'
   };
 
-  if (!user) return null;
+  if (isLoadingAuth || !user) return null;
 
   if (!isSuperAdmin) {
     return (
