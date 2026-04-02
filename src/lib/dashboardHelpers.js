@@ -101,7 +101,15 @@ export async function getDashboardAIAdvice(stats) {
     `;
 
     const response = await base44.integrations.Core.InvokeLLM({ prompt });
-    return response;
+    if (typeof response === 'string') {
+      return response;
+    }
+
+    if (response && typeof response === 'object' && 'reply' in response && typeof response.reply === 'string') {
+      return response.reply;
+    }
+
+    return "Η ανάλυση AI ολοκληρώθηκε χωρίς αναγνώσιμη απάντηση.";
   } catch (error) {
     console.error("AI Advice failed:", error);
     return "Η ανάλυση AI δεν είναι διαθέσιμη προσωρινά.";

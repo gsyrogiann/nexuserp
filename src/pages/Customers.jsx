@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { fetchList } from '@/lib/apiHelpers';
+import { listCustomers } from '@/lib/directoryQueries';
 import PageHeader from '../components/shared/PageHeader';
 import EntityFormDialog from '../components/shared/EntityFormDialog';
 import CustomerEmailsTab from '../components/email/CustomerEmailsTab';
@@ -98,7 +99,7 @@ export default function Customers() {
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => fetchList(base44.entities.Customer),
+    queryFn: () => listCustomers(),
   });
 
   // VoIP Call Logs Query
@@ -165,7 +166,10 @@ export default function Customers() {
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Ανάλυσε τον πελάτη: ${selectedCustomer.name}. Υπόλοιπο: €${selectedCustomer.balance || 0}. Max 2 προτάσεις.`,
       });
-      setAiSummary(result);
+      const reply = result && typeof result === 'object' && 'reply' in result && typeof result.reply === 'string'
+        ? result.reply
+        : null;
+      setAiSummary(typeof result === 'string' ? result : reply || 'Η ανάλυση ολοκληρώθηκε χωρίς κείμενο απάντησης.');
     } finally {
       setAiLoading(false);
     }

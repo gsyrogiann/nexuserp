@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { usePermissions } from '@/lib/usePermissions.jsx';
 import { FEATURES, DEFAULT_FEATURE_ACCESS, ROLE_LABELS } from '@/lib/rbac';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { Loader2, Globe, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 

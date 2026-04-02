@@ -7,13 +7,12 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { LanguageProvider } from '@/lib/LanguageContext';
 import { PermissionsProvider, usePermissions } from '@/lib/usePermissions.jsx';
-import { getFeatureKeyFromPath } from '@/lib/rbac';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import AppLayout from './components/layout/AppLayout';
 import { Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import AppErrorBoundary from '@/components/AppErrorBoundary';
 
-// Page imports
 import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import Suppliers from './pages/Suppliers';
@@ -37,10 +36,6 @@ import MyEmailSettings from './pages/MyEmailSettings';
 import LiveUsers from './pages/LiveUsers';
 import AIInteractionsHistory from './pages/AIInteractionsHistory';
 
-/**
- * AccessDenied View
- * Εμφανίζεται όταν ένας μη-admin προσπαθεί να μπει σε κλειδωμένη σελίδα.
- */
 const AccessDenied = () => (
   <div className="h-[80vh] flex flex-col items-center justify-center text-center p-6">
     <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 border border-red-100 shadow-sm">
@@ -48,10 +43,10 @@ const AccessDenied = () => (
     </div>
     <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Πρόσβαση Περιορισμένη</h2>
     <p className="text-slate-500 max-w-sm mt-2 text-sm font-medium">
-      Δεν έχεις τα απαραίτητα δικαιώματα για αυτή την ενότητα.
+      Αυτή η ενότητα του Nexus ERP είναι διαθέσιμη μόνο σε λογαριασμούς με τα απαραίτητα δικαιώματα.
     </p>
-    <Button 
-      variant="outline" 
+    <Button
+      variant="outline"
       className="mt-8 rounded-xl font-bold border-slate-200"
       onClick={() => window.location.href = '/Dashboard'}
     >
@@ -60,7 +55,6 @@ const AccessDenied = () => (
   </div>
 );
 
-// Permission-aware route guard
 const ProtectedRoute = ({ featureKey, children }) => {
   const { canAccess, loading } = usePermissions();
   if (loading) return null;
@@ -69,11 +63,8 @@ const ProtectedRoute = ({ featureKey, children }) => {
 };
 
 const AuthenticatedApp = () => {
-  const { user, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
   const { loading: permLoading } = usePermissions();
-
-  // Legacy admin check (kept for compatibility)
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.is_super_admin || user?.email === 'georgesyro1925@gmail.com';
 
   if (isLoadingPublicSettings || isLoadingAuth || permLoading) {
     return (
@@ -88,35 +79,37 @@ const AuthenticatedApp = () => {
 
   if (authError) {
     if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
-    if (authError.type === 'auth_required') { navigateToLogin(); return null; }
+    if (authError.type === 'auth_required') {
+      navigateToLogin();
+      return null;
+    }
   }
 
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/Dashboard" replace />} />
       <Route element={<AppLayout />}>
-        {/* RBAC-protected routes */}
-        <Route path="/Dashboard"        element={<ProtectedRoute featureKey="dashboard"><Dashboard /></ProtectedRoute>} />
-        <Route path="/Calendar"         element={<ProtectedRoute featureKey="calendar"><Calendar /></ProtectedRoute>} />
-        <Route path="/Customers"        element={<ProtectedRoute featureKey="customers"><Customers /></ProtectedRoute>} />
-        <Route path="/Suppliers"        element={<ProtectedRoute featureKey="suppliers"><Suppliers /></ProtectedRoute>} />
-        <Route path="/SalesPipeline"    element={<ProtectedRoute featureKey="sales_pipeline"><SalesPipeline /></ProtectedRoute>} />
-        <Route path="/Products"         element={<ProtectedRoute featureKey="products"><Products /></ProtectedRoute>} />
-        <Route path="/Inventory"        element={<ProtectedRoute featureKey="inventory"><Inventory /></ProtectedRoute>} />
-        <Route path="/Tickets"          element={<ProtectedRoute featureKey="tickets"><Tickets /></ProtectedRoute>} />
-        <Route path="/Quotes"           element={<ProtectedRoute featureKey="quotes"><Quotes /></ProtectedRoute>} />
-        <Route path="/SalesOrders"      element={<ProtectedRoute featureKey="sales_orders"><SalesOrders /></ProtectedRoute>} />
-        <Route path="/SalesInvoices"    element={<ProtectedRoute featureKey="sales_invoices"><SalesInvoices /></ProtectedRoute>} />
-        <Route path="/PurchaseOrders"   element={<ProtectedRoute featureKey="purchase_orders"><PurchaseOrders /></ProtectedRoute>} />
+        <Route path="/Dashboard" element={<ProtectedRoute featureKey="dashboard"><Dashboard /></ProtectedRoute>} />
+        <Route path="/Calendar" element={<ProtectedRoute featureKey="calendar"><Calendar /></ProtectedRoute>} />
+        <Route path="/Customers" element={<ProtectedRoute featureKey="customers"><Customers /></ProtectedRoute>} />
+        <Route path="/Suppliers" element={<ProtectedRoute featureKey="suppliers"><Suppliers /></ProtectedRoute>} />
+        <Route path="/SalesPipeline" element={<ProtectedRoute featureKey="sales_pipeline"><SalesPipeline /></ProtectedRoute>} />
+        <Route path="/Products" element={<ProtectedRoute featureKey="products"><Products /></ProtectedRoute>} />
+        <Route path="/Inventory" element={<ProtectedRoute featureKey="inventory"><Inventory /></ProtectedRoute>} />
+        <Route path="/Tickets" element={<ProtectedRoute featureKey="tickets"><Tickets /></ProtectedRoute>} />
+        <Route path="/Quotes" element={<ProtectedRoute featureKey="quotes"><Quotes /></ProtectedRoute>} />
+        <Route path="/SalesOrders" element={<ProtectedRoute featureKey="sales_orders"><SalesOrders /></ProtectedRoute>} />
+        <Route path="/SalesInvoices" element={<ProtectedRoute featureKey="sales_invoices"><SalesInvoices /></ProtectedRoute>} />
+        <Route path="/PurchaseOrders" element={<ProtectedRoute featureKey="purchase_orders"><PurchaseOrders /></ProtectedRoute>} />
         <Route path="/PurchaseInvoices" element={<ProtectedRoute featureKey="purchase_invoices"><PurchaseInvoices /></ProtectedRoute>} />
-        <Route path="/Payments"         element={<ProtectedRoute featureKey="payments"><Payments /></ProtectedRoute>} />
-        <Route path="/Reports"          element={<ProtectedRoute featureKey="reports"><Reports /></ProtectedRoute>} />
-        <Route path="/EmailSettings"    element={<ProtectedRoute featureKey="email_settings"><EmailSettings /></ProtectedRoute>} />
-        <Route path="/UnmatchedEmails"  element={<ProtectedRoute featureKey="unmatched_emails"><UnmatchedEmails /></ProtectedRoute>} />
-        <Route path="/AIAssistant"      element={<ProtectedRoute featureKey="ai_assistant"><Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-slate-500">Φόρτωση...</div></div>}><AIAssistant /></Suspense></ProtectedRoute>} />
-        <Route path="/Settings"         element={<ProtectedRoute featureKey="settings"><Settings /></ProtectedRoute>} />
-        <Route path="/MyEmailSettings"  element={<MyEmailSettings />} />
-        <Route path="/LiveUsers"        element={<LiveUsers />} />
+        <Route path="/Payments" element={<ProtectedRoute featureKey="payments"><Payments /></ProtectedRoute>} />
+        <Route path="/Reports" element={<ProtectedRoute featureKey="reports"><Reports /></ProtectedRoute>} />
+        <Route path="/EmailSettings" element={<ProtectedRoute featureKey="email_settings"><EmailSettings /></ProtectedRoute>} />
+        <Route path="/UnmatchedEmails" element={<ProtectedRoute featureKey="unmatched_emails"><UnmatchedEmails /></ProtectedRoute>} />
+        <Route path="/AIAssistant" element={<ProtectedRoute featureKey="ai_assistant"><Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-slate-500">Φόρτωση...</div></div>}><AIAssistant /></Suspense></ProtectedRoute>} />
+        <Route path="/Settings" element={<ProtectedRoute featureKey="settings"><Settings /></ProtectedRoute>} />
+        <Route path="/MyEmailSettings" element={<MyEmailSettings />} />
+        <Route path="/LiveUsers" element={<LiveUsers />} />
         <Route path="/AIInteractionsHistory" element={<AIInteractionsHistory />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
@@ -126,18 +119,20 @@ const AuthenticatedApp = () => {
 
 function App() {
   return (
-    <LanguageProvider>
-      <AuthProvider>
-        <QueryClientProvider client={queryClientInstance}>
-          <PermissionsProvider>
-            <Router>
-              <AuthenticatedApp />
-            </Router>
-            <Toaster />
-          </PermissionsProvider>
-        </QueryClientProvider>
-      </AuthProvider>
-    </LanguageProvider>
+    <AppErrorBoundary>
+      <LanguageProvider>
+        <AuthProvider>
+          <QueryClientProvider client={queryClientInstance}>
+            <PermissionsProvider>
+              <Router>
+                <AuthenticatedApp />
+              </Router>
+              <Toaster />
+            </PermissionsProvider>
+          </QueryClientProvider>
+        </AuthProvider>
+      </LanguageProvider>
+    </AppErrorBoundary>
   );
 }
 

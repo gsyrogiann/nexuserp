@@ -1,7 +1,6 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { FileText, ShoppingCart, CreditCard, Package, Users } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 const typeIcons = {
   SalesInvoice: FileText,

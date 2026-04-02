@@ -3,12 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import PageHeader from '@/components/shared/PageHeader';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Eye, Search, Activity, Clock, User, X, MousePointerClick, AlertCircle } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
@@ -24,18 +24,8 @@ export default function LiveUsers() {
     return () => clearInterval(interval);
   }, []);
 
-  // Check if super admin
   const isSuperAdmin = user?.role === 'super_admin' || user?.is_super_admin;
-  if (!isSuperAdmin) {
-    return (
-      <div className="h-[80vh] flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Δεν έχετε πρόσβαση</p>
-      </div>
-    );
-  }
-
-  // Get all activities and emails from last 24 hours
-   const { data: activities = [], isLoading: activitiesLoading } = useQuery({
+  const { data: activities = [], isLoading: activitiesLoading } = useQuery({
      queryKey: ['user-activities'],
      queryFn: async () => {
        const all = await base44.entities.UserActivity.list('-timestamp', 1000);
@@ -47,6 +37,7 @@ export default function LiveUsers() {
          a.action !== 'heartbeat'
        );
      },
+     enabled: isSuperAdmin,
      refetchInterval: 5000,
    });
 
@@ -58,10 +49,19 @@ export default function LiveUsers() {
        const dayAgo = now - 24 * 60 * 60 * 1000;
        return emails.filter(e => new Date(e.sent_at).getTime() > dayAgo);
      },
+     enabled: isSuperAdmin,
      refetchInterval: 5000,
    });
 
    const isLoading = activitiesLoading || emailsLoading;
+
+  if (!isSuperAdmin) {
+    return (
+      <div className="h-[80vh] flex items-center justify-center">
+        <p className="text-sm text-muted-foreground">Δεν έχετε πρόσβαση</p>
+      </div>
+    );
+  }
 
   // Group by user and get latest activity (including emails)
   const userSessions = {};

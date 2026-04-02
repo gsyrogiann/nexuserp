@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { fetchList } from '@/lib/apiHelpers'; 
+import { listCustomers } from '@/lib/directoryQueries';
 import PageHeader from '../components/shared/PageHeader';
 import DataTable from '../components/shared/DataTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -66,7 +67,7 @@ export default function Tickets() {
   // Fetch Customers for Search
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => fetchList(base44.entities.Customer, { sort: 'name' }),
+    queryFn: () => listCustomers(),
   });
  
   // Mutations

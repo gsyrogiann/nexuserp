@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { listSuppliers } from '@/lib/directoryQueries';
 import PageHeader from '../components/shared/PageHeader';
 import DataTable from '../components/shared/DataTable';
 import DocumentFormDialog from '../components/shared/DocumentFormDialog';
@@ -22,7 +23,7 @@ export default function PurchaseInvoices() {
   const [editing, setEditing] = useState(null);
   const qc = useQueryClient();
   const { data: invoices } = useQuery({ queryKey: ['purchaseInvoices'], queryFn: () => base44.entities.PurchaseInvoice.list(), initialData: [] });
-  const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list(), initialData: [] });
+  const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => listSuppliers(), initialData: [] });
   const { data: products } = useQuery({ queryKey: ['products'], queryFn: () => base44.entities.Product.list(), initialData: [] });
 
   const createMutation = useMutation({

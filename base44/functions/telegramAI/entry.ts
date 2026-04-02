@@ -1,111 +1,104 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
+import { detectIntent, generateAssistantReply } from './assistant.ts';
+import { buildIntentContext } from './systemQueries.ts';
 
-Deno.serve(async (req) => {
-  const base44 = createClientFromRequest(req);
+const TELEGRAM_API_BASE = 'https://api.telegram.org';
 
-  // Διαβάζουμε το bot token από AppSettings (service role)
-  const allSettings = await base44.asServiceRole.entities.AppSettings.list();
-  const telegramSettings = allSettings.find(s => s.key === 'telegram');
-  const botToken = telegramSettings?.telegram_bot_token;
+function getTelegramBotToken() {
+  return Deno.env.get('TELEGRAM_BOT_TOKEN')?.trim() || '';
+}
 
-  if (!botToken) {
-    return Response.json({ error: 'Telegram bot token not configured' }, { status: 503 });
-  }
+function getAllowedChatIds() {
+  const raw = Deno.env.get('TELEGRAM_ALLOWED_CHAT_IDS') || '';
+  return raw
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
 
-  // Αν είναι GET, απλό health check
-  if (req.method !== 'POST') {
-    return new Response('Nexus Telegram Webhook Online ✅', { status: 200 });
-  }
+function getWebhookSecret() {
+  return Deno.env.get('TELEGRAM_WEBHOOK_SECRET')?.trim() || '';
+}
 
-  let body;
-  try {
-    body = await req.json();
-  } catch {
-    return Response.json({ error: 'Invalid JSON' }, { status: 400 });
-  }
-
-  const message = body?.message;
-  if (!message?.text) {
-    return Response.json({ ok: true });
-  }
-
-  const chatId = message.chat.id;
-  const userText = message.text.trim();
-  const fromName = message.from?.first_name || 'User';
-
-  // Φόρτωση ERP δεδομένων για context
-  const [customers, deals, invoices, products] = await Promise.all([
-    base44.asServiceRole.entities.Customer.list('-updated_date', 20),
-    base44.asServiceRole.entities.Deal.list('-updated_date', 10),
-    base44.asServiceRole.entities.SalesInvoice.list('-updated_date', 10),
-    base44.asServiceRole.entities.Product.list('-updated_date', 15),
-  ]);
-
-  const totalBalance = customers.reduce((s, c) => s + (c.balance || 0), 0);
-  const openDeals = deals.filter(d => !['won', 'lost'].includes(d.stage));
-  const openDealsValue = openDeals.reduce((s, d) => s + (d.value || 0), 0);
-  const unpaidInvoices = invoices.filter(i => ['issued', 'sent', 'overdue'].includes(i.status));
-  const unpaidTotal = unpaidInvoices.reduce((s, i) => s + ((i.total || 0) - (i.paid_amount || 0)), 0);
-
-  const context = `
-Nexus ERP Δεδομένα:
-- Πελάτες: ${customers.length} (Συνολικό υπόλοιπο: €${totalBalance.toLocaleString('el-GR')})
-- Ανοιχτά deals: ${openDeals.length} (Αξία: €${openDealsValue.toLocaleString('el-GR')})
-- Απλήρωτα τιμολόγια: ${unpaidInvoices.length} (€${unpaidTotal.toLocaleString('el-GR')})
-- Προϊόντα: ${products.length}
-- Πρόσφατοι πελάτες: ${customers.slice(0, 5).map(c => `${c.name} (€${c.balance || 0})`).join(', ')}
-- Πρόσφατα deals: ${deals.slice(0, 5).map(d => `${d.title} - ${d.stage} €${d.value || 0}`).join(', ')}
-`;
-
-  // AI απάντηση μέσω OpenAI
-  const openaiKey = Deno.env.get('OPENAI_API_KEY');
-  let replyText = '';
-
-  if (openaiKey) {
-    const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openaiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `Είσαι το Nexus AI, έξυπνος βοηθός ERP για ελληνική εταιρεία. Απαντάς στα ΕΛΛΗΝΙΚΑ, σύντομα και ουσιαστικά. Έχεις πρόσβαση στα παρακάτω δεδομένα:\n${context}`
-          },
-          { role: 'user', content: userText }
-        ],
-        max_tokens: 500,
-        temperature: 0.7,
-      }),
-    });
-    const aiData = await aiRes.json();
-    replyText = aiData.choices?.[0]?.message?.content || '❌ Σφάλμα AI';
-  } else {
-    replyText = `🤖 Nexus ERP:\nΠελάτες: ${customers.length}\nΑνοιχτά deals: ${openDeals.length} (€${openDealsValue.toLocaleString('el-GR')})\nΑπλήρωτα: €${unpaidTotal.toLocaleString('el-GR')}`;
-  }
-
-  // Αποστολή απάντησης στο Telegram
-  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+async function sendTelegramMessage(botToken: string, chatId: string | number, text: string) {
+  const response = await fetch(`${TELEGRAM_API_BASE}/bot${botToken}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       chat_id: chatId,
-      text: replyText,
-      parse_mode: 'Markdown',
+      text,
     }),
   });
 
-  // Αποθήκευση interaction
-  await base44.asServiceRole.entities.AIInteraction.create({
-    source: 'telegram',
-    user_identifier: String(chatId),
-    query: userText,
-    response: replyText,
-    success: true,
-  });
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Telegram API error (${response.status}): ${body}`);
+  }
+}
 
-  return Response.json({ ok: true });
+Deno.serve(async (req) => {
+  const botToken = getTelegramBotToken();
+  const webhookSecret = getWebhookSecret();
+
+  if (req.method === 'GET') {
+    return Response.json({
+      ok: true,
+      configured: Boolean(botToken),
+      webhookSecretConfigured: Boolean(webhookSecret),
+      message: botToken
+        ? 'Το Telegram webhook είναι διαθέσιμο και περιμένει POST από το Telegram.'
+        : 'Λείπει το TELEGRAM_BOT_TOKEN από το environment.',
+    });
+  }
+
+  if (req.method !== 'POST') {
+    return Response.json({ error: 'Method not allowed' }, { status: 405 });
+  }
+
+  if (!botToken) {
+    return Response.json({ error: 'Telegram bot is not configured.' }, { status: 503 });
+  }
+
+  try {
+    if (webhookSecret) {
+      const requestSecret = req.headers.get('X-Telegram-Bot-Api-Secret-Token')?.trim() || '';
+      if (requestSecret !== webhookSecret) {
+        return Response.json({ error: 'Invalid webhook secret.' }, { status: 401 });
+      }
+    }
+
+    const base44 = createClientFromRequest(req);
+    const body = await req.json();
+    const message = body?.message;
+
+    if (!message?.text || !message?.chat?.id) {
+      return Response.json({ ok: true, ignored: true });
+    }
+
+    const chatId = String(message.chat.id);
+    const allowedChatIds = getAllowedChatIds();
+    if (allowedChatIds.length > 0 && !allowedChatIds.includes(chatId)) {
+      return Response.json({ error: 'Forbidden chat id.' }, { status: 403 });
+    }
+
+    const userText = String(message.text).trim();
+    if (!userText) {
+      return Response.json({ ok: true, ignored: true });
+    }
+
+    const intent = detectIntent(userText);
+    const context = await buildIntentContext(base44, intent);
+    const replyText = await generateAssistantReply({
+      message: userText,
+      intent,
+      context,
+    });
+
+    await sendTelegramMessage(botToken, chatId, replyText);
+
+    return Response.json({ ok: true });
+  } catch (error) {
+    console.error('Telegram webhook error:', error);
+    return Response.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  }
 });

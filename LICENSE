@@ -1,0 +1,31 @@
+NexusERP Proprietary License
+Copyright (c) 2026 NexusERP repository owner and contributors,
+subject to any separate written contributor, contractor, or platform terms.
+All rights reserved.
+
+This repository and the software, source code, documentation, configuration,
+release materials, and related artifacts contained in it are proprietary.
+
+No permission is granted, except under a separate signed written agreement, to:
+
+1. use this software in production;
+2. copy, modify, merge, publish, distribute, sublicense, host, resell, lease,
+   or transfer this software;
+3. create or distribute derivative works for commercial or public use; or
+4. remove or alter copyright, attribution, or notice material.
+
+Access to this repository does not by itself grant any license to deploy,
+commercialize, or redistribute NexusERP.
+
+Third-party open source dependencies remain subject to their own licenses and
+notices. See `NOTICE.md` and the dependency inventory artifacts for additional
+review material.
+
+Parts of this repository may be Base44-generated or Base44-integrated. Any
+commercial usage, redistribution, hosting, sublicensing, or derivative rights
+that depend on Base44 services or generated assets must be separately validated
+against the applicable Base44 terms before GA or commercial launch.
+
+If you need permission to evaluate, deploy, distribute, or commercialize
+NexusERP, obtain a separate written license, SaaS agreement, pilot agreement,
+or services agreement from the rights holder before doing so.

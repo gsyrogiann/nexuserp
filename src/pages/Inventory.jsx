@@ -7,7 +7,7 @@ import DataTable from '../components/shared/DataTable';
 import EntityFormDialog from '../components/shared/EntityFormDialog';
 import StatsCard from '../components/shared/StatsCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Warehouse, Package, ArrowDownUp, AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
+import { Warehouse, AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
 
 const warehouseColumns = [
   { key: 'code', label: 'Code' },
@@ -91,7 +91,7 @@ export default function Inventory() {
         title="Inventory Control" 
         subtitle="Διαχείριση αποθηκών και παρακολούθηση ροής αποθεμάτων" 
         actionLabel="Προσθήκη Αποθήκης" 
-        onAction={() => { setEditing({}); setDialogOpen(true); }} 
+        onAction={() => { setEditing({ id: '', status: 'active' }); setDialogOpen(true); }} 
       />
 
       {/* Stats Cards με χρωματική σήμανση */}

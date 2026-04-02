@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Greek Translations for NexusERP
  * Ελληνικές μεταφράσεις για το NexusERP

@@ -8,15 +8,33 @@ export default function AIInsightsWidget({ customers, salesInvoices, products })
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const normalizeInsights = (result) => {
+    if (Array.isArray(result)) {
+      return result;
+    }
+
+    if (typeof result === 'string') {
+      try {
+        const parsed = JSON.parse(result);
+        return Array.isArray(parsed?.insights) ? parsed.insights : [];
+      } catch {
+        return [];
+      }
+    }
+
+    return Array.isArray(result?.insights) ? result.insights : [];
+  };
+
   const generateInsights = async () => {
     setLoading(true);
-    const topCustomers = (customers || []).slice(0, 5).map(c => c.name).join(', ');
-    const totalRev = (salesInvoices || []).reduce((s, i) => s + (i.total || 0), 0);
-    const overdueCount = (salesInvoices || []).filter(i => i.status === 'overdue').length;
-    const productCount = (products || []).length;
+    try {
+      const topCustomers = (customers || []).slice(0, 5).map(c => c.name).join(', ');
+      const totalRev = (salesInvoices || []).reduce((s, i) => s + (i.total || 0), 0);
+      const overdueCount = (salesInvoices || []).filter(i => i.status === 'overdue').length;
+      const productCount = (products || []).length;
 
-    const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are an AI business analyst for a Greek commercial ERP. Based on this data, provide 3-4 concise business insights and recommendations:
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `You are an AI business analyst for a Greek commercial ERP. Based on this data, provide 3-4 concise business insights and recommendations:
 - Total Revenue: €${totalRev.toFixed(2)}
 - Number of Products: ${productCount}
 - Top Customers: ${topCustomers || 'None yet'}
@@ -37,10 +55,12 @@ Give actionable insights in 2-3 sentences each. Format as JSON array of objects 
             }
           }
         }
-      }
-    });
-    setInsights(result.insights || []);
-    setLoading(false);
+        }
+      });
+      setInsights(normalizeInsights(result));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

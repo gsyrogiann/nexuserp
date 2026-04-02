@@ -1,21 +1,36 @@
-// src/lib/permissions.js
+const ADMIN_ONLY_PATHS = new Set([
+  '/SalesInvoices',
+  '/PurchaseInvoices',
+  '/Payments',
+  '/Reports',
+  '/AIAssistant',
+  '/EmailSettings',
+  '/Settings',
+]);
 
-export const USER_PERMISSIONS = {
-  // ΕΔΩ ΒΑΛΕ ΤΟ ΔΙΚΟ ΣΟΥ EMAIL (ADMIN)
-  'georgesyro1925@gmail.com': {
-    isAdmin: true,
-    allowedPaths: ['*'] 
-  },
-  // ΕΔΩ ΒΑΛΕ ΤΟ EMAIL ΤΟΥ ΥΠΑΛΛΗΛΟΥ ΣΟΥ
-  'chrisbsoft@gmail.com': {
-    isAdmin: false,
-    allowedPaths: ['/Dashboard', '/Customers', '/SalesPipeline', '/Calendar', '/Tickets']
+export function isAdminUser(user) {
+  return user?.role === 'admin';
+}
+
+export function canUserAccess(user, path) {
+  if (!path) {
+    return false;
   }
-};
 
-export const canUserAccess = (email, path) => {
-  const userPerms = USER_PERMISSIONS[email];
-  if (!userPerms) return false; 
-  if (userPerms.isAdmin || userPerms.allowedPaths.includes('*')) return true;
-  return userPerms.allowedPaths.includes(path);
-};
+  if (!ADMIN_ONLY_PATHS.has(path)) {
+    return true;
+  }
+
+  return isAdminUser(user);
+}
+
+export function getVisibleNavigationGroups(groups, user) {
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => canUserAccess(user, item.path)),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+export { ADMIN_ONLY_PATHS };

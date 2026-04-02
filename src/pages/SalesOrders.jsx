@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { fetchList } from '@/lib/apiHelpers'; 
+import { listCustomers } from '@/lib/directoryQueries';
 import PageHeader from '../components/shared/PageHeader';
 import DataTable from '../components/shared/DataTable';
 import DocumentFormDialog from '../components/shared/DocumentFormDialog';
@@ -31,7 +32,7 @@ export default function SalesOrders() {
   // Fetch Customers
   const { data: customers = [] } = useQuery({ 
     queryKey: ['customers'], 
-    queryFn: () => fetchList(base44.entities.Customer), 
+    queryFn: () => listCustomers(), 
   });
 
   // Fetch Products
