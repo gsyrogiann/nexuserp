@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -191,11 +191,34 @@ export default function AIAssistant() {
         setMessages(updatedMessages);
         updateHistory(updatedMessages);
       } else if (action.action === 'send_email') {
-        await base44.functions.invoke('sendEmail', {
-          to: action.to,
-          subject: action.subject,
-          body: action.body
-        });
+        await executeMutation(
+          () => base44.functions.invoke('sendEmail', {
+            to: action.to,
+            subject: action.subject,
+            body: action.body,
+            customer_id: action.customer_id,
+            customer_name: action.customer_name,
+          }),
+          {
+            actionLabel: 'send AI email',
+            fallbackMessage: 'Δεν ήταν δυνατή η αποστολή email από το AI action.',
+            audit: {
+              action: 'send',
+              target: 'email',
+              summary: 'Sent email from AI action',
+              metadata: {
+                to: action.to,
+                subject: action.subject,
+                customerId: action.customer_id,
+              },
+            },
+            validate: () => {
+              if (!action.to || !action.subject || !action.body) {
+                throw new Error('Το AI action δεν περιέχει έγκυρα στοιχεία email.');
+              }
+            },
+          }
+        );
         const successMsg = { role: 'assistant', type: 'action', content: `✅ **Email στάλθηκε στο ${action.to}!**` };
         const updatedMessages = [...messages, successMsg];
         setMessages(updatedMessages);
@@ -239,7 +262,7 @@ export default function AIAssistant() {
       });
       
       const replyText = response.data?.reply || 'Σφάλμα απόκρισης.';
-      const action = parseAction(replyText);
+      const action = response.data?.action || parseAction(replyText);
       const assistantMsg = { role: 'assistant', content: stripAction(replyText) };
       const finalMessages = [...updatedWithUser, assistantMsg];
       
