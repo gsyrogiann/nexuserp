@@ -29,6 +29,8 @@ const DETERMINISTIC_INTENTS = new Set([
   'system_status',
 ]);
 
+type AssistantAction = Record<string, unknown> | null;
+
 type SearchDescriptor = {
   raw: string,
   normalized: string,
@@ -142,14 +144,6 @@ function detectEmailAddress(message: string) {
   return match?.[0] || '';
 }
 
-function escapeJsonString(value: string) {
-  return JSON.stringify(String(value ?? ''));
-}
-
-function createActionBlock(action: Record<string, unknown>) {
-  return `\`\`\`action\n${JSON.stringify(action, null, 2)}\n\`\`\``;
-}
-
 function deriveTicketTitle(message: string) {
   const cleaned = compactWhitespace(
     String(message || '')
@@ -173,17 +167,33 @@ function deriveEmailSubject(message: string, customerName: string) {
   return 'Σύντομη ενημέρωση από NexusERP';
 }
 
-function deriveEmailBody(message: string, customerName: string) {
-  const cleaned = compactWhitespace(
+function deriveEmailMessageContent(message: string) {
+  const quoted = String(message || '').match(/["“](.+?)["”]/)?.[1];
+  if (quoted) {
+    return compactWhitespace(quoted);
+  }
+
+  const explicitEmail = detectEmailAddress(message);
+  const text = compactWhitespace(
     String(message || '')
-      .replace(/στειλε|στείλε|γραψε|γράψε|draft|send/gi, '')
-      .replace(/email|mail/gi, '')
+      .replace(/στείλε|στειλε|γράψε|γραψε|σύνταξε|συνταξε|draft|send|compose/gi, '')
+      .replace(/email|mail|μαιλ|μέιλ/gi, '')
+      .replace(explicitEmail, '')
+      .replace(/\b(στον|στην|στο|προς|to)\b/gi, '')
   );
 
+  const afterPrompt = text.match(/\b(?:και\s+(?:πες|γράψε|γραψε)|να\s+γράφει|με\s+κείμενο)\b\s+(.+)$/i)?.[1];
+  if (afterPrompt) {
+    return compactWhitespace(afterPrompt).replace(/^[,:-]\s*/, '');
+  }
+
+  const cleaned = compactWhitespace(text).replace(/^[,:-]\s*/, '');
+  return cleaned.length > 0 ? cleaned : 'Στέλνω μια σύντομη ενημέρωση από το NexusERP.';
+}
+
+function deriveEmailBody(message: string, customerName: string) {
   const intro = customerName ? `Καλησπέρα ${customerName},` : 'Καλησπέρα,';
-  const main = cleaned.length > 0
-    ? cleaned.replace(/^[,:-]\s*/, '')
-    : 'Στέλνω μια σύντομη ενημέρωση από το NexusERP.';
+  const main = deriveEmailMessageContent(message);
 
   return `${intro}\n\n${main}\n\nΜε εκτίμηση,\nNexusERP`;
 }
@@ -194,7 +204,7 @@ export function detectIntent(message: string) {
   const hasSupplierKeyword = /προμηθευτ|supplier/.test(text);
   const hasIdentifierHint = /αφμ|afm|vat|tax id|tax_id/.test(text) || Boolean(detectEmailAddress(text)) || Boolean(detectTaxId(text));
   const hasSendVerb = /(στειλε|στείλε|γραψε|γράψε|συνταξε|σύνταξε|draft|send|compose)/.test(text);
-  const hasMailIndicator = /email|mail|@|\bto\b|στον|στην|προς/.test(text);
+  const hasMailIndicator = /email|mail|μαιλ|μέιλ|@|\bto\b|στον|στην|προς/.test(text);
 
   if (!text) return 'help';
 
@@ -471,6 +481,44 @@ function formatCurrency(value: number) {
   }).format(Number(value || 0));
 }
 
+function buildAssistantAction(intent: string, context: any, channel = 'app'): AssistantAction {
+  if (channel !== 'app') {
+    return null;
+  }
+
+  if (intent === 'create_ticket' && context.canCreateAction && context.matchedCustomer) {
+    return {
+      action: 'create_ticket',
+      ticket_data: {
+        ticket_number: context.nextTicketNumber,
+        title: context.suggestedTitle,
+        description: context.suggestedTitle,
+        customer: context.matchedCustomer.name,
+        customer_id: context.matchedCustomer.id,
+        customer_name: context.matchedCustomer.name,
+        status: 'open',
+        priority: 'normal',
+        category: 'technical',
+      },
+      confirmation_message: `Να δημιουργήσω το ticket ${context.nextTicketNumber} για τον πελάτη ${context.matchedCustomer.name};`,
+    };
+  }
+
+  if (intent === 'draft_email' && context.canCreateAction) {
+    return {
+      action: 'send_email',
+      to: context.to,
+      subject: context.subject,
+      body: context.body,
+      customer_id: context.customer_id,
+      customer_name: context.customer_name,
+      confirmation_message: `Να στείλω email στο ${context.to} με θέμα "${context.subject}";`,
+    };
+  }
+
+  return null;
+}
+
 function buildFallbackReply(intent: string, context: any, channel = 'app') {
   if (intent === 'list_customers' || intent === 'search_customers') {
     const label = context.search ? `για "${context.search}"` : '';
@@ -523,24 +571,7 @@ function buildFallbackReply(intent: string, context: any, channel = 'app') {
     if (!context.canCreateAction || !context.matchedCustomer) {
       return context.reason;
     }
-
-    const action = {
-      action: 'create_ticket',
-      ticket_data: {
-        ticket_number: context.nextTicketNumber,
-        title: context.suggestedTitle,
-        description: context.suggestedTitle,
-        customer: context.matchedCustomer.name,
-        customer_id: context.matchedCustomer.id,
-        customer_name: context.matchedCustomer.name,
-        status: 'open',
-        priority: 'normal',
-        category: 'technical',
-      },
-      confirmation_message: `Να δημιουργήσω το ticket ${context.nextTicketNumber} για τον πελάτη ${context.matchedCustomer.name};`,
-    };
-
-    return `Ετοίμασα πρόταση ticket για τον πελάτη ${context.matchedCustomer.name}.\n${createActionBlock(action)}`;
+    return `Ετοίμασα πρόταση ticket για τον πελάτη ${context.matchedCustomer.name}. Επιβεβαίωσε για να το δημιουργήσω.`;
   }
 
   if (intent === 'draft_email') {
@@ -553,18 +584,7 @@ function buildFallbackReply(intent: string, context: any, channel = 'app') {
     if (!context.canCreateAction) {
       return context.reason;
     }
-
-    const action = {
-      action: 'send_email',
-      to: context.to,
-      subject: context.subject,
-      body: context.body,
-      customer_id: context.customer_id,
-      customer_name: context.customer_name,
-      confirmation_message: `Να στείλω email στο ${context.to} με θέμα "${context.subject}";`,
-    };
-
-    return `Ετοίμασα draft email για ${context.to}.\n${createActionBlock(action)}`;
+    return `Ετοίμασα draft email για ${context.to}. Επιβεβαίωσε για να σταλεί.`;
   }
 
   return `Μπορώ να βοηθήσω με πραγματικά δεδομένα ERP.\n${HELP_TEXT}`;
@@ -652,6 +672,7 @@ export async function runAssistantConversation({
 }) {
   const intent = detectIntent(message);
   const context = await buildIntentContext(base44, intent, message);
+  const action = buildAssistantAction(intent, context, channel);
   const reply = await generateAssistantReply({
     message,
     intent,
@@ -660,5 +681,5 @@ export async function runAssistantConversation({
     history,
   });
 
-  return { intent, context, reply };
+  return { intent, context, reply, action };
 }
