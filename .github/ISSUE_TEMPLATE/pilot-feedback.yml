@@ -1,0 +1,73 @@
+name: Pilot feedback
+description: Record structured pilot feedback for NexusERP rollout validation.
+title: "[Pilot] "
+labels:
+  - pilot
+  - feedback
+body:
+  - type: input
+    id: customer
+    attributes:
+      label: Customer or pilot account
+      placeholder: Example Co.
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: Pilot owner
+      placeholder: Name of the customer-side owner
+    validations:
+      required: true
+  - type: dropdown
+    id: workflow
+    attributes:
+      label: Primary workflow
+      options:
+        - Login / access
+        - Customers / suppliers
+        - Invoice workflow
+        - Reports
+        - Gmail integration
+        - VoIP integration
+        - Telegram AI
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Sev 1
+        - Sev 2
+        - Sev 3
+        - Improvement request
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened and what was the impact?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction or trigger
+      description: Steps, timestamps, inputs, or observed conditions.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Evidence
+      description: Screenshots, payloads, logs, or links if safe to share.
+  - type: textarea
+    id: next_step
+    attributes:
+      label: Proposed next step
+      description: Fix, follow-up question, workaround, or decision needed.

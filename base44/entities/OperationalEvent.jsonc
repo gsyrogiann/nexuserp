@@ -1,0 +1,69 @@
+{
+  "name": "OperationalEvent",
+  "type": "object",
+  "properties": {
+    "event_name": {
+      "type": "string",
+      "description": "Short event identifier, e.g. audit_event or client_error"
+    },
+    "kind": {
+      "type": "string",
+      "description": "High-level event kind, e.g. operational"
+    },
+    "level": {
+      "type": "string",
+      "enum": [
+        "info",
+        "warn",
+        "error"
+      ],
+      "default": "info"
+    },
+    "environment": {
+      "type": "string",
+      "description": "Frontend environment label, e.g. production or staging"
+    },
+    "release": {
+      "type": "string",
+      "description": "Application release identifier"
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Client-side session identifier"
+    },
+    "route": {
+      "type": "string",
+      "description": "Browser route where the event happened"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Short human-readable event summary"
+    },
+    "source": {
+      "type": "string",
+      "description": "Source subsystem, e.g. react-query.query or executeMutation"
+    },
+    "request_origin": {
+      "type": "string",
+      "description": "HTTP origin that submitted the event"
+    },
+    "user_agent": {
+      "type": "string",
+      "description": "Submitting user agent"
+    },
+    "payload_json": {
+      "type": "string",
+      "description": "Sanitized JSON payload for diagnostics"
+    },
+    "occurred_at": {
+      "type": "string",
+      "description": "Original client-side event timestamp"
+    }
+  },
+  "required": [
+    "event_name",
+    "kind",
+    "level",
+    "occurred_at"
+  ]
+}

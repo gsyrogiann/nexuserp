@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { usePermissions } from '@/lib/usePermissions.jsx';
-import { ROLE_LABELS, ROLES } from '@/lib/rbac';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ROLE_LABELS } from '@/lib/rbac';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Shield, Crown, UserCheck, Users, AlertTriangle, Mail, Search } from 'lucide-react';
+import { Crown, UserCheck, Users, AlertTriangle, Mail, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ROLE_COLORS = {

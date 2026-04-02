@@ -1,13 +1,13 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { AlertTriangle, Clock, Package, CreditCard } from 'lucide-react';
+import { AlertTriangle, Clock, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export default function AlertsPanel({ salesInvoices, products, stockMovements }) {
+export default function AlertsPanel({ salesInvoices = [], products = [], stockMovements = [] }) {
   const alerts = [];
 
   // Overdue invoices
-  const overdue = (salesInvoices || []).filter(i => i.status === 'overdue');
+  const overdue = salesInvoices.filter(i => i.status === 'overdue');
   if (overdue.length > 0) {
     alerts.push({
       icon: Clock,
@@ -18,7 +18,7 @@ export default function AlertsPanel({ salesInvoices, products, stockMovements })
   }
 
   // Low stock (products with min_stock set, using simple heuristic)
-  const lowStockProducts = (products || []).filter(p => p.min_stock > 0 && p.status === 'active');
+  const lowStockProducts = products.filter(p => p.min_stock > 0 && p.status === 'active');
   if (lowStockProducts.length > 0) {
     alerts.push({
       icon: Package,

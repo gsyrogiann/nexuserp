@@ -2,17 +2,19 @@ import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { fetchList } from '@/lib/apiHelpers';
+import { listCustomers } from '@/lib/directoryQueries';
 import PageHeader from '../components/shared/PageHeader';
 import DataTable from '../components/shared/DataTable';
 import DocumentFormDialog from '../components/shared/DocumentFormDialog';
 import StatsCard from '../components/shared/StatsCard';
 import { 
-  FileText, CreditCard, AlertTriangle, Search, 
+  AlertTriangle, Search, 
   TrendingUp, Wallet, Receipt, Bot, Sparkles, Loader2 
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { executeMutation } from '@/lib/mutationHelpers';
 
 const columns = [
   { key: 'number', label: 'Παραστατικό #', className: "font-mono font-bold text-blue-600" },
@@ -63,7 +65,7 @@ export default function SalesInvoices() {
 
   // Queries
   const { data: invoices = [], isLoading } = useQuery({ queryKey: ['salesInvoices'], queryFn: () => fetchList(base44.entities.SalesInvoice) });
-  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: () => fetchList(base44.entities.Customer) });
+  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: () => listCustomers() });
   const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: () => fetchList(base44.entities.Product) });
 
   const nextInvoiceNumber = useMemo(() => getNextInvoiceNumber(invoices), [invoices]);
@@ -77,13 +79,52 @@ export default function SalesInvoices() {
 
   // Mutations
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.SalesInvoice.create(data),
+    mutationFn: (data) => executeMutation(
+      () => base44.entities.SalesInvoice.create(data),
+      {
+        actionLabel: 'create sales invoice',
+        fallbackMessage: 'Δεν ήταν δυνατή η δημιουργία του τιμολογίου.',
+        audit: {
+          action: 'create',
+          target: 'sales_invoice',
+          summary: 'Created sales invoice',
+          metadata: {
+            number: data?.number,
+            customerId: data?.customer_id,
+          },
+        },
+      }
+    ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['salesInvoices'] }),
+    meta: {
+      title: 'Αποτυχία δημιουργίας τιμολογίου',
+      fallbackMessage: 'Δεν ήταν δυνατή η δημιουργία του τιμολογίου.',
+    },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.SalesInvoice.update(id, data),
+    mutationFn: ({ id, data }) => executeMutation(
+      () => base44.entities.SalesInvoice.update(id, data),
+      {
+        actionLabel: 'update sales invoice',
+        fallbackMessage: 'Δεν ήταν δυνατή η ενημέρωση του τιμολογίου.',
+        audit: {
+          action: 'update',
+          target: 'sales_invoice',
+          targetId: id,
+          summary: 'Updated sales invoice',
+          metadata: {
+            number: data?.number,
+            customerId: data?.customer_id,
+          },
+        },
+      }
+    ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['salesInvoices'] }),
+    meta: {
+      title: 'Αποτυχία ενημέρωσης τιμολογίου',
+      fallbackMessage: 'Δεν ήταν δυνατή η ενημέρωση του τιμολογίου.',
+    },
   });
 
   // --- AUTOMATED STOCK LOGIC ---
@@ -106,7 +147,24 @@ export default function SalesInvoices() {
       const product = products.find(p => p.id === item.product_id);
       if (product) {
         const newQty = (Number(product.stock_quantity) || 0) - (Number(item.quantity) || 0);
-        await base44.entities.Product.update(product.id, { stock_quantity: newQty });
+        await executeMutation(
+          () => base44.entities.Product.update(product.id, { stock_quantity: newQty }),
+          {
+            actionLabel: 'update product stock',
+            fallbackMessage: `Αποτυχία ενημέρωσης αποθέματος για το προϊόν ${product.name || product.id}.`,
+            audit: {
+              action: 'update_stock',
+              target: 'product',
+              targetId: product.id,
+              summary: 'Updated stock quantity after sales invoice',
+              metadata: {
+                invoiceNumber: invoiceData?.number,
+                quantityDelta: -(Number(item.quantity) || 0),
+                newStockQuantity: newQty,
+              },
+            },
+          }
+        );
       }
     }
     qc.invalidateQueries({ queryKey: ['products'] });
@@ -114,6 +172,10 @@ export default function SalesInvoices() {
   };
 
   const handleSubmit = async (data) => {
+    if (!data.customer_id && !data.customer_name) {
+      throw new Error('Το τιμολόγιο χρειάζεται πελάτη πριν την αποθήκευση.');
+    }
+
     const payload = {
       ...data,
       customer_id: data.customer_id || data.customer_name || 'manual_entry',
@@ -148,7 +210,10 @@ export default function SalesInvoices() {
     try {
       const prompt = `Ανάλυσε τα οικονομικά: Τιμολογημένα: €${totalInvoiced}, Εισπράξεις: €${totalPaid}, Ανεξόφλητα: €${outstanding}. Δώσε 2 προτάσεις για βελτίωση ρευστότητας.`;
       const result = await base44.integrations.Core.InvokeLLM({ prompt });
-      setAiAnalysis(result);
+      const reply = result && typeof result === 'object' && 'reply' in result && typeof result.reply === 'string'
+        ? result.reply
+        : null;
+      setAiAnalysis(typeof result === 'string' ? result : reply || 'Η ανάλυση ολοκληρώθηκε χωρίς κείμενο απάντησης.');
     } catch (e) {
       setAiAnalysis("Σφάλμα ανάλυσης.");
     } finally {

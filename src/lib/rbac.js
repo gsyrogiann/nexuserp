@@ -83,7 +83,7 @@ export const DEFAULT_FEATURE_ACCESS = {
  */
 export function isSuperAdmin(user) {
   if (!user) return false;
-  return user.is_super_admin === true || user.role === 'super_admin' || user.email === 'georgesyro1925@gmail.com';
+  return user.is_super_admin === true || user.role === 'super_admin';
 }
 
 /**

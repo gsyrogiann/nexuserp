@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import PageHeader from '@/components/shared/PageHeader';
 import { Mail, RefreshCw, CheckCircle2, AlertCircle, Loader2, Inbox } from 'lucide-react';
-import { format } from 'date-fns';
-import { el } from 'date-fns/locale';
 import { toast } from 'sonner';
 
 export default function EmailSettings() {

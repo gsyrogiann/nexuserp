@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
+import { showErrorToast } from '@/lib/mutationHelpers';
 
 export default function EntityFormDialog({ open, onOpenChange, title, fields, initialData, onSubmit }) {
   const [formData, setFormData] = useState({});
@@ -20,9 +21,14 @@ export default function EntityFormDialog({ open, onOpenChange, title, fields, in
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    await onSubmit(formData);
-    setSaving(false);
-    onOpenChange(false);
+    try {
+      await onSubmit(formData);
+      onOpenChange(false);
+    } catch (error) {
+      showErrorToast('Αποτυχία αποθήκευσης', error, 'Δεν ήταν δυνατή η αποθήκευση της φόρμας.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleChange = (key, value) => {

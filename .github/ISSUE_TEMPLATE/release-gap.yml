@@ -1,0 +1,58 @@
+name: Release gap
+description: Track a GA or release-readiness gap that still blocks launch confidence.
+title: "[Release Gap] "
+labels:
+  - release
+  - blocker
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Legal / ownership
+        - Security
+        - CI/CD
+        - Product stability
+        - Observability / operability
+        - Pilot readiness
+        - Commercial readiness
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+  - type: textarea
+    id: gap
+    attributes:
+      label: Gap description
+      description: What is missing or unsafe right now?
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: Release risk
+      description: Why does this matter for GA, pilot, or paid launch?
+    validations:
+      required: true
+  - type: textarea
+    id: exit_criteria
+    attributes:
+      label: Exit criteria
+      description: What must be true for this gap to be considered closed?
+    validations:
+      required: true
+  - type: textarea
+    id: owner
+    attributes:
+      label: Owner and next action
+      description: Who owns the fix and what is the next concrete step?

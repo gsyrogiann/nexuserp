@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
+import { fetchAllEntities } from '../_shared/fetchAll.ts';
 
 // Helper: decode base64url
 function decodeBase64(str) {
@@ -37,7 +38,7 @@ function parseEmails(str) {
 
 // Helper: match customer by email
 async function matchCustomer(base44, emails) {
-  const customers = await base44.asServiceRole.entities.Customer.list();
+  const customers = await fetchAllEntities(base44.asServiceRole.entities.Customer, { sort: 'name' });
   for (const email of emails) {
     const match = customers.find(c =>
       c.email?.toLowerCase() === email.toLowerCase()

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { listCustomers } from '@/lib/directoryQueries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
+import { executeMutation, getErrorMessage } from '@/lib/mutationHelpers';
 
 // --- UTILS ---
 function parseCSV(text) {
@@ -67,17 +69,17 @@ function ImportPanel({ type, onImportDone }) {
   const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState(null);
-  const fileRef = useRef();
+  const fileRef = useRef(/** @type {HTMLInputElement | null} */ (null));
   const qc = useQueryClient();
   const handleFile = (e) => { const file = e.target.files[0]; if (!file) return; setFileName(file.name); setResults(null); const reader = new FileReader(); reader.onload = (ev) => setRows(parseCSV(ev.target.result)); reader.readAsText(file, 'UTF-8'); };
   const handleImport = async () => {
     if (!rows.length) return; setImporting(true); let ok = 0, fail = 0;
-    for (const row of rows) { try { const mapped = type === 'customers' ? mapToCustomer(row) : mapToProduct(row); if (!mapped.name && !mapped.sku) { fail++; continue; } if (type === 'customers') await base44.entities.Customer.create(mapped); else await base44.entities.Product.create(mapped); ok++; } catch { fail++; } }
+    for (const row of rows) { try { const mapped = type === 'customers' ? mapToCustomer(row) : mapToProduct(row); if (!mapped.name && !mapped.sku) { fail++; continue; } if (type === 'customers') await executeMutation(() => base44.entities.Customer.create(mapped), { actionLabel: 'import customer', fallbackMessage: 'Αποτυχία εισαγωγής πελάτη.', audit: { action: 'import', target: 'customer', summary: 'Imported customer from CSV', metadata: { name: mapped.name, taxId: mapped.tax_id } } }); else await executeMutation(() => base44.entities.Product.create(mapped), { actionLabel: 'import product', fallbackMessage: 'Αποτυχία εισαγωγής προϊόντος.', audit: { action: 'import', target: 'product', summary: 'Imported product from CSV', metadata: { name: mapped.name, sku: mapped.sku } } }); ok++; } catch { fail++; } }
     await qc.invalidateQueries({ queryKey: [type === 'customers' ? 'customers' : 'products'] });
     setResults({ ok, fail }); setImporting(false);
     if (ok > 0) onImportDone?.(`Εισήχθησαν ${ok} ${type === 'customers' ? 'πελάτες' : 'προϊόντα'} επιτυχώς!`);
   };
-  const reset = () => { setRows([]); setFileName(''); setResults(null); fileRef.current.value = ''; };
+  const reset = () => { setRows([]); setFileName(''); setResults(null); if (fileRef.current) fileRef.current.value = ''; };
   const isCustomer = type === 'customers';
   return (
     <div className="space-y-4">
@@ -86,7 +88,7 @@ function ImportPanel({ type, onImportDone }) {
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">{isCustomer ? <Users className="w-6 h-6 text-primary" /> : <Package className="w-6 h-6 text-primary" />}</div>
           <div><p className="font-medium text-sm">{isCustomer ? 'Εισαγωγή Πελατών' : 'Εισαγωγή Προϊόντων'} από CSV</p><p className="text-xs text-muted-foreground mt-1">{isCustomer ? 'Στήλες: name, tax_id, phone, email, address, city' : 'Στήλες: sku, name, category, sell_price, buy_price, vat_rate, unit'}</p></div>
           <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleFile} className="hidden" />
-          <Button variant="outline" size="sm" onClick={() => fileRef.current.click()}><Upload className="w-4 h-4 mr-2" />Επιλογή αρχείου CSV</Button>
+          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload className="w-4 h-4 mr-2" />Επιλογή αρχείου CSV</Button>
         </div>
       </div>
       {fileName && (<div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg"><FileSpreadsheet className="w-4 h-4 text-blue-600" /><span className="text-sm text-blue-700 flex-1">{fileName}</span><Badge variant="outline">{rows.length} εγγραφές</Badge><button onClick={reset}><X className="w-4 h-4 text-slate-400 hover:text-slate-600" /></button></div>)}
@@ -132,7 +134,7 @@ export default function AIAssistant() {
   }, [conversations]);
 
   // Data fetching
-  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: () => base44.entities.Customer.list() });
+  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: () => listCustomers() });
   const { data: tickets = [] } = useQuery({ queryKey: ['tickets'], queryFn: () => base44.entities.ServiceTicket.list('-created_date') });
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
@@ -175,7 +177,27 @@ export default function AIAssistant() {
   const executeAction = async (action) => {
     try {
       if (action.action === 'create_ticket') {
-        await base44.entities.ServiceTicket.create(action.ticket_data);
+        await executeMutation(
+          () => base44.entities.ServiceTicket.create(action.ticket_data),
+          {
+            actionLabel: 'create AI ticket',
+            fallbackMessage: 'Δεν ήταν δυνατή η δημιουργία ticket από το AI action.',
+            audit: {
+              action: 'create',
+              target: 'service_ticket',
+              summary: 'Created service ticket from AI action',
+              metadata: {
+                ticketNumber: action.ticket_data?.ticket_number,
+                customerId: action.ticket_data?.customer_id,
+              },
+            },
+            validate: () => {
+              if (!action.ticket_data?.ticket_number || !action.ticket_data?.title) {
+                throw new Error('Το AI action δεν περιέχει έγκυρα στοιχεία ticket.');
+              }
+            },
+          }
+        );
         await qc.invalidateQueries({ queryKey: ['tickets'] });
         const successMsg = { role: 'assistant', type: 'ticket', content: `✅ **Ticket ${action.ticket_data.ticket_number} δημιουργήθηκε!**` };
         const updatedMessages = [...messages, successMsg];
@@ -193,7 +215,7 @@ export default function AIAssistant() {
         updateHistory(updatedMessages);
       }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: `❌ Σφάλμα: ${err.message}` }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: `❌ Σφάλμα: ${getErrorMessage(err, 'Αποτυχία εκτέλεσης action.')}` }]);
     }
     setPendingAction(null);
   };

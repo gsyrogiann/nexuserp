@@ -44,7 +44,24 @@ const statusColors = {
   importer: 'bg-teal-100 text-teal-700 border-teal-200',
 };
 
-export default function DataTable({ columns, data, onRowClick, searchable = true, pageSize = 15 }) {
+/**
+ * @param {{
+ *   columns: Array<{
+ *     key: string,
+ *     label: React.ReactNode,
+ *     className?: string,
+ *     cellClassName?: string,
+ *     type?: string,
+ *     render?: (value: any, row: any) => React.ReactNode
+ *   }>,
+ *   data: any[],
+ *   onRowClick?: (row: any) => void,
+ *   searchable?: boolean,
+ *   pageSize?: number,
+ *   loading?: boolean
+ * }} props
+ */
+export default function DataTable({ columns, data, onRowClick, searchable = true, pageSize = 15, loading = false }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [sortCol, setSortCol] = useState(null);
@@ -145,7 +162,13 @@ export default function DataTable({ columns, data, onRowClick, searchable = true
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pageData.length === 0 ? (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="text-center py-12 text-muted-foreground">
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : pageData.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={columns.length} className="text-center py-12 text-muted-foreground">
                   No data found

@@ -1,11 +1,29 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { fetchAllEntities } from '../_shared/fetchAll.ts';
 
 /**
  * 3CX VoIP Webhook Handler
  * POST /voipWebhook
- * Authenticates via voip_api_key from AppSettings, identifies customer by phone,
+ * Authenticates via server-side env secrets, identifies customer by phone,
  * creates CallLog, then triggers async AI analysis.
  */
+
+function getEnvValue(name: string, fallback = '') {
+  return Deno.env.get(name)?.trim() || fallback;
+}
+
+async function loadVoipConfig(base44: any) {
+  const settingsList = await base44.asServiceRole.entities.AppSettings.filter({ key: 'voip' });
+  const settings = settingsList[0] || null;
+
+  return {
+    settings,
+    apiKey: getEnvValue('VOIP_API_KEY'),
+    webhookSecret: getEnvValue('VOIP_WEBHOOK_SECRET'),
+    ollamaHost: getEnvValue('VOIP_OLLAMA_HOST', settings?.ollama_host || 'http://localhost:11434'),
+    whisperHost: getEnvValue('VOIP_WHISPER_HOST', settings?.whisper_host || ''),
+  };
+}
 
 function normalizePhone(raw) {
   if (!raw) return '';
@@ -26,28 +44,46 @@ function phonesMatch(storedPhone, incomingNormalized) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method !== 'POST') {
-    return Response.json({ error: 'Method not allowed' }, { status: 405 });
-  }
-
   try {
     const base44 = createClientFromRequest(req);
+    const config = await loadVoipConfig(base44);
+
+    if (req.method === 'GET') {
+      return Response.json({
+        ok: true,
+        configured: Boolean(config.apiKey),
+        webhookSecretConfigured: Boolean(config.webhookSecret),
+        aiBridgeConfigured: Boolean(config.ollamaHost || config.whisperHost),
+        message: config.apiKey
+          ? 'Το VoIP webhook είναι διαθέσιμο και περιμένει POST requests.'
+          : 'Λείπει το VOIP_API_KEY από το environment.',
+      });
+    }
+
+    if (req.method !== 'POST') {
+      return Response.json({ error: 'Method not allowed' }, { status: 405 });
+    }
 
     // --- AUTH: validate api_key from header or query param ---
     const apiKeyHeader = req.headers.get('x-api-key') || req.headers.get('authorization')?.replace('Bearer ', '');
     const urlParams = new URL(req.url).searchParams;
     const apiKeyParam = urlParams.get('api_key');
     const incomingKey = apiKeyHeader || apiKeyParam;
+    const requestSecret =
+      req.headers.get('x-webhook-secret') ||
+      req.headers.get('x-voip-webhook-secret') ||
+      '';
 
-    const settingsList = await base44.asServiceRole.entities.AppSettings.filter({ key: 'voip' });
-    const settings = settingsList[0] || null;
-
-    if (!settings) {
-      return Response.json({ error: 'VoIP not configured. Add AppSettings with key=voip.' }, { status: 503 });
+    if (!config.apiKey) {
+      return Response.json({ error: 'VoIP webhook is not configured.' }, { status: 503 });
     }
 
-    if (settings.voip_api_key && incomingKey !== settings.voip_api_key) {
+    if (incomingKey !== config.apiKey) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (config.webhookSecret && requestSecret !== config.webhookSecret) {
+      return Response.json({ error: 'Invalid webhook secret.' }, { status: 401 });
     }
 
     // --- PARSE PAYLOAD (3CX sends JSON) ---
@@ -64,7 +100,7 @@ Deno.serve(async (req) => {
     let matchedCustomer = null;
 
     if (normalizedCaller) {
-      const allCustomers = await base44.asServiceRole.entities.Customer.list();
+      const allCustomers = await fetchAllEntities(base44.asServiceRole.entities.Customer, { sort: 'name' });
       matchedCustomer = allCustomers.find((c) =>
         phonesMatch(c.phone, normalizedCaller) ||
         phonesMatch(c.mobile, normalizedCaller) ||
@@ -88,7 +124,7 @@ Deno.serve(async (req) => {
     // --- TRIGGER AI ANALYSIS (async, best-effort) ---
     if (recordingUrl || body.transcript) {
       // Fire and forget - don't await so webhook responds fast
-      analyzeCallAsync(base44, callLog.id, recordingUrl, body.transcript || '', settings).catch(console.error);
+      analyzeCallAsync(base44, callLog.id, recordingUrl, body.transcript || '', config).catch(console.error);
     }
 
     return Response.json({
@@ -103,13 +139,13 @@ Deno.serve(async (req) => {
   }
 });
 
-async function analyzeCallAsync(base44, callLogId, recordingUrl, existingTranscript, settings) {
+async function analyzeCallAsync(base44, callLogId, recordingUrl, existingTranscript, config) {
   let transcript = existingTranscript;
 
   // --- WHISPER TRANSCRIPTION ---
-  if (!transcript && recordingUrl && settings.whisper_host) {
+  if (!transcript && recordingUrl && config.whisperHost) {
     try {
-      const whisperResponse = await fetch(`${settings.whisper_host}/asr`, {
+      const whisperResponse = await fetch(`${config.whisperHost}/asr`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: recordingUrl, language: 'el' }),
@@ -130,7 +166,7 @@ async function analyzeCallAsync(base44, callLogId, recordingUrl, existingTranscr
   let psychography = '';
   let aiSummary = '';
 
-  const ollamaHost = settings.ollama_host || 'http://localhost:11434';
+  const ollamaHost = config.ollamaHost || 'http://localhost:11434';
   try {
     const ollamaResponse = await fetch(`${ollamaHost}/api/generate`, {
       method: 'POST',

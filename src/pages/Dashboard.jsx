@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { fetchList } from '@/lib/apiHelpers';
+import { listCustomers } from '@/lib/directoryQueries';
 import { calculateDashboardStats, getDashboardAIAdvice } from '@/lib/dashboardHelpers';
 import PageHeader from '../components/shared/PageHeader';
 import KPIGrid from '../components/dashboard/KPIGrid';
@@ -28,7 +29,7 @@ export default function Dashboard() {
   // Φόρτωση όλων των δεδομένων με fetchList (No more 50 limit)
   const { data: customers = [], isLoading: loadingCust } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => fetchList(base44.entities.Customer),
+    queryFn: () => listCustomers(),
   });
 
   const { data: products = [], isLoading: loadingProd } = useQuery({

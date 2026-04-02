@@ -7,7 +7,7 @@ import { getFeatureKeyFromPath } from '@/lib/rbac';
 import {
   LayoutDashboard, Users, Truck, Package, Warehouse as WarehouseIcon,
   ShoppingCart, ShoppingBag, FileText, CreditCard, BarChart3,
-  Bot, ChevronDown, ChevronRight, Menu, X, Settings, Mail, AlertCircle, Ticket, 
+  ChevronDown, ChevronRight, Menu, X, Settings, Mail, AlertCircle, Ticket,
   Calendar as CalendarIcon, TrendingUp, Sparkles, ShieldCheck, Eye, Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -89,18 +89,17 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(
-    navGroups.reduce((acc, g) => ({ ...acc, [g.label]: true }), {})
+    navGroups.reduce((acc, group) => ({ ...acc, [group.label]: true }), {})
   );
 
   const toggleGroup = (label) => {
-    setExpandedGroups(prev => ({ ...prev, [label]: !prev[label] }));
+    setExpandedGroups((prev) => ({ ...prev, [label]: !prev[label] }));
   };
 
   const isActive = (path) => location.pathname === path;
 
   const navContent = (
     <div className="flex flex-col h-full bg-sidebar">
-      {/* Logo */}
       <div className="h-16 flex items-center px-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center shadow-lg shadow-sidebar-primary/20">
@@ -123,7 +122,6 @@ export default function Sidebar() {
         </Button>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2">
         {navGroups.map((group) => (
           <div key={group.label} className="mb-4">
@@ -138,34 +136,35 @@ export default function Sidebar() {
             )}
             {(collapsed || expandedGroups[group.label]) && (
               <div className="space-y-1 mt-1">
-                {group.items.filter(item => {
-                  if (permLoading) return true;
-                  const key = getFeatureKeyFromPath(item.path);
-                  if (!key) return true;
-                  return canAccess(key);
-                }).map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setMobileOpen(false)}
-                    className={cn(
-                      'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200',
-                      isActive(item.path)
-                        ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md shadow-sidebar-primary/20'
-                        : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent'
-                    )}
-                  >
-                    <item.icon className={cn('w-4 h-4 flex-shrink-0', collapsed && 'mx-auto')} />
-                    {!collapsed && <span>{t(item.label)}</span>}
-                  </Link>
-                ))}
+                {group.items
+                  .filter((item) => {
+                    if (permLoading) return true;
+                    const key = getFeatureKeyFromPath(item.path);
+                    if (!key) return true;
+                    return canAccess(key);
+                  })
+                  .map((item) => (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200',
+                        isActive(item.path)
+                          ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md shadow-sidebar-primary/20'
+                          : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent'
+                      )}
+                    >
+                      <item.icon className={cn('w-4 h-4 flex-shrink-0', collapsed && 'mx-auto')} />
+                      {!collapsed && <span>{t(item.label)}</span>}
+                    </Link>
+                  ))}
               </div>
             )}
           </div>
         ))}
       </nav>
 
-      {/* Footer */}
       {!collapsed && (
         <div className="p-4 border-t border-sidebar-border bg-sidebar-accent/5">
           <div className="flex items-center gap-3 px-2 py-1.5 text-xs text-sidebar-foreground/40 font-mono">
@@ -179,7 +178,6 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile toggle */}
       <Button
         variant="ghost"
         size="icon"
@@ -189,7 +187,6 @@ export default function Sidebar() {
         {mobileOpen ? <X className="w-5 h-5 text-slate-600" /> : <Menu className="w-5 h-5 text-slate-600" />}
       </Button>
 
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 animate-in fade-in duration-300"
@@ -197,7 +194,6 @@ export default function Sidebar() {
         />
       )}
 
-      {/* Sidebar aside */}
       <aside
         className={cn(
           'fixed lg:static inset-y-0 left-0 z-40 bg-sidebar border-r border-sidebar-border transition-all duration-500 ease-in-out',
