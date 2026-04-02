@@ -156,10 +156,28 @@ export default function AIAssistant() {
     if (currentChatId === id) startNewChat();
   };
 
-  const parseAction = (text) => {
-    const match = text.match(/```action\s*([\s\S]*?)```/);
-    if (!match) return null;
-    try { return JSON.parse(match[1].trim()); } catch { return null; }
+  const normalizeAction = (action) => {
+    if (!action || typeof action !== 'object') {
+      return null;
+    }
+
+    if (action.action === 'send_email') {
+      if (!action.to) {
+        return null;
+      }
+
+      return {
+        ...action,
+        subject: action.subject || 'Σύντομη ενημέρωση από NexusERP',
+        body: action.body || 'Καλησπέρα,\n\nΓεια!\n\nΜε εκτίμηση,\nNexusERP',
+      };
+    }
+
+    if (action.action === 'create_ticket') {
+      return action.ticket_data?.ticket_number && action.ticket_data?.title ? action : null;
+    }
+
+    return null;
   };
   const stripAction = (text) => text.replace(/```action[\s\S]*?```/g, '').trim();
 
@@ -264,7 +282,7 @@ export default function AIAssistant() {
       });
       
       const replyText = response.data?.reply || 'Σφάλμα απόκρισης.';
-      const action = response.data?.action || parseAction(replyText);
+      const action = normalizeAction(response.data?.action);
       const assistantMsg = { role: 'assistant', content: stripAction(replyText) };
       const finalMessages = [...updatedWithUser, assistantMsg];
       
