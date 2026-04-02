@@ -38,6 +38,46 @@ function mapToProduct(row) {
   return { sku: get('sku','code','κωδικος'), name: get('name','product','product_name','περιγραφη'), category: get('category','κατηγορια'), sell_price: parseFloat(get('sell_price','price','τιμη')) || 0, buy_price: parseFloat(get('buy_price','cost','κοστος')) || 0, vat_rate: parseFloat(get('vat_rate','vat','φπα')) || 24, unit: get('unit','uom','μοναδα') || 'piece', status: 'active' };
 }
 
+function normalizeIntentReply(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+function isAffirmativeReply(value) {
+  const normalized = normalizeIntentReply(value);
+  return [
+    'ναι',
+    'ναι θελω',
+    'θελω',
+    'στειλτο',
+    'στειλε το',
+    'προχωρα',
+    'προχωραμε',
+    'ok',
+    'οκ',
+    'yes',
+    'send it',
+    'confirm',
+  ].includes(normalized);
+}
+
+function isNegativeReply(value) {
+  const normalized = normalizeIntentReply(value);
+  return [
+    'οχι',
+    'οχι ευχαριστω',
+    'ακυρο',
+    'αστο',
+    'μην το στειλεις',
+    'cancel',
+    'stop',
+    'no',
+  ].includes(normalized);
+}
+
 // --- UI COMPONENTS ---
 function Bubble({ msg }) {
   const isUser = msg.role === 'user';
@@ -181,7 +221,7 @@ export default function AIAssistant() {
   };
   const stripAction = (text) => text.replace(/```action[\s\S]*?```/g, '').trim();
 
-  const executeAction = async (action) => {
+  const executeAction = async (action, baseMessages = messages) => {
     try {
       if (action.action === 'create_ticket') {
         await executeMutation(
@@ -207,7 +247,7 @@ export default function AIAssistant() {
         );
         await qc.invalidateQueries({ queryKey: ['tickets'] });
         const successMsg = { role: 'assistant', type: 'ticket', content: `✅ **Ticket ${action.ticket_data.ticket_number} δημιουργήθηκε!**` };
-        const updatedMessages = [...messages, successMsg];
+        const updatedMessages = [...baseMessages, successMsg];
         setMessages(updatedMessages);
         updateHistory(updatedMessages);
       } else if (action.action === 'send_email') {
@@ -240,12 +280,14 @@ export default function AIAssistant() {
           }
         );
         const successMsg = { role: 'assistant', type: 'action', content: `✅ **Email στάλθηκε στο ${action.to}!**` };
-        const updatedMessages = [...messages, successMsg];
+        const updatedMessages = [...baseMessages, successMsg];
         setMessages(updatedMessages);
         updateHistory(updatedMessages);
       }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: `❌ Σφάλμα: ${getErrorMessage(err, 'Αποτυχία εκτέλεσης action.')}` }]);
+      const errorMessages = [...baseMessages, { role: 'assistant', content: `❌ Σφάλμα: ${getErrorMessage(err, 'Αποτυχία εκτέλεσης action.')}` }];
+      setMessages(errorMessages);
+      updateHistory(errorMessages);
     }
     setPendingAction(null);
   };
@@ -274,6 +316,27 @@ export default function AIAssistant() {
     const userMsg = { role: 'user', content: msg };
     const updatedWithUser = [...messages, userMsg];
     setMessages(updatedWithUser); setInput(''); setLoading(true);
+
+    if (pendingAction && isAffirmativeReply(msg)) {
+      await executeAction(pendingAction, updatedWithUser);
+      setLoading(false);
+      inputRef.current?.focus();
+      return;
+    }
+
+    if (pendingAction && isNegativeReply(msg)) {
+      const cancelledMessages = [...updatedWithUser, {
+        role: 'assistant',
+        type: 'action',
+        content: 'Εντάξει, ακύρωσα την εκτέλεση της ενέργειας.',
+      }];
+      setMessages(cancelledMessages);
+      updateHistory(cancelledMessages, msg);
+      setPendingAction(null);
+      setLoading(false);
+      inputRef.current?.focus();
+      return;
+    }
     
     const startTime = Date.now();
     try {
@@ -316,7 +379,7 @@ export default function AIAssistant() {
       setMessages(prev => [...prev, { role: 'assistant', content: `❌ Σφάλμα σύνδεσης.` }]);
     }
     setLoading(false); inputRef.current?.focus();
-  }, [input, loading, messages, currentChatId]);
+  }, [input, loading, messages, currentChatId, pendingAction]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)]">
