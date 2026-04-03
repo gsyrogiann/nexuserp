@@ -45,6 +45,7 @@ finding remains in the local audit baseline.
 * Pilot validation evidence does not yet exist
 * Commercial packaging, ICP, and pilot execution now have baseline documentation, but not yet validated market evidence
 * Strict type coverage is now available, but should remain monitored as new code lands
+* The Base44 preview/editor shell remains intermittently unstable for this app specifically and may freeze on route changes or while using the in-editor chat, even when the published app stays healthy
 
 ## Recommended Next Implementation Order
 
