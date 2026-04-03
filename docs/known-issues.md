@@ -9,6 +9,11 @@ release-hardening pass.
 
 * The persistent observability sink exists, but dashboards and alert routing are
   not yet in place.
+* The Base44 preview/editor shell can freeze or remain stuck on `Loading preview`
+  for this application specifically, even when the published app continues to
+  work normally. The Base44 in-editor chat can also become unresponsive in the
+  same state. Until this is fully resolved, the published app URL should remain
+  the source of truth for functional validation.
 
 ## Open Release Gaps
 
