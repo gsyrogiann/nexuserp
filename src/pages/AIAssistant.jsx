@@ -17,6 +17,11 @@ import ReactMarkdown from 'react-markdown';
 import { executeMutation, getErrorMessage } from '@/lib/mutationHelpers';
 import { useAuth } from '@/lib/AuthContext';
 
+const HISTORY_STORAGE_KEY = 'nexus_assistant_history';
+const MAX_HISTORY_CONVERSATIONS = 15;
+const MAX_CONVERSATION_MESSAGES = 40;
+const MAX_MESSAGE_LENGTH = 4000;
+
 // --- UTILS ---
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/);
@@ -76,6 +81,33 @@ function isNegativeReply(value) {
     'stop',
     'no',
   ].includes(normalized);
+}
+
+function normalizeStoredMessages(messages = []) {
+  return messages
+    .slice(-MAX_CONVERSATION_MESSAGES)
+    .map((message) => ({
+      role: message?.role === 'user' ? 'user' : 'assistant',
+      type: message?.type || undefined,
+      content: String(message?.content || '').slice(0, MAX_MESSAGE_LENGTH),
+    }))
+    .filter((message) => message.content.trim().length > 0);
+}
+
+function normalizeStoredConversations(conversations = []) {
+  if (!Array.isArray(conversations)) {
+    return [];
+  }
+
+  return conversations
+    .slice(0, MAX_HISTORY_CONVERSATIONS)
+    .map((conversation) => ({
+      id: String(conversation?.id || Date.now()),
+      title: String(conversation?.title || 'New Session').slice(0, 80),
+      date: String(conversation?.date || new Date().toLocaleDateString('el-GR')),
+      messages: normalizeStoredMessages(conversation?.messages || []),
+    }))
+    .filter((conversation) => conversation.messages.length > 0);
 }
 
 // --- UI COMPONENTS ---
@@ -161,16 +193,23 @@ export default function AIAssistant() {
 
   // Load history from localStorage
   useEffect(() => {
-    const savedHistory = localStorage.getItem('nexus_assistant_history');
+    const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
     if (savedHistory) {
-      try { setConversations(JSON.parse(savedHistory)); } catch (e) { console.error(e); }
+      try {
+        const normalized = normalizeStoredConversations(JSON.parse(savedHistory));
+        setConversations(normalized);
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(normalized));
+      } catch (e) {
+        console.error(e);
+        localStorage.removeItem(HISTORY_STORAGE_KEY);
+      }
     }
   }, []);
 
   // Save history to localStorage
   useEffect(() => {
     if (conversations.length > 0) {
-      localStorage.setItem('nexus_assistant_history', JSON.stringify(conversations));
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(normalizeStoredConversations(conversations)));
     }
   }, [conversations]);
 
@@ -192,7 +231,7 @@ export default function AIAssistant() {
     e.stopPropagation();
     const updated = conversations.filter(c => c.id !== id);
     setConversations(updated);
-    localStorage.setItem('nexus_assistant_history', JSON.stringify(updated));
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(normalizeStoredConversations(updated)));
     if (currentChatId === id) startNewChat();
   };
 
@@ -300,13 +339,13 @@ export default function AIAssistant() {
         id: newId,
         title: firstUserMsg?.substring(0, 30) || "New Session",
         date: new Date().toLocaleDateString('el-GR'),
-        messages: newMessages
+        messages: normalizeStoredMessages(newMessages)
       };
-      setConversations(prev => [newConv, ...prev]);
+      setConversations(prev => normalizeStoredConversations([newConv, ...prev]));
     } else {
       setConversations(prev => prev.map(c => 
-        c.id === currentChatId ? { ...c, messages: newMessages } : c
-      ));
+        c.id === currentChatId ? { ...c, messages: normalizeStoredMessages(newMessages) } : c
+      ).slice(0, MAX_HISTORY_CONVERSATIONS));
     }
   };
 

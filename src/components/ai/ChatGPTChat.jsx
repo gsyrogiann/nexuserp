@@ -10,6 +10,34 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
 
+const HISTORY_STORAGE_KEY = 'nexus_ai_history';
+const MAX_HISTORY_CONVERSATIONS = 10;
+const MAX_CONVERSATION_MESSAGES = 30;
+const MAX_MESSAGE_LENGTH = 3000;
+
+function normalizeStoredMessages(messages = []) {
+  return (Array.isArray(messages) ? messages : [])
+    .slice(-MAX_CONVERSATION_MESSAGES)
+    .map((message) => ({
+      role: message?.role === 'user' ? 'user' : 'assistant',
+      content: String(message?.content || '').slice(0, MAX_MESSAGE_LENGTH),
+      timestamp: message?.timestamp || new Date().toISOString(),
+    }))
+    .filter((message) => message.content.trim().length > 0);
+}
+
+function normalizeStoredConversations(conversations = []) {
+  return (Array.isArray(conversations) ? conversations : [])
+    .slice(0, MAX_HISTORY_CONVERSATIONS)
+    .map((conversation) => ({
+      id: String(conversation?.id || Date.now()),
+      title: String(conversation?.title || 'New Control Session').slice(0, 80),
+      date: String(conversation?.date || new Date().toLocaleDateString('el-GR')),
+      messages: normalizeStoredMessages(conversation?.messages || []),
+    }))
+    .filter((conversation) => conversation.messages.length > 0);
+}
+
 export default function ChatGPTChat() {
   // --- STATE ---
   const [conversations, setConversations] = useState([]); // Όλο το ιστορικό
@@ -26,9 +54,15 @@ export default function ChatGPTChat() {
   // --- INITIAL LOAD ---
   useEffect(() => {
     // Φόρτωση ιστορικού από το localStorage κατά την εκκίνηση
-    const savedHistory = localStorage.getItem('nexus_ai_history');
+    const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
     if (savedHistory) {
-      setConversations(JSON.parse(savedHistory));
+      try {
+        const normalized = normalizeStoredConversations(JSON.parse(savedHistory));
+        setConversations(normalized);
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(normalized));
+      } catch {
+        localStorage.removeItem(HISTORY_STORAGE_KEY);
+      }
     }
   }, []);
 
@@ -36,7 +70,7 @@ export default function ChatGPTChat() {
   useEffect(() => {
     // Αποθήκευση ιστορικού κάθε φορά που αλλάζει μια συνομιλία
     if (conversations.length > 0) {
-      localStorage.setItem('nexus_ai_history', JSON.stringify(conversations));
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(normalizeStoredConversations(conversations)));
     }
   }, [conversations]);
 
@@ -62,7 +96,7 @@ export default function ChatGPTChat() {
     e.stopPropagation();
     const updated = conversations.filter(c => c.id !== id);
     setConversations(updated);
-    localStorage.setItem('nexus_ai_history', JSON.stringify(updated));
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(normalizeStoredConversations(updated)));
     if (currentChatId === id) startNewChat();
   };
 
@@ -113,13 +147,13 @@ export default function ChatGPTChat() {
           id: newId,
           title: msg.substring(0, 30) + (msg.length > 30 ? '...' : ''),
           date: new Date().toLocaleDateString('el-GR'),
-          messages: finalMessages
+          messages: normalizeStoredMessages(finalMessages)
         };
-        setConversations(prev => [newConv, ...prev]);
+        setConversations(prev => normalizeStoredConversations([newConv, ...prev]));
       } else {
         setConversations(prev => prev.map(c => 
-          c.id === currentChatId ? { ...c, messages: finalMessages } : c
-        ));
+          c.id === currentChatId ? { ...c, messages: normalizeStoredMessages(finalMessages) } : c
+        ).slice(0, MAX_HISTORY_CONVERSATIONS));
       }
 
     } catch (error) {

@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { reportOperationalEvent } from '@/lib/observability';
+import { runtimeConfig } from '@/lib/runtime-config';
 
 const PAGE_NAMES = {
   '/Dashboard': 'Dashboard',
@@ -50,11 +51,13 @@ export function useActivityTracking() {
   const lastActivityRef = useRef(Date.now());
 
   useEffect(() => {
+    if (runtimeConfig.isBase44PreviewShell) return;
     currentTrackedUser = user || null;
   }, [user]);
 
   // Log page visit
   useEffect(() => {
+    if (runtimeConfig.isBase44PreviewShell) return;
     if (!user?.email) return;
 
     const pageName = PAGE_NAMES[location.pathname] || location.pathname;
@@ -81,6 +84,7 @@ export function useActivityTracking() {
 
   // Heartbeat every 30 seconds to track idle time
   useEffect(() => {
+    if (runtimeConfig.isBase44PreviewShell) return;
     if (!user?.email) return;
 
     const sendHeartbeat = () => {
@@ -108,6 +112,7 @@ export function useActivityTracking() {
 
 // Track button/form actions - can be called globally
 export async function trackAction(actionName, details) {
+  if (runtimeConfig.isBase44PreviewShell) return;
   if (!actionName) return;
 
   try {
