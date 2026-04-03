@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Route, Routes, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { LanguageProvider } from '@/lib/LanguageContext';
@@ -16,6 +16,7 @@ import { reportOperationalEvent } from '@/lib/observability';
 import { STARTUP_SLOW_UI_MS } from '@/lib/startup';
 import { RouteLoadingFallback, StartupStateScreen } from '@/components/startup/StartupStateScreen';
 import AIAssistant from './pages/AIAssistant';
+import { runtimeConfig } from '@/lib/runtime-config';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Customers = lazy(() => import('./pages/Customers'));
@@ -39,24 +40,30 @@ const MyEmailSettings = lazy(() => import('./pages/MyEmailSettings'));
 const LiveUsers = lazy(() => import('./pages/LiveUsers'));
 const AIInteractionsHistory = lazy(() => import('./pages/AIInteractionsHistory'));
 
-const AccessDenied = () => (
-  <div className="h-[80vh] flex flex-col items-center justify-center text-center p-6">
-    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 border border-red-100 shadow-sm">
-      <Lock className="w-10 h-10 text-red-600" />
+const AppRouter = runtimeConfig.isBase44PreviewShell ? HashRouter : BrowserRouter;
+
+const AccessDenied = () => {
+  const navigate = useNavigate();
+
+  return (
+    <div className="h-[80vh] flex flex-col items-center justify-center text-center p-6">
+      <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 border border-red-100 shadow-sm">
+        <Lock className="w-10 h-10 text-red-600" />
+      </div>
+      <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Πρόσβαση Περιορισμένη</h2>
+      <p className="text-slate-500 max-w-sm mt-2 text-sm font-medium">
+        Αυτή η ενότητα του Nexus ERP είναι διαθέσιμη μόνο σε λογαριασμούς με τα απαραίτητα δικαιώματα.
+      </p>
+      <Button
+        variant="outline"
+        className="mt-8 rounded-xl font-bold border-slate-200"
+        onClick={() => navigate('/Dashboard', { replace: true })}
+      >
+        Επιστροφή στο Dashboard
+      </Button>
     </div>
-    <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Πρόσβαση Περιορισμένη</h2>
-    <p className="text-slate-500 max-w-sm mt-2 text-sm font-medium">
-      Αυτή η ενότητα του Nexus ERP είναι διαθέσιμη μόνο σε λογαριασμούς με τα απαραίτητα δικαιώματα.
-    </p>
-    <Button
-      variant="outline"
-      className="mt-8 rounded-xl font-bold border-slate-200"
-      onClick={() => window.location.href = '/Dashboard'}
-    >
-      Επιστροφή στο Dashboard
-    </Button>
-  </div>
-);
+  );
+};
 
 const ProtectedRoute = ({ featureKey, children }) => {
   const { canAccess, loading } = usePermissions();
@@ -217,9 +224,9 @@ function App() {
         <AuthProvider>
           <QueryClientProvider client={queryClientInstance}>
             <PermissionsProvider>
-              <Router>
+              <AppRouter>
                 <AuthenticatedApp />
-              </Router>
+              </AppRouter>
               <Toaster />
             </PermissionsProvider>
           </QueryClientProvider>
