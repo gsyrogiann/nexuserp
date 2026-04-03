@@ -78,7 +78,7 @@ const getStoredEvents = () => {
 };
 
 const persistEvent = (event) => {
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' || runtimeConfig.isBase44PreviewShell) {
     return;
   }
 
@@ -219,5 +219,6 @@ export function initializeObservability() {
   reportOperationalEvent('observability_initialized', {
     endpointConfigured: Boolean(runtimeConfig.observabilityEndpoint),
     ingestUrl: runtimeConfig.observabilityIngestUrl || '',
+    previewShell: runtimeConfig.isBase44PreviewShell,
   });
 }

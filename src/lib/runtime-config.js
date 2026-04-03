@@ -11,6 +11,14 @@ const getBrowserOrigin = () => {
   return trimTrailingSlash(window.location.origin);
 };
 
+const isBase44PreviewShell = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return window.location.hostname === 'app.base44.com';
+};
+
 const getFunctionsRoot = (value = '') => {
   const trimmed = trimTrailingSlash(value);
   if (!trimmed) {
@@ -70,6 +78,7 @@ export const runtimeConfig = {
   functionsBaseUrl: getFunctionsBaseUrl(),
   appEnvironment: import.meta.env.VITE_APP_ENVIRONMENT || import.meta.env.MODE || 'development',
   appRelease: import.meta.env.VITE_APP_RELEASE || '',
+  isBase44PreviewShell: isBase44PreviewShell(),
   observabilityEndpoint: trimTrailingSlash(import.meta.env.VITE_OBSERVABILITY_ENDPOINT || buildFunctionUrl('observabilityIngest')),
   telegramWebhookUrl: buildFunctionUrl('telegramAI'),
   voipWebhookUrl: buildFunctionUrl('voipWebhook'),
