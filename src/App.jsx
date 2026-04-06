@@ -15,7 +15,7 @@ import AppErrorBoundary from '@/components/AppErrorBoundary';
 import { reportOperationalEvent } from '@/lib/observability';
 import { STARTUP_SLOW_UI_MS } from '@/lib/startup';
 import { RouteLoadingFallback, StartupStateScreen } from '@/components/startup/StartupStateScreen';
-import AIAssistant from './pages/AIAssistant';
+const AIAssistant = lazy(() => import('./pages/AIAssistant'));
 import { runtimeConfig } from '@/lib/runtime-config';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
