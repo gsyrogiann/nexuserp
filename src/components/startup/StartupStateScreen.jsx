@@ -14,7 +14,7 @@ export function StartupStateScreen({
   secondaryActionLabel = 'Σύνδεση',
 }) {
   return (
-    <div className={`${runtimeConfig.isBase44PreviewShell ? 'absolute' : 'fixed'} inset-0 flex items-center justify-center bg-slate-50 px-6 z-50`}>
+    <div className={`${runtimeConfig.isBase44PreviewShell ? 'absolute' : 'fixed'} inset-0 flex items-center justify-center bg-slate-50 px-6 ${runtimeConfig.isBase44PreviewShell ? '' : 'z-50'}`}>
       <div className="max-w-lg w-full rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl text-center">
         <div className={`w-16 h-16 rounded-2xl mx-auto mb-5 flex items-center justify-center ${showSpinner ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
           {showSpinner ? <Loader2 className="w-8 h-8 animate-spin" /> : <AlertTriangle className="w-8 h-8" />}
