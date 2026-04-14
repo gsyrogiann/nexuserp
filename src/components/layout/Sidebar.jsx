@@ -140,7 +140,7 @@ export default function Sidebar() {
                   .filter((item) => {
                     if (permLoading) return true;
                     const key = getFeatureKeyFromPath(item.path);
-                    if (!key) return true;
+                    if (!key) return false;
                     return canAccess(key);
                   })
                   .map((item) => (

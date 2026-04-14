@@ -16,22 +16,48 @@ import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { executeMutation, getErrorMessage } from '@/lib/mutationHelpers';
 import { useAuth } from '@/lib/AuthContext';
+import { toast } from 'sonner';
+import { parseCSV } from '@/lib/csv';
 
 const HISTORY_STORAGE_KEY = 'nexus_assistant_history';
+const HISTORY_PERSIST_KEY = 'nexus_assistant_history_persist';
 const MAX_HISTORY_CONVERSATIONS = 15;
 const MAX_CONVERSATION_MESSAGES = 40;
 const MAX_MESSAGE_LENGTH = 4000;
+const fallbackStorage = (() => {
+  const values = new Map();
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)),
+    removeItem: (key) => values.delete(key),
+  };
+})();
 
-// --- UTILS ---
-function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
-  return lines.slice(1).map(line => {
-    const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-    return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? '']));
-  }).filter(r => Object.values(r).some(v => v !== ''));
-}
+const getLocalStorage = () => {
+  try {
+    return window.localStorage;
+  } catch {
+    return fallbackStorage;
+  }
+};
+
+const getSessionStorage = () => {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return fallbackStorage;
+  }
+};
+
+const shouldPersistHistory = () => {
+  try {
+    return getLocalStorage().getItem(HISTORY_PERSIST_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+const getStorage = (persist = shouldPersistHistory()) => (persist ? getLocalStorage() : getSessionStorage());
 
 function mapToCustomer(row) {
   const get = (...keys) => { for (const k of keys) { const v = row[k] || row[k.replace(/_/g,' ')] || row[k.replace(/_/g,'')] || ''; if (v) return v; } return ''; };
@@ -173,6 +199,7 @@ function ImportPanel({ type, onImportDone }) {
 // --- MAIN PAGE ---
 export default function AIAssistant() {
   const { user } = useAuth();
+  const [persistHistory, setPersistHistory] = useState(() => shouldPersistHistory());
   const [conversations, setConversations] = useState([]);
   const [currentChatId, setCurrentChatId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -193,25 +220,28 @@ export default function AIAssistant() {
 
   // Load history from localStorage
   useEffect(() => {
-    const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
+    const savedHistory = getStorage(persistHistory).getItem(HISTORY_STORAGE_KEY);
     if (savedHistory) {
       try {
         const normalized = normalizeStoredConversations(JSON.parse(savedHistory));
         setConversations(normalized);
-        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(normalized));
+        getStorage(persistHistory).setItem(HISTORY_STORAGE_KEY, JSON.stringify(normalized));
       } catch (e) {
         console.error(e);
-        localStorage.removeItem(HISTORY_STORAGE_KEY);
+        getStorage(persistHistory).removeItem(HISTORY_STORAGE_KEY);
       }
     }
-  }, []);
+  }, [persistHistory]);
 
   // Save history to localStorage
   useEffect(() => {
+    const activeStorage = getStorage(persistHistory);
     if (conversations.length > 0) {
-      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(normalizeStoredConversations(conversations)));
+      activeStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(normalizeStoredConversations(conversations)));
+      return;
     }
-  }, [conversations]);
+    activeStorage.removeItem(HISTORY_STORAGE_KEY);
+  }, [conversations, persistHistory]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
 
@@ -231,8 +261,34 @@ export default function AIAssistant() {
     e.stopPropagation();
     const updated = conversations.filter(c => c.id !== id);
     setConversations(updated);
-    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(normalizeStoredConversations(updated)));
+    getStorage(persistHistory).setItem(HISTORY_STORAGE_KEY, JSON.stringify(normalizeStoredConversations(updated)));
     if (currentChatId === id) startNewChat();
+  };
+
+  const clearHistory = () => {
+    getStorage(persistHistory).removeItem(HISTORY_STORAGE_KEY);
+    setConversations([]);
+    startNewChat();
+    toast.success('Το ιστορικό διαγράφηκε');
+  };
+
+  const handlePersistHistoryChange = (checked) => {
+    setPersistHistory(checked);
+    getLocalStorage().setItem(HISTORY_PERSIST_KEY, checked ? '1' : '0');
+    const nextStorage = getStorage(checked);
+    const previousStorage = getStorage(!checked);
+    const normalized = normalizeStoredConversations(conversations);
+
+    if (normalized.length > 0) {
+      nextStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(normalized));
+    } else {
+      nextStorage.removeItem(HISTORY_STORAGE_KEY);
+    }
+
+    previousStorage.removeItem(HISTORY_STORAGE_KEY);
+    if (!checked) {
+      getLocalStorage().removeItem(HISTORY_STORAGE_KEY);
+    }
   };
 
   const normalizeAction = (action) => {
@@ -451,9 +507,22 @@ export default function AIAssistant() {
             sidebarOpen ? "w-64" : "w-0 border-none"
           )}>
             <div className="p-4 w-64 h-full flex flex-col">
-              <Button onClick={startNewChat} className="w-full bg-slate-900 hover:bg-blue-600 mb-6 text-xs gap-2">
+              <Button onClick={startNewChat} className="w-full bg-slate-900 hover:bg-blue-600 mb-4 text-xs gap-2">
                 <Plus className="w-3 h-3" /> New Session
               </Button>
+              <div className="mb-4 space-y-2">
+                <Button variant="ghost" size="sm" className="w-full justify-start text-xs" onClick={clearHistory}>
+                  <Trash2 className="w-3.5 h-3.5 mr-2" /> Καθαρισμός ιστορικού
+                </Button>
+                <label className="flex items-center gap-2 text-[11px] text-muted-foreground px-1">
+                  <input
+                    type="checkbox"
+                    checked={persistHistory}
+                    onChange={(e) => handlePersistHistoryChange(e.target.checked)}
+                  />
+                  Διατήρηση ιστορικού μεταξύ sessions
+                </label>
+              </div>
               <ScrollArea className="flex-1">
                 <div className="space-y-1 pr-3">
                   {conversations.map(conv => (

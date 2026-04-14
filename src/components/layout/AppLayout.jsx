@@ -17,6 +17,11 @@ export default function AppLayout() {
             <LanguageSwitcher />
           </div>
         </div>
+        {runtimeConfig.isLocalRuntime && (
+          <div className="fixed bottom-4 left-4 z-30 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700 shadow-lg">
+            Local Runtime
+          </div>
+        )}
         <div className="p-4 lg:p-6 pt-14 lg:pt-6">
           <Outlet />
         </div>

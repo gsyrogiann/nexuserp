@@ -7,14 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Mail, Save, Loader2, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { Mail, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function MyEmailSettings() {
   const { user } = useAuth();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [hasCredentials, setHasCredentials] = useState(false);
 
@@ -25,7 +23,7 @@ export default function MyEmailSettings() {
     }
   }, [user]);
 
-  const handleSave = async () => {
+  const handleConnect = async () => {
     if (!email) {
       toast.error('Παρακαλώ εισάγετε το email');
       return;
@@ -33,14 +31,14 @@ export default function MyEmailSettings() {
 
     setSaving(true);
     try {
-      await base44.auth.updateMe({
-        outlook_email: email,
-        outlook_password: password || undefined,
-      });
-      setHasCredentials(true);
-      toast.success('Ρυθμίσεις αποθηκεύτηκαν!');
+      const res = await base44.functions.invoke('msOAuthStart', { email });
+      const url = res?.data?.url;
+      if (!url) {
+        throw new Error('Δεν επιστράφηκε OAuth URL');
+      }
+      window.location.href = url;
     } catch (err) {
-      toast.error('Σφάλμα: ' + err.message);
+      toast.error('Σφάλμα: ' + (err?.message || 'OAuth failed'));
     } finally {
       setSaving(false);
     }
@@ -49,16 +47,12 @@ export default function MyEmailSettings() {
   const handleRemove = async () => {
     setSaving(true);
     try {
-      await base44.auth.updateMe({
-        outlook_email: null,
-        outlook_password: null,
-      });
+      await base44.functions.invoke('msOAuthDisconnect', {});
       setEmail('');
-      setPassword('');
       setHasCredentials(false);
-      toast.success('Στοιχεία διαγράφηκαν');
+      toast.success('Η σύνδεση αποσυνδέθηκε');
     } catch (err) {
-      toast.error('Σφάλμα: ' + err.message);
+      toast.error('Σφάλμα: ' + (err?.message || 'Disconnect failed'));
     } finally {
       setSaving(false);
     }
@@ -98,34 +92,14 @@ export default function MyEmailSettings() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs font-bold uppercase text-slate-500">Password ή App Password</Label>
-            <div className="relative">
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••••••"
-                className="rounded-xl pr-10"
-                disabled={saving}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            <p className="text-xs text-slate-400">
-              Για Microsoft 365, χρησιμοποιήστε <strong>App Password</strong> αντί του κανονικού password
-            </p>
+          <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 text-xs text-blue-700">
+            Η σύνδεση γίνεται μέσω Microsoft OAuth. Δεν αποθηκεύουμε password.
           </div>
 
           <div className="flex gap-3">
-            <Button onClick={handleSave} disabled={saving || !email} className="flex-1 h-11 rounded-xl font-bold">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-              Αποθήκευση
+            <Button onClick={handleConnect} disabled={saving || !email} className="flex-1 h-11 rounded-xl font-bold">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mail className="w-4 h-4 mr-2" />}
+              Σύνδεση με Microsoft
             </Button>
             {hasCredentials && (
               <Button

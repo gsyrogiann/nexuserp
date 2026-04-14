@@ -42,8 +42,11 @@ export const FEATURES = [
   { key: 'payments',         name: 'Payments',            path: '/Payments' },
   { key: 'reports',          name: 'Reports',             path: '/Reports' },
   { key: 'email_settings',   name: 'Email Settings',      path: '/EmailSettings' },
+  { key: 'my_email_settings',name: 'My Email Settings',   path: '/MyEmailSettings' },
   { key: 'unmatched_emails', name: 'Unmatched Emails',    path: '/UnmatchedEmails' },
   { key: 'ai_assistant',     name: 'AI Assistant',        path: '/AIAssistant' },
+  { key: 'live_users',       name: 'Live Users',          path: '/LiveUsers' },
+  { key: 'ai_history',       name: 'AI Interactions',     path: '/AIInteractionsHistory' },
   { key: 'settings',         name: 'Settings',            path: '/Settings' },
 ];
 
@@ -73,8 +76,11 @@ export const DEFAULT_FEATURE_ACCESS = {
   payments:          { enabled: true,  allowed_roles: ['super_admin','admin'],                     permissions_by_role: { super_admin:'edit', admin:'edit', manager:'none', employee:'none' } },
   reports:           { enabled: true,  allowed_roles: ['super_admin','admin','manager'],           permissions_by_role: { super_admin:'edit', admin:'edit', manager:'view', employee:'none' } },
   email_settings:    { enabled: true,  allowed_roles: ['super_admin','admin'],                     permissions_by_role: { super_admin:'edit', admin:'edit', manager:'none', employee:'none' } },
+  my_email_settings: { enabled: true,  allowed_roles: ['super_admin','admin','manager','employee'], permissions_by_role: { super_admin:'edit', admin:'edit', manager:'edit', employee:'edit' } },
   unmatched_emails:  { enabled: true,  allowed_roles: ['super_admin','admin'],                     permissions_by_role: { super_admin:'edit', admin:'edit', manager:'none', employee:'none' } },
   ai_assistant:      { enabled: true,  allowed_roles: ['super_admin','admin'],                     permissions_by_role: { super_admin:'edit', admin:'edit', manager:'none', employee:'none' } },
+  live_users:        { enabled: true,  allowed_roles: ['super_admin'],                             permissions_by_role: { super_admin:'edit' } },
+  ai_history:        { enabled: true,  allowed_roles: ['super_admin'],                             permissions_by_role: { super_admin:'edit' } },
   settings:          { enabled: true,  allowed_roles: ['super_admin','admin'],                     permissions_by_role: { super_admin:'edit', admin:'edit', manager:'none', employee:'none' } },
 };
 

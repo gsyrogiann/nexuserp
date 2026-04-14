@@ -40,14 +40,18 @@ async function fetchDashboardCoreData() {
 async function fetchDashboardSecondaryData() {
   reportOperationalEvent('dashboard_data_start', { phase: 'secondary' });
 
-  const [purchaseInvoices, payments, salesOrders, logs] = await Promise.all([
+  const [purchaseInvoices, payments, salesOrders] = await Promise.all([
     fetchList(base44.entities.PurchaseInvoice, { entityName: 'dashboard_purchase_invoice' }),
     fetchList(base44.entities.Payment, { entityName: 'dashboard_payment' }),
     fetchList(base44.entities.SalesOrder, { entityName: 'dashboard_sales_order' }),
-    fetchList(base44.entities.ActivityLog, { limit: 20, max: 20, entityName: 'dashboard_activity_log' }),
   ]);
 
-  return { purchaseInvoices, payments, salesOrders, logs };
+  return { purchaseInvoices, payments, salesOrders };
+}
+
+async function fetchDashboardAggregates() {
+  const res = await base44.functions.invoke('getDashboardStats', {});
+  return res?.data || {};
 }
 
 export default function Dashboard() {
@@ -81,6 +85,12 @@ export default function Dashboard() {
     queryFn: fetchDashboardSecondaryData,
     staleTime: DASHBOARD_STALE_TIME_MS,
     enabled: enableSecondaryData,
+  });
+
+  const { data: dashboardAggregates } = useQuery({
+    queryKey: ['dashboard', 'aggregates'],
+    queryFn: fetchDashboardAggregates,
+    staleTime: DASHBOARD_STALE_TIME_MS,
   });
 
   useEffect(() => {
@@ -120,7 +130,7 @@ export default function Dashboard() {
   const purchaseInvoices = secondaryData?.purchaseInvoices || [];
   const payments = secondaryData?.payments || [];
   const salesOrders = secondaryData?.salesOrders || [];
-  const logs = secondaryData?.logs || [];
+  const logs = dashboardAggregates?.recentActivity || [];
 
   // Κεντρικός υπολογισμός στατιστικών
   const stats = useMemo(() => {
@@ -133,6 +143,21 @@ export default function Dashboard() {
       salesOrders,
     });
   }, [customers, products, salesInvoices, purchaseInvoices, payments, salesOrders]);
+
+  const kpiStats = useMemo(() => {
+    if (dashboardAggregates?.stats) {
+      return dashboardAggregates.stats;
+    }
+
+    return {
+      totalCustomers: customers.length,
+      totalRevenue: salesInvoices.reduce((sum, invoice) => sum + Number(invoice.total || 0), 0),
+      totalExpenses: purchaseInvoices.reduce((sum, invoice) => sum + Number(invoice.total || 0), 0),
+      totalPayments: payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0),
+      totalOrders: salesOrders.length,
+      lowStockProducts: products.filter((product) => Number(product.stock_quantity || 0) <= Number(product.min_stock || 0)).length,
+    };
+  }, [customers.length, dashboardAggregates?.stats, payments, products, purchaseInvoices, salesInvoices, salesOrders.length]);
 
   // Χειροκίνητη κλήση του AI CFO
   const handleGetAdvice = async () => {
@@ -254,7 +279,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <KPIGrid stats={stats} />
+      <KPIGrid stats={kpiStats} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100">

@@ -17,17 +17,16 @@ export default function EmailSettings() {
     queryFn: () => base44.entities.SyncState.list(),
   });
 
-  const { data: messageCount } = useQuery({
-    queryKey: ['email-message-count'],
-    queryFn: () => base44.entities.EmailMessage.list(),
-    select: d => d.length,
+  const { data: emailStats } = useQuery({
+    queryKey: ['email-stats'],
+    queryFn: async () => {
+      const res = await base44.functions.invoke('getEmailStats', {});
+      return res?.data || {};
+    },
   });
 
-  const { data: unmatchedCount } = useQuery({
-    queryKey: ['unmatched-count'],
-    queryFn: () => base44.entities.UnmatchedEmail.filter({ review_status: 'pending' }),
-    select: d => d.length,
-  });
+  const messageCount = emailStats?.messageCount ?? null;
+  const unmatchedCount = emailStats?.unmatchedCount ?? null;
 
   const historyRecord = syncState.find(s => s.key === 'gmail_history_id');
 

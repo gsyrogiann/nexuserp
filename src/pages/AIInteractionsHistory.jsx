@@ -44,6 +44,7 @@ export default function AIInteractionsHistory() {
 
       return filtered;
     },
+    enabled: Boolean(isSuperAdmin),
   });
 
   const sourceColors = {

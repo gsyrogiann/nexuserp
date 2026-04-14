@@ -18,15 +18,33 @@ Any change pushed to the repo will also be reflected in the Base44 Builder.
 4. Create an `.env.local` file and set the client-side environment variables
 
 ```
+VITE_APP_RUNTIME=local
 VITE_BASE44_APP_ID=your_app_id
 VITE_BASE44_APP_BASE_URL=your_backend_url
 VITE_BASE44_FUNCTIONS_BASE_URL=https://your-app.base44.app/functions
 
 e.g.
+VITE_APP_RUNTIME=cloud
 VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
 VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
 VITE_BASE44_FUNCTIONS_BASE_URL=https://my-to-do-list-81bfaad7.base44.app/functions
 ```
+
+For a fully local development runtime, use:
+
+```
+VITE_APP_RUNTIME=local
+VITE_APP_ENVIRONMENT=development
+VITE_APP_RELEASE=local-runtime
+VITE_OBSERVABILITY_ENDPOINT=
+```
+
+In `local` runtime mode:
+
+* the app uses a built-in Base44-compatible local adapter
+* auth, entities, email actions, AI helper replies and sync state are stored in browser `localStorage`
+* the frontend no longer depends on the Base44 cloud backend to boot or render core flows
+* you can reset/export the local dataset from the browser console through `window.__NEXUS_LOCAL_RUNTIME__`
 
 Set Telegram secrets only in your backend/deployment environment:
 
@@ -45,6 +63,12 @@ OBSERVABILITY_ALLOWED_ORIGINS=http://localhost:5173,https://your-app.base44.app
 Do not store Telegram bot tokens in the browser or `localStorage`. Revoke any exposed token and rotate it through secure server-side environment configuration only.
 
 Run the app: `npm run dev`
+
+Useful local runtime commands:
+
+* `npm run dev:local -- --host 127.0.0.1`
+* `npm run build:local`
+* `npm run preview:local -- --host 127.0.0.1`
 
 Release verification: `npm run release:check`
 Dependency inventory export: `npm run sbom:generate`
@@ -87,6 +111,7 @@ Repository release docs:
 * `docs/known-issues.md`
 * `docs/observability-baseline.md`
 * `docs/support-process.md`
+* `docs/base44-local-migration-map.md`
 * `docs/ownership-and-commercial-review.md`
 * `docs/dependency-license-review.md`
 * `LICENSE`

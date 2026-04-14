@@ -78,6 +78,8 @@ export const runtimeConfig = {
   functionsBaseUrl: getFunctionsBaseUrl(),
   appEnvironment: import.meta.env.VITE_APP_ENVIRONMENT || import.meta.env.MODE || 'development',
   appRelease: import.meta.env.VITE_APP_RELEASE || '',
+  appRuntime: import.meta.env.VITE_APP_RUNTIME || 'cloud',
+  isLocalRuntime: String(import.meta.env.VITE_APP_RUNTIME || '').toLowerCase() === 'local',
   isBase44PreviewShell: isBase44PreviewShell(),
   observabilityEndpoint: trimTrailingSlash(import.meta.env.VITE_OBSERVABILITY_ENDPOINT || buildFunctionUrl('observabilityIngest')),
   telegramWebhookUrl: buildFunctionUrl('telegramAI'),

@@ -207,9 +207,9 @@ const AuthenticatedApp = () => {
           <Route path="/UnmatchedEmails" element={<ProtectedRoute featureKey="unmatched_emails"><LazyRoute label="unmatched emails"><UnmatchedEmails /></LazyRoute></ProtectedRoute>} />
           <Route path="/AIAssistant" element={<ProtectedRoute featureKey="ai_assistant"><LazyRoute label="AI assistant"><AIAssistant /></LazyRoute></ProtectedRoute>} />
           <Route path="/Settings" element={<ProtectedRoute featureKey="settings"><LazyRoute label="settings"><Settings /></LazyRoute></ProtectedRoute>} />
-          <Route path="/MyEmailSettings" element={<LazyRoute label="my email settings"><MyEmailSettings /></LazyRoute>} />
-          <Route path="/LiveUsers" element={<LazyRoute label="live users"><LiveUsers /></LazyRoute>} />
-          <Route path="/AIInteractionsHistory" element={<LazyRoute label="AI interactions"><AIInteractionsHistory /></LazyRoute>} />
+          <Route path="/MyEmailSettings" element={<ProtectedRoute featureKey="my_email_settings"><LazyRoute label="my email settings"><MyEmailSettings /></LazyRoute></ProtectedRoute>} />
+          <Route path="/LiveUsers" element={<ProtectedRoute featureKey="live_users"><LazyRoute label="live users"><LiveUsers /></LazyRoute></ProtectedRoute>} />
+          <Route path="/AIInteractionsHistory" element={<ProtectedRoute featureKey="ai_history"><LazyRoute label="AI interactions"><AIInteractionsHistory /></LazyRoute></ProtectedRoute>} />
         </Route>
         <Route path="*" element={<PageNotFound />} />
       </Routes>

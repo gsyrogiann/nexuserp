@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -15,45 +15,18 @@ import { cn } from '@/lib/utils';
 export default function LiveUsers() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
-  const [nowTime, setNowTime] = useState(new Date());
   const [selectedUserEmail, setSelectedUserEmail] = useState(null);
 
-  // Refresh time every second
-  useEffect(() => {
-    const interval = setInterval(() => setNowTime(new Date()), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   const isSuperAdmin = user?.role === 'super_admin' || user?.is_super_admin;
-  const { data: activities = [], isLoading: activitiesLoading } = useQuery({
-     queryKey: ['user-activities'],
+  const { data: liveUsers = [], isLoading } = useQuery({
+     queryKey: ['live-users-snapshot'],
      queryFn: async () => {
-       const all = await base44.entities.UserActivity.list('-timestamp', 1000);
-       // Filter last 24 hours and exclude heartbeats
-       const now = Date.now();
-       const dayAgo = now - 24 * 60 * 60 * 1000;
-       return all.filter(a => 
-         new Date(a.timestamp).getTime() > dayAgo && 
-         a.action !== 'heartbeat'
-       );
+       const res = await base44.functions.invoke('getLiveUsersSnapshot', {});
+       return res?.data?.users ?? [];
      },
      enabled: isSuperAdmin,
-     refetchInterval: 5000,
+     refetchInterval: 15000,
    });
-
-   const { data: allEmails = [], isLoading: emailsLoading } = useQuery({
-     queryKey: ['user-emails'],
-     queryFn: async () => {
-       const emails = await base44.entities.EmailMessage.list('-sent_at', 500);
-       const now = Date.now();
-       const dayAgo = now - 24 * 60 * 60 * 1000;
-       return emails.filter(e => new Date(e.sent_at).getTime() > dayAgo);
-     },
-     enabled: isSuperAdmin,
-     refetchInterval: 5000,
-   });
-
-   const isLoading = activitiesLoading || emailsLoading;
 
   if (!isSuperAdmin) {
     return (
@@ -63,79 +36,13 @@ export default function LiveUsers() {
     );
   }
 
-  // Group by user and get latest activity (including emails)
-  const userSessions = {};
-  activities.forEach(activity => {
-    if (!userSessions[activity.user_email]) {
-      userSessions[activity.user_email] = {
-        email: activity.user_email,
-        name: activity.user_name,
-        latestActivity: activity,
-        allActivities: [],
-      };
-    }
-    userSessions[activity.user_email].allActivities.push(activity);
-    if (new Date(activity.timestamp) > new Date(userSessions[activity.user_email].latestActivity.timestamp)) {
-      userSessions[activity.user_email].latestActivity = activity;
-    }
-  });
+  const activeUsers = liveUsers
+    .filter((session) => session.isActive)
+    .sort((a, b) => (a.idleTime?.idleMs || 0) - (b.idleTime?.idleMs || 0));
 
-  // Add emails to user activities
-  allEmails.forEach(email => {
-    const senderEmail = email.sender_email;
-    if (!userSessions[senderEmail]) {
-      userSessions[senderEmail] = {
-        email: senderEmail,
-        name: email.sender_name || senderEmail,
-        latestActivity: { ...email, action: 'email_sent', timestamp: email.sent_at },
-        allActivities: [],
-      };
-    }
-    const emailActivity = { ...email, action: 'email_sent', timestamp: email.sent_at };
-    userSessions[senderEmail].allActivities.push(emailActivity);
-    if (new Date(email.sent_at) > new Date(userSessions[senderEmail].latestActivity.timestamp)) {
-      userSessions[senderEmail].latestActivity = emailActivity;
-    }
-  });
-
-  // Calculate idle time (from last activity or email)
-  const getUserIdleTime = (userEmail) => {
-    const allUserActivities = userSessions[userEmail]?.allActivities || [];
-    // Filter out heartbeats for idle calculation
-    const userActivities = allUserActivities.filter(a => a.action !== 'heartbeat');
-    if (!userActivities.length) return null;
-
-    // Find the most recent activity (could be action or email)
-    const latest = userActivities.reduce((prev, curr) => {
-      const prevTime = new Date(prev.timestamp || prev.sent_at).getTime();
-      const currTime = new Date(curr.timestamp || curr.sent_at).getTime();
-      return currTime > prevTime ? curr : prev;
-    });
-
-    const latestTime = new Date(latest.timestamp || latest.sent_at);
-    const idleMs = nowTime.getTime() - latestTime.getTime();
-    const idleMinutes = Math.floor(idleMs / 60000);
-
-    return { idleMs, idleMinutes, latestTime };
-  };
-
-  // Get active users (activity in last 5 minutes)
-  const activeUsers = Object.values(userSessions)
-    .map(session => ({
-      ...session,
-      idleTime: getUserIdleTime(session.email),
-    }))
-    .filter(s => s.idleTime && s.idleTime.idleMinutes <= 5)
-    .sort((a, b) => a.idleTime.idleMs - b.idleTime.idleMs);
-
-  // Get idle users (activity > 5 minutes ago)
-  const idleUsers = Object.values(userSessions)
-    .map(session => ({
-      ...session,
-      idleTime: getUserIdleTime(session.email),
-    }))
-    .filter(s => s.idleTime && s.idleTime.idleMinutes > 5)
-    .sort((a, b) => b.idleTime.idleMinutes - a.idleTime.idleMinutes);
+  const idleUsers = liveUsers
+    .filter((session) => !session.isActive)
+    .sort((a, b) => (b.idleTime?.idleMinutes || 0) - (a.idleTime?.idleMinutes || 0));
 
   const filteredActive = activeUsers.filter(s =>
     s.email.toLowerCase().includes(search.toLowerCase()) ||
