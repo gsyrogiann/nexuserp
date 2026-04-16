@@ -76,10 +76,12 @@ const buildFunctionUrl = (name) => {
 export const runtimeConfig = {
   appBaseUrl: trimTrailingSlash(appParams.appBaseUrl || getBrowserOrigin()),
   functionsBaseUrl: getFunctionsBaseUrl(),
+  serverApiUrl: trimTrailingSlash(import.meta.env.VITE_SERVER_API_URL || 'http://127.0.0.1:4000/api'),
   appEnvironment: import.meta.env.VITE_APP_ENVIRONMENT || import.meta.env.MODE || 'development',
   appRelease: import.meta.env.VITE_APP_RELEASE || '',
   appRuntime: import.meta.env.VITE_APP_RUNTIME || 'cloud',
   isLocalRuntime: String(import.meta.env.VITE_APP_RUNTIME || '').toLowerCase() === 'local',
+  isServerRuntime: String(import.meta.env.VITE_APP_RUNTIME || '').toLowerCase() === 'server',
   isBase44PreviewShell: isBase44PreviewShell(),
   observabilityEndpoint: trimTrailingSlash(import.meta.env.VITE_OBSERVABILITY_ENDPOINT || buildFunctionUrl('observabilityIngest')),
   telegramWebhookUrl: buildFunctionUrl('telegramAI'),

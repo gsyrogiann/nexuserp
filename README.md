@@ -18,26 +18,42 @@ Any change pushed to the repo will also be reflected in the Base44 Builder.
 4. Create an `.env.local` file and set the client-side environment variables
 
 ```
-VITE_APP_RUNTIME=local
+VITE_APP_RUNTIME=server
+VITE_SERVER_API_URL=http://127.0.0.1:4000/api
 VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=your_backend_url
+VITE_BASE44_APP_BASE_URL=https://your_backend_url
 VITE_BASE44_FUNCTIONS_BASE_URL=https://your-app.base44.app/functions
-
-e.g.
-VITE_APP_RUNTIME=cloud
-VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
-VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
-VITE_BASE44_FUNCTIONS_BASE_URL=https://my-to-do-list-81bfaad7.base44.app/functions
 ```
 
-For a fully local development runtime, use:
+For a fully local development runtime outside Base44, use:
 
 ```
-VITE_APP_RUNTIME=local
+VITE_APP_RUNTIME=server
+VITE_SERVER_API_URL=http://127.0.0.1:4000/api
 VITE_APP_ENVIRONMENT=development
-VITE_APP_RELEASE=local-runtime
+VITE_APP_RELEASE=owned-runtime
 VITE_OBSERVABILITY_ENDPOINT=
+DATABASE_URL="file:./dev.db"
+PORT=4000
 ```
+
+In `server` runtime mode:
+
+* the React app talks to your own local Express API
+* Prisma persists the data in a local SQLite database under `prisma/dev.db`
+* auth, entities and `functions.invoke(...)` no longer depend on Base44 to boot the app
+* you can inspect the owned runtime API at `http://127.0.0.1:4000/api/health`
+
+Owned runtime commands:
+
+* `npm run db:generate`
+* `npm run db:push`
+* `npm run db:seed`
+* `npm run server:dev`
+* `npm run dev:server -- --host 127.0.0.1`
+* `npm run dev:owned -- --host 127.0.0.1`
+
+The previous browser-only adapter is still available for demos and offline prototyping.
 
 In `local` runtime mode:
 
@@ -62,13 +78,20 @@ OBSERVABILITY_ALLOWED_ORIGINS=http://localhost:5173,https://your-app.base44.app
 
 Do not store Telegram bot tokens in the browser or `localStorage`. Revoke any exposed token and rotate it through secure server-side environment configuration only.
 
-Run the app: `npm run dev`
+Run the app locally outside Base44:
+
+1. `npm install`
+2. `npm run db:generate`
+3. `npm run db:push`
+4. `npm run db:seed`
+5. `npm run dev:owned -- --host 127.0.0.1`
 
 Useful local runtime commands:
 
 * `npm run dev:local -- --host 127.0.0.1`
 * `npm run build:local`
 * `npm run preview:local -- --host 127.0.0.1`
+* `npm run build:server`
 
 Release verification: `npm run release:check`
 Dependency inventory export: `npm run sbom:generate`

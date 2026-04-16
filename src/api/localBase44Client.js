@@ -1,4 +1,4 @@
-import { DEFAULT_FEATURE_ACCESS } from '@/lib/rbac';
+import { DEFAULT_FEATURE_ACCESS } from '../lib/rbac.js';
 
 const STORAGE_KEY = 'nexuserp_local_runtime_v1';
 const isBrowser = typeof window !== 'undefined';
@@ -112,7 +112,7 @@ function createPermissionSettings() {
   }));
 }
 
-function createDefaultState() {
+export function createDefaultState() {
   const createdDate = nowIso();
   const currentUserId = 'user_local_admin';
 
@@ -547,7 +547,7 @@ function findCustomer(state, message) {
   }) || null;
 }
 
-function buildLocalAssistantResponse(state, payload) {
+export function buildLocalAssistantResponse(state, payload) {
   const messages = Array.isArray(payload?.messages) ? payload.messages : [];
   const conversation = messages.map((message) => ({
     role: message?.role === 'assistant' ? 'assistant' : 'user',
@@ -715,7 +715,7 @@ function buildEntityApi(entityName) {
   };
 }
 
-function getEmailStats(state) {
+export function getEmailStats(state) {
   const emailMessages = readEntity(state, 'EmailMessage');
   const unmatchedEmails = readEntity(state, 'UnmatchedEmail');
   return {
@@ -724,7 +724,7 @@ function getEmailStats(state) {
   };
 }
 
-function getDashboardStats(state) {
+export function getDashboardStats(state) {
   const customers = readEntity(state, 'Customer');
   const products = readEntity(state, 'Product');
   const salesInvoices = readEntity(state, 'SalesInvoice');
@@ -746,7 +746,7 @@ function getDashboardStats(state) {
   };
 }
 
-function getLiveUsersSnapshot(state) {
+export function getLiveUsersSnapshot(state) {
   const users = readEntity(state, 'User');
   const userActivities = readEntity(state, 'UserActivity');
   const emailMessages = readEntity(state, 'EmailMessage');
