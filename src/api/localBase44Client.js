@@ -481,9 +481,66 @@ function deleteEntityRecord(state, entityName, id) {
   return removed;
 }
 
+function trimTokenPunctuation(value) {
+  const source = String(value || '');
+  const punctuation = ' \t\n\r<>"\'“”‘’()[]{}.,;:!?';
+  let start = 0;
+  let end = source.length;
+
+  while (start < end && punctuation.includes(source[start])) {
+    start += 1;
+  }
+
+  while (end > start && punctuation.includes(source[end - 1])) {
+    end -= 1;
+  }
+
+  return source.slice(start, end);
+}
+
+function isSimpleEmail(candidate) {
+  const value = String(candidate || '');
+  const atIndex = value.indexOf('@');
+  if (atIndex <= 0 || atIndex !== value.lastIndexOf('@') || atIndex === value.length - 1) {
+    return false;
+  }
+
+  const local = value.slice(0, atIndex);
+  const domain = value.slice(atIndex + 1);
+  if (!local || !domain || !domain.includes('.') || domain.startsWith('.') || domain.endsWith('.')) {
+    return false;
+  }
+
+  const isAllowedChar = (char, allowUnderscore = false) => {
+    const code = char.charCodeAt(0);
+    const isLetter = (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+    const isDigit = code >= 48 && code <= 57;
+    const isCommonSymbol = '.-%+'.includes(char) || (allowUnderscore && char === '_');
+    return isLetter || isDigit || isCommonSymbol;
+  };
+
+  if ([...local].some((char) => !isAllowedChar(char, true))) {
+    return false;
+  }
+
+  if ([...domain].some((char) => !(isAllowedChar(char) || char === '-'))) {
+    return false;
+  }
+
+  const parts = domain.split('.');
+  return parts.length >= 2 && parts.every(Boolean) && parts[parts.length - 1].length >= 2;
+}
+
 function detectEmailAddress(value) {
-  const match = String(value || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  return match ? match[0] : '';
+  const tokens = String(value || '').split(/\s+/);
+  for (const token of tokens) {
+    const candidate = trimTokenPunctuation(token);
+    if (candidate.includes('@') && isSimpleEmail(candidate)) {
+      return candidate;
+    }
+  }
+
+  return '';
 }
 
 function detectTaxId(value) {
@@ -493,12 +550,30 @@ function detectTaxId(value) {
 
 function deriveEmailBody(message) {
   const normalized = String(message || '').trim();
-  const bodyMatch = normalized.match(/(?:πες|γραψε|γράψε|στείλε(?:ς)?|στειλε(?:ς)?)[^,]*?(?:ότι|πως|πως να πεις|και πες)\s+(.+)/i);
-  if (bodyMatch?.[1]) {
-    return bodyMatch[1].trim();
+  const lowercase = normalized.toLowerCase();
+  const markers = [
+    'και πες ότι ',
+    'και πες οτι ',
+    'και πες ',
+    'πως να πεις ',
+    'πώς να πεις ',
+    'ότι ',
+    'οτι ',
+    'πως ',
+    'πώς ',
+  ];
+
+  for (const marker of markers) {
+    const markerIndex = lowercase.lastIndexOf(marker);
+    if (markerIndex !== -1) {
+      const candidate = normalized.slice(markerIndex + marker.length).trim();
+      if (candidate) {
+        return candidate;
+      }
+    }
   }
 
-  if (normalized.includes('γεια')) {
+  if (lowercase.includes('γεια')) {
     return 'Γεια!';
   }
 
@@ -545,6 +620,18 @@ function findCustomer(state, message) {
       .toLowerCase();
     return haystack.includes(normalized);
   }) || null;
+}
+
+function deriveTicketTitle(message) {
+  const original = String(message || '').trim();
+  const normalized = original.toLowerCase();
+  const ticketIndex = normalized.indexOf('ticket');
+  if (ticketIndex === -1) {
+    return 'Νέο ticket';
+  }
+
+  const candidate = trimTokenPunctuation(original.slice(ticketIndex + 'ticket'.length).trim());
+  return candidate || 'Νέο ticket';
 }
 
 export function buildLocalAssistantResponse(state, payload) {
@@ -635,7 +722,7 @@ export function buildLocalAssistantResponse(state, payload) {
 
   if (normalized.includes('φτιαξε ticket') || normalized.includes('φτιάξε ticket') || normalized.includes('δημιουργησε ticket') || normalized.includes('δημιούργησε ticket')) {
     const matchedCustomer = findCustomer(state, latestUserMessage);
-    const title = latestUserMessage.replace(/.*ticket\s+/i, '').trim() || 'Νέο ticket';
+    const title = deriveTicketTitle(latestUserMessage);
     const ticketNumber = `TCK-${String(readEntity(state, 'ServiceTicket').length + 1).padStart(4, '0')}`;
 
     return {

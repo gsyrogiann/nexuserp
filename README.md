@@ -35,6 +35,7 @@ VITE_APP_RELEASE=owned-runtime
 VITE_OBSERVABILITY_ENDPOINT=
 DATABASE_URL="file:./dev.db"
 PORT=4000
+CORS_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
 ```
 
 In `server` runtime mode:
@@ -43,6 +44,7 @@ In `server` runtime mode:
 * Prisma persists the data in a local SQLite database under `prisma/dev.db`
 * auth, entities and `functions.invoke(...)` no longer depend on Base44 to boot the app
 * you can inspect the owned runtime API at `http://127.0.0.1:4000/api/health`
+* CORS is now allowlisted by `CORS_ALLOWED_ORIGINS` instead of accepting every origin
 
 Owned runtime commands:
 

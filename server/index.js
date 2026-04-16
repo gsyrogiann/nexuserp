@@ -19,9 +19,21 @@ import { prisma } from './db.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
+const allowedOrigins = new Set(
+  String(process.env.CORS_ALLOWED_ORIGINS || 'http://127.0.0.1:5173,http://localhost:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
 
 app.use(cors({
-  origin: true,
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origin ${origin} is not allowed by owned runtime CORS`));
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: '2mb' }));
